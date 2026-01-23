@@ -8,9 +8,15 @@ import DiplomacyScreen from './DiplomacyScreen';
 import NotificationPanel from './NotificationPanel';
 import CouncilManager from './CouncilManager';
 import FleetManager from './FleetManager';
+import FleetCombat from './FleetCombat';
+import GroundCombat from './GroundCombat';
 import BorderLayer from './BorderLayer';
 import ProfileScreen from './ProfileScreen';
 import ResearchTree from './ResearchTree';
+import UnitManager from './UnitManager';
+import GroundMapEditor from './GroundMapEditor';
+import Encyclopedia from './Encyclopedia';
+import MagicManager from './MagicManager';
 
 // --- 1. CONFIGURATION GLOBALE ---
 const ARCHITECT_ROLES = ['admin', 'gamemaster'];
@@ -41,6 +47,27 @@ const SHIP_STATS = {
     dreadnought: { label: "Dreadnoughts" }
 };
 
+const GROUND_UNIT_STATS = {
+    infantry: { label: "Infanterie" },
+    heavy_infantry: { label: "Infanterie Lourde" },
+    vehicle: { label: "Véhicules Blindés" },
+    turret: { label: "Tourelles Défensives" }
+};
+
+const GARRISON_MAINTENANCE_VALUES = {
+    infantry: { cr: 1, mp: 1, power: 2 },
+    heavy_infantry: { cr: 4, mp: 2, power: 5 },
+    vehicle: { cr: 15, mp: 4, power: 12 },
+    turret: { cr: 5, mp: 0, power: 8 }
+};
+
+const GARRISON_STATS = {
+    infantry: { label: "Infanterie Légère", cost: { cr: 50, mp: 10 } },
+    heavy_infantry: { label: "Infanterie Lourde", cost: { cr: 150, mp: 20 } },
+    vehicle: { label: "Véhicules Blindés", cost: { cr: 400, mp: 50 } },
+    turret: { label: "Défense Planétaire", cost: { cr: 250, mp: 5 } }
+};
+
 const toRoman = (num) => {
     const lookup = {M:1000,CM:900,D:500,CD:400,C:100,XC:90,L:50,XL:40,X:10,IX:9,V:5,IV:4,I:1};
     let roman = '', i;
@@ -62,6 +89,15 @@ const resolveBattle = (attackerFleet, defenderPlanet, defenderFleets) => {
     if (attackerFleet.commander_id) attackPower *= 1.2;
 
     let defensePower = 20; 
+    
+    // GARRISON POWER
+    if (defenderPlanet.garrison) {
+        Object.entries(defenderPlanet.garrison).forEach(([type, count]) => {
+            const stats = GARRISON_MAINTENANCE_VALUES[type] || { power: 1 };
+            defensePower += stats.power * count;
+        });
+    }
+
     defenderFleets.forEach(fleet => {
         let fleetPower = 0;
         if (fleet.composition) {
@@ -85,12 +121,25 @@ const resolveBattle = (attackerFleet, defenderPlanet, defenderFleets) => {
     const winnerLosses = {};
     const winnerRemaining = {};
 
+    // Calcul des pertes pour le vainqueur
     if (attackerWon) {
         Object.entries(attackerComposition).forEach(([type, count]) => {
             const loss = Math.ceil(count * damageRatio * (0.8 + Math.random() * 0.4));
             winnerLosses[type] = loss;
             winnerRemaining[type] = Math.max(0, count - loss);
         });
+    }
+
+    // Calcul des pertes de garnison si le défenseur gagne
+    let newGarrison = defenderPlanet.garrison || {};
+    if (!attackerWon) {
+        newGarrison = {};
+        Object.entries(defenderPlanet.garrison || {}).forEach(([type, count]) => {
+            const loss = Math.ceil(count * damageRatio * (0.8 + Math.random() * 0.4));
+            newGarrison[type] = Math.max(0, count - loss);
+        });
+    } else {
+        newGarrison = {}; // Garnison anéantie
     }
 
     let reportLog = `--- RAPPORT TACTIQUE : ${defenderPlanet.name} ---\n\n`;
@@ -102,7 +151,7 @@ const resolveBattle = (attackerFleet, defenderPlanet, defenderFleets) => {
         Object.entries(winnerLosses).forEach(([type, count]) => {
             if (count > 0) reportLog += `- ${SHIP_STATS[type]?.label || type}: -${count}\n`;
         });
-        reportLog += `\nPertes du Défenseur :\n> ANÉANTISSEMENT TOTAL des flottes en orbite.`;
+        reportLog += `\nPertes du Défenseur :\n> ANÉANTISSEMENT TOTAL des flottes et de la garnison.`;
     } else {
         reportLog += `L'attaquant a été repoussé et sa flotte entièrement détruite.\nLa planète reste sous contrôle de ${defenderPlanet.owner}.`;
     }
@@ -110,6 +159,7 @@ const resolveBattle = (attackerFleet, defenderPlanet, defenderFleets) => {
     return {
         attackerWon,
         newAttackerComposition: winnerRemaining,
+        newGarrison,
         reportLog
     };
 };
@@ -210,8 +260,117 @@ const Icons = {
     User: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
 };
 
+const GarrisonManager = ({ planet, factionData, onClose, onRecruit, onDisband }) => {
+    if (!planet) return null;
+    const garrison = planet.garrison || {};
+    
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+            <div className="bg-gray-950/95 border border-gray-700 w-full max-w-2xl shadow-[0_0_50px_rgba(255,0,0,0.1)] rounded-2xl overflow-hidden flex flex-col max-h-[85vh] ring-1 ring-white/10" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="p-6 bg-gradient-to-r from-red-950/40 via-gray-900 to-gray-900 border-b border-red-900/30 flex justify-between items-center relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(220,38,38,0.2)]">🛡️</div>
+                        <div>
+                            <h2 className="text-xl font-bold uppercase text-white tracking-widest font-sans">Commandement de Garnison</h2>
+                            <p className="text-red-400 text-xs font-mono uppercase tracking-wider">Secteur {planet.name}</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="w-8 h-8 rounded-full border border-gray-700 hover:border-red-500 hover:bg-red-900/20 text-gray-400 hover:text-red-400 flex items-center justify-center transition-all">✕</button>
+                </div>
+                
+                <div className="flex-grow p-8 overflow-y-auto custom-scrollbar bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] relative">
+                     <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
+
+                    <div className="grid grid-cols-1 gap-6 mb-8 relative z-10">
+                        <div className="flex items-center gap-2 mb-2">
+                             <div className="h-px bg-gray-700 flex-grow"></div>
+                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Forces Déployées</h3>
+                             <div className="h-px bg-gray-700 flex-grow"></div>
+                        </div>
+
+                        {Object.keys(GARRISON_STATS).map(type => {
+                            const count = garrison[type] || 0;
+                            const stats = GARRISON_STATS[type];
+                            const maint = GARRISON_MAINTENANCE_VALUES[type];
+                            return (
+                                <div key={type} className="flex items-center justify-between bg-gray-900/50 p-4 rounded-xl border border-gray-800 hover:border-gray-600 transition-colors group">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center border border-gray-800 text-2xl shadow-inner group-hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] transition-shadow">
+                                            {type === 'turret' ? '🏯' : (type === 'vehicle' ? '🚜' : '👮')}
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-gray-200 text-sm uppercase tracking-wide group-hover:text-white transition-colors">{stats.label}</div>
+                                            <div className="text-[10px] text-gray-500 flex gap-3 font-mono mt-1">
+                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></span>Puissance: {maint.power}</span>
+                                                <span className="text-red-400 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>-{maint.cr}Cr/t</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="bg-black/40 px-3 py-1 rounded border border-gray-800 font-mono text-xl text-white">{String(count).padStart(2, '0')}</div>
+                                        {count > 0 && (
+                                            <button onClick={() => onDisband(type)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-950/30 text-red-400 hover:bg-red-900 hover:text-white border border-red-900/50 hover:border-red-500 transition-all" title="Démanteler">-</button>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 relative z-10">
+                        <div className="flex items-center gap-2 mb-2">
+                             <div className="h-px bg-gray-700 flex-grow"></div>
+                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Protocoles de Recrutement</h3>
+                             <div className="h-px bg-gray-700 flex-grow"></div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            {Object.entries(GARRISON_STATS).map(([type, info]) => {
+                                const cost = info.cost;
+                                const canAfford = factionData.credits >= cost.cr && factionData.manpower >= cost.mp;
+                                
+                                return (
+                                    <button 
+                                        key={type}
+                                        onClick={() => canAfford && onRecruit(type)}
+                                        disabled={!canAfford}
+                                        className={`p-4 border rounded-xl flex flex-col gap-3 transition-all text-left relative overflow-hidden group 
+                                        ${canAfford 
+                                            ? 'bg-gray-900/80 border-gray-700 hover:border-red-500/50 hover:bg-gray-800 hover:shadow-[0_0_20px_rgba(220,38,38,0.1)]' 
+                                            : 'bg-black/60 border-gray-800/50 opacity-40 cursor-not-allowed grayscale'}`}
+                                    >
+                                        {canAfford && <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>}
+                                        
+                                        <div className="flex justify-between items-start z-10">
+                                            <span className={`font-bold text-sm uppercase tracking-wider ${canAfford ? 'text-gray-200 group-hover:text-red-400' : 'text-gray-600'}`}>{info.label}</span>
+                                            <span className="text-[9px] bg-black/80 border border-gray-800 px-1.5 py-0.5 rounded text-yellow-500 font-mono shadow-sm">{GARRISON_MAINTENANCE_VALUES[type].power} POW</span>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-4 text-xs z-10 mt-auto bg-black/20 p-2 rounded -mx-1">
+                                            <span className={`flex items-center gap-1.5 font-mono ${canAfford ? 'text-yellow-500' : 'text-red-700'}`}>{cost.cr}<Icons.Credits className="w-3 h-3"/></span>
+                                            <span className={`flex items-center gap-1.5 font-mono ${canAfford ? 'text-green-500' : 'text-red-700'}`}>{cost.mp}<Icons.Manpower className="w-3 h-3"/></span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Footer */}
+                <div className="p-3 bg-black/80 border-t border-gray-800 flex justify-between items-center text-[10px] text-gray-500 font-mono uppercase px-6">
+                    <span>État: Opérationnel</span>
+                    <span>Capacité Max: Illimitée</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- COMPOSANTS HUD ---
-const TopHud = ({ userFaction, factionData, projectedIncome, currentTurn, isAdmin, isProcessingTurn, handleNextTurn, handleLogout, onOpenProfile }) => (
+const TopHud = ({ userFaction, factionData, projectedIncome, currentTurn, isAdmin, isProcessingTurn, handleNextTurn, handleLogout, onOpenProfile, onOpenMapEditor }) => (
     <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none">
         <div className="flex items-start gap-2 pointer-events-auto">
             <NotificationPanel userID={userFaction} />
@@ -230,6 +389,11 @@ const TopHud = ({ userFaction, factionData, projectedIncome, currentTurn, isAdmi
                     <ResourceDisplay icon={<Icons.Science />} label="Données" value={factionData?.science || 0} income={projectedIncome.science} color="text-purple-400" />
                 </div>
                 <div className="w-px bg-gray-700 my-1"></div>
+                {isAdmin && (
+                    <button onClick={onOpenMapEditor} className="px-3 hover:bg-gray-800 group flex flex-col items-center justify-center transition-colors rounded" title="Éditeur de Carte">
+                        <div className="text-gray-500 group-hover:text-blue-400">🗺️</div>
+                    </button>
+                )}
                 <button onClick={onOpenProfile} className="px-3 hover:bg-gray-800 group flex flex-col items-center justify-center transition-colors rounded" title="Profil">
                     <div className="text-gray-500 group-hover:text-[#cba660]"><Icons.User /></div>
                 </button>
@@ -245,120 +409,213 @@ const ResourceDisplay = ({ icon, label, value, income, color }) => (
     <div className="flex items-center gap-2"><div className={`${color} bg-gray-900 p-1.5 rounded border border-gray-800`}>{icon}</div><div className="flex flex-col"><span className="text-[9px] text-gray-500 uppercase font-bold">{label}</span><div className="flex items-baseline gap-1"><span className="text-sm font-bold text-white font-mono">{value?.toLocaleString() ?? 0}</span><span className={`text-[10px] font-mono font-bold ${income >= 0 ? 'text-green-500' : 'text-red-500'}`}>{income >= 0 ? '+' : ''}{income}</span></div></div></div>
 );
 
-const PlanetDock = ({ selectedPlanet, isTerritoryOwned, canBuild, slots, buildingsTemplates, currentTurn, setShowBuildMenu, handleUpgrade, handleDemolish, handleCancel, showAssignMenu, setShowAssignMenu, factionMembers, handleAssignGovernor, isHighCommand }) => {
+const PlanetDock = ({ selectedPlanet, isTerritoryOwned, canBuild, slots, buildingsTemplates, currentTurn, setShowBuildMenu, handleUpgrade, handleDemolish, handleCancel, showAssignMenu, setShowAssignMenu, factionMembers, handleAssignGovernor, isHighCommand, setShowGarrisonMenu }) => {
     if (!selectedPlanet) return null;
     return (
-        <div className="h-48 bg-gradient-to-t from-gray-950 via-gray-900 to-gray-800 border-t-4 border-[#8B5A2B] shadow-[0_-5px_20px_rgba(0,0,0,0.8)] flex shrink-0 relative z-20 animate-in slide-in-from-bottom-full duration-300">
-            <div className="w-72 p-4 border-r-2 border-[#8B5A2B]/50 bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] flex flex-col justify-between shrink-0 relative overflow-hidden">
-                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#e5c07b]/50 to-transparent"></div>
-                 <div>
-                    <h2 className="text-2xl font-bold text-[#e5c07b] uppercase tracking-wider font-serif drop-shadow-md truncate">{selectedPlanet.name}</h2>
-                    <div className="flex items-center gap-2 mt-2">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-sm font-bold uppercase border ${isTerritoryOwned ? 'bg-green-900/50 text-green-400 border-green-700' : 'bg-red-900/50 text-red-400 border-red-700'}`}>{isTerritoryOwned ? "Contrôlé" : "Hostile"}</span>
-                        <span className="text-xs text-gray-400 uppercase font-bold tracking-wide">{selectedPlanet.planet_type || 'Standard'}</span>
-                    </div>
-                 </div>
-                 <div className="bg-black/40 p-3 rounded-lg border border-gray-700/50 shadow-inner relative">
-                    <div className="text-[9px] text-[#e5c07b] uppercase tracking-widest mb-1 font-bold">Gouverneur</div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold text-gray-200 truncate flex items-center gap-2">
-                            {selectedPlanet.governor_name ? (<><span className="text-lg">👤</span> {selectedPlanet.governor_name}</>) : (<><span className="text-lg opacity-50">👤</span> <span className="italic text-gray-500">Aucun</span></>)}
-                        </span>
-                        {isTerritoryOwned && isHighCommand && (
-                            <button onClick={() => setShowAssignMenu(!showAssignMenu)} className="text-[10px] bg-[#8B5A2B] hover:bg-[#a67c52] text-white px-2 py-1 rounded-sm shadow uppercase font-bold transition-colors border border-[#e5c07b]">
-                                {showAssignMenu ? "Fermer" : "Changer"}
-                            </button>
-                        )}
-                    </div>
-                 </div>
-                 {showAssignMenu && ( 
-                    <div className="absolute bottom-full left-0 w-full max-h-64 bg-gray-900 border-2 border-[#8B5A2B] p-2 overflow-y-auto z-50 rounded-t-lg shadow-2xl custom-scrollbar">
-                        {factionMembers.length > 0 ? (
-                            factionMembers.map(m => (
-                                <button key={m.id} onClick={() => handleAssignGovernor(m)} className="w-full text-left p-2 hover:bg-gray-800 text-sm text-gray-300 border-b border-gray-800 flex items-center justify-between gap-2 transition-colors group">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-lg">👤</span> 
-                                        <span className="font-bold group-hover:text-[#e5c07b] transition-colors">{m.pseudo}</span>
-                                    </div>
-                                    <span className="text-[9px] uppercase bg-black px-1 rounded text-gray-500">{m.faction_id || 'Neutre'}</span>
+        <div className="h-64 fixed bottom-0 left-0 w-full flex z-40 animate-in slide-in-from-bottom-20 duration-500">
+            {/* Main Dock Container */}
+            <div className="bg-black/95 backdrop-blur-xl border-t border-gray-700 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex overflow-hidden relative w-full">
+                 {/* Decorative Line */}
+                 <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#e5c07b] to-transparent opacity-50"></div>
+                 
+                 {/* Left Panel: Planetary Data */}
+                 <div className="w-64 p-5 border-r border-gray-800 bg-gray-900/50 flex flex-col justify-between shrink-0 relative">
+                     <div>
+                        <div className="text-[10px] text-gray-500 font-mono mb-1 uppercase tracking-widest">Système</div>
+                        <h2 className="text-2xl font-bold text-white uppercase tracking-wider font-sans truncate drop-shadow-lg">{selectedPlanet.name}</h2>
+                        
+                        <div className="flex gap-2 mt-3">
+                            <div className={`text-[9px] px-2 py-1 rounded bg-gray-800 border ${isTerritoryOwned ? 'border-green-600 text-green-400' : 'border-red-600 text-red-400'} uppercase font-bold tracking-wider`}>
+                                {isTerritoryOwned ? "CONTRÔLÉ" : "HOSTILE"}
+                            </div>
+                            <div className="text-[9px] px-2 py-1 rounded bg-gray-800 border border-blue-600 text-blue-400 uppercase font-bold tracking-wider">
+                                {selectedPlanet.planet_type || 'Standard'}
+                            </div>
+                        </div>
+                     </div>
+                     
+                     {/* Governor Card */}
+                     <div className="mt-4 bg-black/40 p-3 rounded border border-gray-700 relative group">
+                        <div className="text-[9px] text-[#cba660] uppercase tracking-widest mb-2 font-bold flex justify-between">
+                            <span>Gouverneur</span>
+                            {isTerritoryOwned && isHighCommand && (
+                                <button onClick={() => setShowAssignMenu(!showAssignMenu)} className="hover:text-white transition-colors cursor-pointer">⚙️</button>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center text-lg overflow-hidden">
+                                {selectedPlanet.governor_name ? '👤' : '?'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-sm font-bold text-gray-200 truncate">{selectedPlanet.governor_name || <span className="text-gray-600 italic">Poste Vacant</span>}</div>
+                                <div className="text-[9px] text-gray-500">Administration Civile</div>
+                            </div>
+                        </div>
+                     </div>
+
+                     {/* Actions */}
+                     {isTerritoryOwned && (
+                         <div className="grid grid-cols-2 gap-2 mt-2">
+                             <button onClick={() => setShowGarrisonMenu(true)} className="bg-gradient-to-br from-red-900 to-red-950 hover:from-red-800 hover:to-red-900 border border-red-500/50 hover:border-red-400 text-white text-[10px] py-2 uppercase font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(220,38,38,0.2)] hover:shadow-[0_0_15px_rgba(220,38,38,0.4)] relative overflow-hidden group">
+                                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+                                 <span className="relative z-10 text-lg">🛡️</span> 
+                                 <span className="relative z-10 tracking-wider">Garnison</span>
+                             </button>
+                             <button className="bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 border border-gray-600 hover:border-gray-400 text-gray-200 hover:text-white text-[10px] py-2 uppercase font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg">
+                                 <span className="text-lg">📊</span>
+                                 <span className="tracking-wider">Détails</span>
+                             </button>
+                         </div>
+                     )}
+
+                     {showAssignMenu && ( 
+                        <div className="absolute bottom-full left-0 w-64 bg-gray-900 border border-gray-700 p-2 overflow-y-auto max-h-60 rounded-t-lg shadow-2xl custom-scrollbar z-50 mb-[-1px]">
+                            <div className="text-[10px] text-gray-500 uppercase font-bold p-2 border-b border-gray-800 mb-1">Candidats Disponibles</div>
+                            {factionMembers.map(m => (
+                                <button key={m.id} onClick={() => handleAssignGovernor(m)} className="w-full text-left p-2 hover:bg-blue-900/20 text-xs text-gray-300 flex items-center gap-2 rounded transition-colors">
+                                    <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-[10px]">👤</div>
+                                    <span className="font-bold truncate">{m.pseudo}</span>
                                 </button>
-                            ))
-                        ) : (
-                            <div className="text-gray-500 text-xs text-center italic p-2">Aucun officier disponible.</div>
-                        )}
-                    </div> 
-                 )}
-            </div>
-            <div className="flex-grow p-4 overflow-x-auto flex items-center gap-4 bg-black/60 relative backdrop-blur-sm custom-scrollbar">
-                {isTerritoryOwned ? ( slots.map((building, index) => { 
-                    const isFinished = building && currentTurn >= building.finish_turn; 
-                    const template = buildingsTemplates.find(t => t.id === building?.template_id); 
-                    const hasUpgrade = template && template.upgrades && template.upgrades.find(u => u.level === (building.level || 1) + 1); 
-                    return ( 
-                        <div key={index} className="flex flex-col items-center gap-2 group relative shrink-0">
-                            <div className={`w-28 h-28 border-2 flex flex-col justify-between p-2 relative shadow-lg transition-all rounded-lg overflow-hidden ${building ? (isFinished ? 'bg-gray-800 border-[#8B5A2B]' : 'bg-gray-900 border-yellow-600/50 border-dashed') : (canBuild ? 'bg-black/30 border-gray-700 hover:border-[#e5c07b] hover:bg-gray-800/50 cursor-pointer items-center justify-center' : 'bg-black/50 border-gray-800 opacity-50 items-center justify-center')}`} onClick={() => !building && canBuild && setShowBuildMenu(true)}>
-                                <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
-                                {building ? (
-                                    <>
-                                        <div className="text-center w-full relative z-10">
-                                            <div className="text-[10px] font-bold text-gray-200 leading-tight truncate uppercase tracking-wide">{building.name}</div>
-                                            <div className="flex justify-center items-center gap-1">
-                                                <span className="text-[9px] text-[#e5c07b] font-serif bg-black/50 px-1 rounded border border-[#e5c07b]/30">Nv.{building.level || 1}</span>
-                                                {!isFinished && <div className="text-[9px] font-mono text-yellow-500 bg-black/60 px-2 py-0.5 rounded-full border border-yellow-500/30">⏳ {building.finish_turn - currentTurn}</div>}
+                            ))}
+                        </div> 
+                     )}
+                 </div>
+
+                 {/* Building Slots Scroll Area */}
+                 <div className="flex-grow p-6 overflow-x-auto flex items-center gap-4 relative custom-scrollbar">
+                    {/* Background Grid Effect */}
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none"></div>
+                    
+                    {isTerritoryOwned ? ( slots.map((building, index) => { 
+                        const isFinished = building && currentTurn >= building.finish_turn; 
+                        const template = buildingsTemplates.find(t => t.id === building?.template_id); 
+                        const hasUpgrade = template && template.upgrades && template.upgrades.find(u => u.level === (building.level || 1) + 1); 
+                        
+                        return ( 
+                            <div key={index} className="flex flex-col gap-2 group relative shrink-0 w-32">
+                                <div className="text-[9px] text-gray-600 font-mono uppercase tracking-widest text-center">Slot 0{index + 1}</div>
+                                <div 
+                                    className={`h-36 border flex flex-col justify-between p-3 relative shadow-lg transition-all rounded-xl overflow-hidden cursor-pointer
+                                    ${building 
+                                        ? (isFinished ? 'bg-gray-900 border-gray-600' : 'bg-gray-900 border-yellow-600/50 border-dashed') 
+                                        : (canBuild ? 'bg-black/40 border-gray-800 hover:border-[#cba660] hover:bg-gray-900 hover:shadow-[0_0_15px_rgba(203,166,96,0.2)]' : 'bg-black/20 border-gray-800 opacity-50 cursor-not-allowed')}`} 
+                                    onClick={() => !building && canBuild && setShowBuildMenu(true)}
+                                >
+                                    {building ? (
+                                        <>
+                                            <div className="relative z-10 flex flex-col h-full"> 
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-xl">{isFinished ? '🏭' : '🏗️'}</span>
+                                                    <span className="text-[9px] font-bold bg-black px-1.5 rounded text-gray-400 border border-gray-800">Nv.{building.level}</span>
+                                                </div>
+                                                
+                                                <div className="font-bold text-xs text-gray-200 leading-tight uppercase mb-auto">{building.name}</div>
+                                                
+                                                {!isFinished && (
+                                                    <div className="mt-2 text-[9px] text-yellow-500 bg-yellow-900/20 border border-yellow-900/50 rounded px-2 py-1 flex items-center justify-center gap-1">
+                                                        <span className="animate-spin-slow">⏳</span> {building.finish_turn - currentTurn} trs
+                                                    </div>
+                                                )}
+
+                                                {isFinished && building.production && (
+                                                     <div className="mt-1 flex flex-wrap gap-1">
+                                                         {Object.entries(building.production).map(([k,v]) => v > 0 && (
+                                                             <span key={k} className={`text-[8px] px-1 rounded flex items-center gap-0.5 border bg-black/50 ${k==='credits'?'text-yellow-400 border-yellow-900':k==='science'?'text-purple-400 border-purple-900':'text-blue-400 border-blue-900'}`}>
+                                                                 +{v} {k.substr(0,1).toUpperCase()}
+                                                             </span>
+                                                         ))}
+                                                     </div>
+                                                )}
                                             </div>
-                                            {isFinished && building.production && (
-                                                <div className="flex justify-center gap-1 mt-1 border-t border-gray-700/50 pt-1">
-                                                    {building.production.credits > 0 && <span className="text-[9px] text-green-400 flex items-center gap-0.5">+{building.production.credits}<Icons.Credits/></span>}
-                                                    {building.production.materials > 0 && <span className="text-[9px] text-blue-400 flex items-center gap-0.5">+{building.production.materials}<Icons.Materials/></span>}
-                                                    {building.production.manpower > 0 && <span className="text-[9px] text-green-600 flex items-center gap-0.5">+{building.production.manpower}<Icons.Manpower/></span>}
-                                                    {building.production.science > 0 && <span className="text-[9px] text-purple-400 flex items-center gap-0.5">+{building.production.science}<Icons.Science/></span>}
+
+                                            {/* Actions Overlay */}
+                                            {canBuild && (
+                                                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 z-20">
+                                                    {isFinished && hasUpgrade && (
+                                                        <button onClick={(e) => { e.stopPropagation(); handleUpgrade(building); }} className="w-8 h-8 rounded-full bg-green-900 text-green-400 border border-green-600 flex items-center justify-center hover:scale-110 transition-transform" title="Améliorer"><Icons.Upgrade/></button>
+                                                    )}
+                                                    <button onClick={(e) => { e.stopPropagation(); isFinished ? handleDemolish(building) : handleCancel(building); }} className={`w-8 h-8 rounded-full border flex items-center justify-center hover:scale-110 transition-transform ${isFinished ? 'bg-red-900 text-red-400 border-red-600' : 'bg-orange-900 text-orange-400 border-orange-600'}`} title={isFinished ? "Démolir" : "Annuler"}>
+                                                        {isFinished ? '🗑️' : '✕'}
+                                                    </button>
                                                 </div>
                                             )}
-                                        </div>
-                                        {canBuild && (<div className="absolute -top-2 -right-2 flex gap-1 z-20 opacity-0 group-hover:opacity-100 transition-opacity">{isFinished && hasUpgrade && (<button onClick={(e) => { e.stopPropagation(); handleUpgrade(building); }} className="text-white w-6 h-6 rounded-full flex items-center justify-center text-xs border border-green-500 bg-green-900 hover:bg-green-700 shadow-md transition-all hover:scale-110" title="Améliorer"><Icons.Upgrade /></button>)}<button onClick={(e) => { e.stopPropagation(); isFinished ? handleDemolish(building) : handleCancel(building); }} className={`text-white w-6 h-6 rounded-full flex items-center justify-center text-xs border shadow-md transition-all hover:scale-110 ${isFinished ? 'bg-gray-700 border-gray-500 hover:bg-red-600 hover:border-red-400' : 'bg-red-900 border-red-500 hover:bg-red-700'}`} title={isFinished ? "Démolir" : "Annuler"}>{isFinished ? '🗑️' : '✕'}</button></div>)}
-                                    </>
-                                ) : (
-                                    canBuild ? <span className="text-5xl text-gray-600 group-hover:text-[#e5c07b] transition-colors pb-2">+</span> : <span className="text-3xl text-gray-700">🔒</span>
-                                )}
+                                        </>
+                                    ) : (
+                                        canBuild ? (
+                                            <div className="flex flex-col items-center justify-center h-full gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                                                <span className="text-3xl text-[#cba660] font-thin">+</span>
+                                                <span className="text-[9px] uppercase tracking-widest text-[#cba660]">Construire</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-center h-full"><span className="text-2xl text-gray-700">🔒</span></div>
+                                        )
+                                    )}
+                                </div>
+                            </div> 
+                        ); 
+                    }) ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <div className="p-6 border border-red-900/30 bg-red-950/20 rounded-lg flex items-center gap-4">
+                                <span className="text-4xl opacity-50">⛔</span>
+                                <div className="text-red-300">
+                                    <h3 className="font-bold uppercase tracking-widest text-sm">Accès Refusé</h3>
+                                    <p className="text-xs text-red-400/70">Territoire hostile ou contesté.</p>
+                                </div>
                             </div>
-                            <div className="text-[10px] text-[#e5c07b] font-serif font-bold bg-black/50 px-3 py-0.5 rounded-full border border-[#8B5A2B]/50 uppercase tracking-widest shadow-sm">{toRoman(index + 1)}</div>
-                        </div> 
-                    ); 
-                }) ) : (<div className="w-full flex items-center justify-center text-gray-400 italic gap-4 h-full border-2 border-red-900/30 bg-red-950/20 rounded-lg p-6"><span className="text-5xl opacity-50">⛔</span><span className="text-lg font-bold">Accès aux infrastructures restreint.</span></div>)}
+                        </div>
+                    )}
+                 </div>
             </div>
-            <div className="w-16 bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] border-l-2 border-[#8B5A2B]/50 shrink-0 relative"><div className="absolute top-0 right-0 w-full h-1 bg-gradient-to-l from-transparent via-[#e5c07b]/50 to-transparent"></div></div>
         </div>
     );
 };
 
 const BuildMenuOverlay = ({ buildingsTemplates, factionData, selectedPlanet, handleConstruct, onClose, userFaction }) => (
-    <div className="fixed inset-x-0 bottom-48 top-0 z-[90] flex flex-col justify-end bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
-        <div className="bg-gray-950 border-t-4 border-[#8B5A2B] w-full h-full flex flex-col shadow-[0_-10px_50px_rgba(0,0,0,0.8)] relative animate-in slide-in-from-bottom-10 duration-500">
-            <div className="flex justify-between items-center px-8 py-4 border-b border-[#8B5A2B]/50 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shrink-0">
-                <div className="flex items-center gap-4">
-                    <span className="text-4xl text-[#e5c07b]">🏗️</span>
+    <div className="fixed inset-x-0 bottom-60 top-0 z-[90] flex flex-col justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 pointer-events-none">
+        <div className="bg-gray-950/95 border-t border-gray-700 w-full h-full flex flex-col shadow-[0_-10px_50px_rgba(0,0,0,0.8)] relative animate-in slide-in-from-bottom-10 duration-500 pointer-events-auto overflow-hidden">
+            {/* Holographic Top Line */}
+            <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#cba660] to-transparent shadow-[0_0_15px_rgba(203,166,96,0.6)] z-20"></div>
+
+            <div className="flex justify-between items-center px-10 py-5 border-b border-gray-800 bg-black/40 shrink-0 relative z-10 backdrop-blur-md">
+                <div className="flex items-center gap-6">
+                     <div className="w-14 h-14 rounded-xl bg-[#cba660]/10 border border-[#cba660]/30 flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(203,166,96,0.1)]">
+                        🏗️
+                     </div>
                     <div>
-                        <h4 className="text-[#e5c07b] font-serif font-bold uppercase tracking-[0.15em] text-3xl drop-shadow-md">Arbre de Construction</h4>
-                        <p className="text-gray-400 text-xs uppercase tracking-widest">Planifiez le développement de votre province</p>
+                        <h4 className="text-white font-sans font-bold uppercase tracking-[0.2em] text-3xl flex items-center gap-3">
+                            Arbre de Construction
+                            <span className="text-xs bg-[#cba660] text-black px-2 py-0.5 rounded font-bold tracking-widest">INITIATIVE</span>
+                        </h4>
+                        <p className="text-gray-500 text-xs uppercase tracking-widest font-mono mt-1">Secteur: {selectedPlanet.name} // <span className="text-[#cba660]">Développement Infrastructurel</span></p>
                     </div>
                 </div>
-                <button onClick={onClose} className="text-gray-400 hover:text-white border border-gray-600 px-6 py-2 hover:bg-red-900/50 transition text-sm uppercase font-bold tracking-widest">Fermer [X]</button>
+                <button onClick={onClose} className="group flex items-center gap-2 text-gray-400 hover:text-white border border-gray-700 px-6 py-3 rounded hover:bg-red-950/30 hover:border-red-500/50 transition-all text-xs uppercase font-bold tracking-widest">
+                    <span>Fermer le protocole</span>
+                    <span className="group-hover:text-red-500 transition-colors">[X]</span>
+                </button>
             </div>
-            <div className="flex-grow overflow-y-auto p-8 bg-[url('https://www.transparenttextures.com/patterns/dark-leather.png')] custom-scrollbar space-y-12">
+
+            <div className="flex-grow overflow-y-auto p-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] custom-scrollbar space-y-16 relative">
+                 <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-gray-900/50 pointer-events-none"></div>
+                
                 {BUILDING_CATEGORIES.map(category => {
                     const categoryBuildings = buildingsTemplates.filter(b => (b.category || 'economic') === category.id);
                     if (categoryBuildings.length === 0) return null;
                     return (
-                        <div key={category.id} className="relative">
-                            <div className={`flex items-center gap-3 mb-4 pb-2 border-b border-gray-700 ${category.color}`}>
-                                <span className="text-2xl">{category.icon}</span>
-                                <h3 className="text-xl font-bold uppercase tracking-widest">{category.label}</h3>
+                        <div key={category.id} className="relative z-10">
+                            <div className="flex items-center gap-4 mb-6 pb-2 border-b border-gray-800">
+                                <div className={`p-2 rounded bg-gray-900/50 border border-gray-700 ${category.color} shadow-lg`}>
+                                     <span className="text-xl">{category.icon}</span>
+                                </div>
+                                <h3 className="text-2xl font-bold uppercase tracking-[0.15em] text-gray-200 font-sans">{category.label}</h3>
+                                <div className="flex-grow h-px bg-gray-800/50"></div>
                             </div>
-                            <div className={`flex gap-8 overflow-x-auto pb-6 p-4 rounded-lg border ${category.border} ${category.bg} custom-scrollbar`}>
+
+                            <div className="flex gap-8 overflow-x-auto pb-8 pt-2 pl-2 custom-scrollbar">
                                 {categoryBuildings.map(template => {
                                     const levels = [template, ...(template.upgrades || [])];
                                     return (
-                                        <div key={template.id} className="flex flex-col-reverse justify-start items-center gap-2 min-w-[200px] pt-4">
+                                        <div key={template.id} className="flex flex-col items-center gap-4 min-w-[240px]">
                                             {levels.map((levelData, idx) => {
                                                 const isBase = idx === 0;
                                                 const costCr = levelData.cost || 0;
@@ -367,33 +624,77 @@ const BuildMenuOverlay = ({ buildingsTemplates, factionData, selectedPlanet, han
                                                 const canAfford = isBase && factionData.credits >= costCr && factionData.materials >= costMat;
                                                 const isTypeAllowed = (!template.allowed_types || template.allowed_types.includes('any') || template.allowed_types.includes(selectedPlanet.planet_type));
                                                 const isFactionAllowed = (!template.allowed_factions || template.allowed_factions.length === 0 || template.allowed_factions.includes(userFaction));
+                                                
                                                 return (
-                                                    <div key={idx} className="flex flex-col items-center relative group/card">
-                                                        {idx > 0 && <div className="mb-2 text-gray-600"><Icons.ArrowUp /></div>}
-                                                        <button onClick={() => isBase && handleConstruct(template)} disabled={!isBase || !canAfford || !isTypeAllowed || !isFactionAllowed} className={`relative w-52 h-64 flex flex-col border-2 transition-all duration-200 overflow-hidden bg-gray-900 shadow-xl ${isBase ? (canAfford && isTypeAllowed && isFactionAllowed ? 'border-gray-500 hover:border-[#e5c07b] hover:scale-105' : 'border-red-900/40 opacity-60 grayscale cursor-not-allowed') : 'border-gray-700/50 opacity-80 cursor-default'}`}>
-                                                            <div className="h-28 w-full bg-gray-800 relative border-b border-gray-700/50 flex items-center justify-center shrink-0">
-                                                                <span className={`text-4xl ${isBase ? 'text-gray-400 group-hover/card:text-[#e5c07b]' : 'text-blue-900'}`}><Icons.Construction /></span>
-                                                                <div className="absolute top-0 left-0 bg-[#8B5A2B] text-white font-serif font-bold text-[10px] px-1.5 py-0.5 border-br shadow z-20">{tier}</div>
-                                                                {!isBase && <div className="absolute top-0 right-0 bg-blue-900/50 text-blue-200 text-[9px] px-1 uppercase z-20">Amélioration</div>}
-                                                            </div>
-                                                            <div className="flex-1 w-full p-3 bg-black/90 flex flex-col justify-between text-left relative overflow-hidden">
-                                                                <div className="text-xs font-bold text-[#e5c07b] uppercase leading-tight mb-2 relative z-10">{levelData.name}</div>
-                                                                <div className="flex flex-col gap-1">
-                                                                    <div className="flex justify-between items-end text-[9px] text-gray-400 pb-1 border-b border-gray-800">
-                                                                        <span className="flex gap-1 items-center text-yellow-600 font-bold">{costCr} <Icons.Credits/></span>
-                                                                        <span className="flex gap-1 items-center text-blue-500">{costMat} <Icons.Materials/></span>
-                                                                        {isBase ? (<span className={`uppercase ml-1 ${!isTypeAllowed ? 'text-red-500' : (!isFactionAllowed ? 'text-red-500' : 'text-gray-500')}`}>{!isTypeAllowed ? "Zone Invalide" : (!isFactionAllowed ? "Restreint" : "Construire")}</span>) : (<span className="text-white ml-1">{levelData.turns_required} trs</span>)}
-                                                                    </div>
-                                                                    {(levelData.production?.credits > 0 || levelData.production?.materials > 0 || levelData.production?.manpower > 0 || levelData.production?.science > 0) && (
-                                                                        <div className="flex flex-wrap gap-2 pt-1">
-                                                                            <span className="text-[9px] text-gray-500 uppercase w-full">Production:</span>
-                                                                            {levelData.production.credits > 0 && <span className="text-green-400 text-[9px] flex items-center gap-0.5">+{levelData.production.credits}<Icons.Credits/></span>}
-                                                                            {levelData.production.materials > 0 && <span className="text-blue-400 text-[9px] flex items-center gap-0.5">+{levelData.production.materials}<Icons.Materials/></span>}
-                                                                            {levelData.production.manpower > 0 && <span className="text-green-600 text-[9px] flex items-center gap-0.5">+{levelData.production.manpower}<Icons.Manpower/></span>}
-                                                                            {levelData.production.science > 0 && <span className="text-purple-400 text-[9px] flex items-center gap-0.5">+{levelData.production.science}<Icons.Science/></span>}
-                                                                        </div>
-                                                                    )}
+                                                    <div key={idx} className="flex flex-col items-center relative w-full">
+                                                        {idx > 0 && <div className="h-4 w-0.5 bg-gray-700/50 mb-2"></div>}
+                                                        
+                                                        <button 
+                                                            onClick={() => isBase && handleConstruct(template)} 
+                                                            disabled={!isBase || !canAfford || !isTypeAllowed || !isFactionAllowed} 
+                                                            className={`relative w-full group overflow-hidden transition-all duration-300 border
+                                                                ${isBase 
+                                                                    ? (canAfford && isTypeAllowed && isFactionAllowed 
+                                                                        ? 'bg-gray-900/80 border-gray-600 hover:border-[#cba660] hover:shadow-[0_0_25px_rgba(203,166,96,0.15)] hover:-translate-y-1' 
+                                                                        : 'bg-black/60 border-red-900/30 grayscale opacity-60 cursor-not-allowed hover:border-red-800') 
+                                                                    : 'bg-black/40 border-gray-800 border-dashed cursor-default opacity-70'}
+                                                                rounded-xl`}
+                                                        >
+                                                            {/* Card Header (Image/Icon) */}
+                                                            <div className={`h-24 w-full relative flex items-center justify-center border-b border-gray-800 ${isBase ? 'bg-gray-800/50' : 'bg-black/20'}`}>
+                                                                
+                                                                {/* TIER Badge */}
+                                                                <div className="absolute top-2 left-2 flex flex-col gap-1 z-20">
+                                                                     <div className="bg-black/80 text-[#cba660] text-[9px] font-bold px-1.5 py-0.5 border border-[#cba660]/30 rounded shadow-sm backdrop-blur-sm">TIER {tier}</div>
                                                                 </div>
+
+                                                                {!isBase && <div className="absolute top-2 right-2 bg-blue-900/40 text-blue-200 text-[8px] px-1.5 py-0.5 rounded border border-blue-500/30 uppercase tracking-widest z-20">Upgrade</div>}
+                                                                
+                                                                <span className={`text-4xl transition-transform duration-500 group-hover:scale-110 ${isBase ? 'text-gray-400 group-hover:text-[#cba660]' : 'text-gray-600'}`}>
+                                                                    <Icons.Construction />
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Card Content */}
+                                                            <div className="p-4 text-left">
+                                                                <div className="text-sm font-bold text-gray-100 uppercase leading-none mb-3 group-hover:text-[#cba660] transition-colors truncate">{levelData.name}</div>
+                                                                
+                                                                {/* Production Stats */}
+                                                                {(levelData.production?.credits > 0 || levelData.production?.materials > 0 || levelData.production?.manpower > 0 || levelData.production?.science > 0) ? (
+                                                                    <div className="grid grid-cols-2 gap-2 mb-3">
+                                                                        {levelData.production.credits > 0 && <span className="text-[10px] bg-black/40 px-1 py-0.5 rounded text-green-400 flex items-center gap-1 border border-gray-800">+{levelData.production.credits} <Icons.Credits className="w-2.5 h-2.5"/></span>}
+                                                                        {levelData.production.materials > 0 && <span className="text-[10px] bg-black/40 px-1 py-0.5 rounded text-blue-400 flex items-center gap-1 border border-gray-800">+{levelData.production.materials} <Icons.Materials className="w-2.5 h-2.5"/></span>}
+                                                                        {levelData.production.manpower > 0 && <span className="text-[10px] bg-black/40 px-1 py-0.5 rounded text-green-600 flex items-center gap-1 border border-gray-800">+{levelData.production.manpower} <Icons.Manpower className="w-2.5 h-2.5"/></span>}
+                                                                        {levelData.production.science > 0 && <span className="text-[10px] bg-black/40 px-1 py-0.5 rounded text-purple-400 flex items-center gap-1 border border-gray-800">+{levelData.production.science} <Icons.Science className="w-2.5 h-2.5"/></span>}
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="h-6 mb-3"></div> 
+                                                                )}
+
+                                                                {/* Footer: Cost & Time */}
+                                                                <div className="flex justify-between items-center pt-3 border-t border-gray-800/50">
+                                                                    {isBase ? (
+                                                                         <div className="flex flex-col gap-0.5">
+                                                                             {costCr > 0 && <span className={`text-[10px] font-mono flex items-center gap-1 ${canAfford ? 'text-yellow-600' : 'text-red-500'}`}>{costCr} <Icons.Credits className="w-2.5 h-2.5"/></span>}
+                                                                             {costMat > 0 && <span className={`text-[10px] font-mono flex items-center gap-1 ${factionData.materials >= costMat ? 'text-orange-500' : 'text-red-500'}`}>{costMat} <Icons.Materials className="w-2.5 h-2.5"/></span>}
+                                                                         </div>
+                                                                    ) : (
+                                                                        <span className="text-[10px] text-gray-500 font-mono">Requis: T{idx}</span>
+                                                                    )} 
+                                                                    
+                                                                    <div className="text-[10px] text-blue-400 font-mono flex items-center gap-1">
+                                                                        ⏱️ {levelData.turns_required || 2}t
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Status Overlay for Invalid */}
+                                                                {isBase && (!isTypeAllowed || !isFactionAllowed) && (
+                                                                    <div className="absolute inset-0 bg-black/80 backdrop-blur-[1px] flex items-center justify-center z-30">
+                                                                        <span className="text-red-500 text-xs font-bold uppercase border border-red-500/50 px-2 py-1 rounded bg-red-950/50">
+                                                                            {!isTypeAllowed ? "Climat Incompatible" : "Faction Non Autorisée"}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </button>
                                                     </div>
@@ -411,10 +712,158 @@ const BuildMenuOverlay = ({ buildingsTemplates, factionData, selectedPlanet, han
     </div>
 );
 
+const BattleSimulator = ({ onClose, onStart, customUnits = [] }) => {
+    const [mode, setMode] = useState('space');
+    const customSpaceUnits = customUnits.filter(u => u.category === 'space');
+    const customGroundUnits = customUnits.filter(u => u.category === 'ground'); // 'space' | 'ground'
+    
+    // Space Stats
+    const [attackerComp, setAttackerComp] = useState({ fighter: 5, corvette: 2, frigate: 1, cruiser: 0, dreadnought: 0 });
+    const [defenderComp, setDefenderComp] = useState({ fighter: 3, corvette: 1, frigate: 0, cruiser: 0, dreadnought: 0 });
+    const [defenderSpaceGarrison, setDefenderSpaceGarrison] = useState({ turret: 2 });
+    
+    // Ground Stats
+    const [attackerArmy, setAttackerArmy] = useState({ infantry: 20, heavy_infantry: 5, vehicle: 2 });
+    const [defenderArmy, setDefenderArmy] = useState({ infantry: 15, heavy_infantry: 5, vehicle: 1, turret: 4 });
+    const [selectedTerrain, setSelectedTerrain] = useState('plains');
+
+    const handleSimStart = () => {
+        if (mode === 'space') {
+            onStart({
+                mode: 'space',
+                attacker: attackerComp,
+                defender: defenderComp,
+                garrison: defenderSpaceGarrison
+            });
+        } else {
+            onStart({
+                mode: 'ground',
+                attacker: attackerArmy,
+                defender: defenderArmy, // In ground combat, defender is the garrison
+                planetType: selectedTerrain // Passing terrain as planetType for GroundCombat
+            });
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="bg-gray-900 border-2 border-red-900 w-[600px] p-6 shadow-2xl rounded text-white overflow-y-auto max-h-[90vh]">
+                <div className="flex justify-between items-center mb-4 border-b border-red-800 pb-2">
+                    <h2 className="text-xl font-bold text-red-500">Simulateur de Combat</h2>
+                    <div className="flex gap-2">
+                        <button onClick={() => setMode('space')} className={`px-3 py-1 rounded text-xs font-bold uppercase ${mode === 'space' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-500'}`}>Espace</button>
+                        <button onClick={() => setMode('ground')} className={`px-3 py-1 rounded text-xs font-bold uppercase ${mode === 'ground' ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-500'}`}>Sol</button>
+                    </div>
+                </div>
+                
+                {mode === 'space' ? (
+                    <div className="grid grid-cols-2 gap-6">
+                        <div>
+                            <h3 className="text-blue-400 font-bold mb-2">Attaquant (République)</h3>
+                            {Object.keys(SHIP_STATS).filter(k=>k!=='turret').map(type => (
+                                <div key={type} className="flex justify-between items-center mb-1 bg-blue-900/20 p-1 rounded">
+                                    <span className="text-xs uppercase">{type}</span>
+                                    <input type="number" min="0" value={attackerComp[type]||0} onChange={e=>setAttackerComp({...attackerComp, [type]: parseInt(e.target.value)})} className="w-16 bg-black border border-blue-800 text-xs p-1" />
+                                </div>
+                            ))}
+                            {customSpaceUnits.map(u => (
+                                <div key={u.id} className="flex justify-between items-center mb-1 bg-purple-900/20 p-1 rounded border border-purple-500/30">
+                                    <span className="text-xs uppercase text-purple-300">{u.label}</span>
+                                    <input type="number" min="0" value={attackerComp[u.id]||0} onChange={e=>setAttackerComp({...attackerComp, [u.id]: parseInt(e.target.value)})} className="w-16 bg-black border border-purple-800 text-xs p-1" />
+                                </div>
+                            ))}
+                        </div>
+                         <div>
+                            <h3 className="text-red-400 font-bold mb-2">Défenseur (Empire)</h3>
+                             {Object.keys(SHIP_STATS).filter(k=>k!=='turret').map(type => (
+                                <div key={type} className="flex justify-between items-center mb-1 bg-red-900/20 p-1 rounded">
+                                    <span className="text-xs uppercase">{type}</span>
+                                    <input type="number" min="0" value={defenderComp[type]||0} onChange={e=>setDefenderComp({...defenderComp, [type]: parseInt(e.target.value)})} className="w-16 bg-black border border-red-800 text-xs p-1" />
+                                </div>
+                            ))}
+                            {customSpaceUnits.map(u => (
+                                <div key={u.id} className="flex justify-between items-center mb-1 bg-purple-900/20 p-1 rounded border border-purple-500/30">
+                                    <span className="text-xs uppercase text-purple-300">{u.label}</span>
+                                    <input type="number" min="0" value={defenderComp[u.id]||0} onChange={e=>setDefenderComp({...defenderComp, [u.id]: parseInt(e.target.value)})} className="w-16 bg-black border border-purple-800 text-xs p-1" />
+                                </div>
+                            ))}
+                            <h4 className="text-xs text-yellow-500 mt-2 mb-1 uppercase font-bold">Garnison Spatiale</h4>
+                            <div className="flex justify-between items-center mb-1 bg-yellow-900/20 p-1 rounded">
+                                <span className="text-xs uppercase">Turret</span>
+                                <input type="number" min="0" value={defenderSpaceGarrison['turret']||0} onChange={e=>setDefenderSpaceGarrison({...defenderSpaceGarrison, turret: parseInt(e.target.value)})} className="w-16 bg-black border border-yellow-800 text-xs p-1" />
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 gap-6">
+                        <div>
+                            <h3 className="text-orange-400 font-bold mb-2">Armée d'Invasion (Rép.)</h3>
+                            {Object.keys(GROUND_UNIT_STATS).filter(k=>k!=='turret').map(type => (
+                                <div key={type} className="flex justify-between items-center mb-1 bg-orange-900/20 p-1 rounded">
+                                    <span className="text-xs uppercase">{GROUND_UNIT_STATS[type].label}</span>
+                                    <input type="number" min="0" value={attackerArmy[type]||0} onChange={e=>setAttackerArmy({...attackerArmy, [type]: parseInt(e.target.value)})} className="w-16 bg-black border border-orange-800 text-xs p-1" />
+                                </div>
+                            ))}
+                            {customGroundUnits.map(u => (
+                                <div key={u.id} className="flex justify-between items-center mb-1 bg-purple-900/20 p-1 rounded border border-purple-500/30">
+                                    <span className="text-xs uppercase text-purple-300">{u.label}</span>
+                                    <input type="number" min="0" value={attackerArmy[u.id]||0} onChange={e=>setAttackerArmy({...attackerArmy, [u.id]: parseInt(e.target.value)})} className="w-16 bg-black border border-purple-800 text-xs p-1" />
+                                </div>
+                            ))}
+                        </div>
+                        <div>
+                            <h3 className="text-green-400 font-bold mb-2">Garnison Planétaire (Emp.)</h3>
+                            {Object.keys(GROUND_UNIT_STATS).map(type => (
+                                <div key={type} className="flex justify-between items-center mb-1 bg-green-900/20 p-1 rounded">
+                                    <span className="text-xs uppercase">{GROUND_UNIT_STATS[type].label}</span>
+                                    <input type="number" min="0" value={defenderArmy[type]||0} onChange={e=>setDefenderArmy({...defenderArmy, [type]: parseInt(e.target.value)})} className="w-16 bg-black border border-green-800 text-xs p-1" />
+                                </div>
+                            ))}
+                            {customGroundUnits.map(u => (
+                                <div key={u.id} className="flex justify-between items-center mb-1 bg-purple-900/20 p-1 rounded border border-purple-500/30">
+                                    <span className="text-xs uppercase text-purple-300">{u.label}</span>
+                                    <input type="number" min="0" value={defenderArmy[u.id]||0} onChange={e=>setDefenderArmy({...defenderArmy, [u.id]: parseInt(e.target.value)})} className="w-16 bg-black border border-purple-800 text-xs p-1" />
+                                </div>
+                            ))}
+                            <div className="mt-4 pt-2 border-t border-gray-700">
+                                <label className="text-xs uppercase text-gray-400 block mb-1">Type de Terrain</label>
+                                <select 
+                                    value={selectedTerrain} 
+                                    onChange={(e) => setSelectedTerrain(e.target.value)} 
+                                    className="w-full bg-black border border-gray-600 rounded p-1 text-xs text-white"
+                                >
+                                    <option value="plains">Plaines (Standard)</option>
+                                    <option value="desert">Désert (Lent, Portée+)</option>
+                                    <option value="urban">Urbain (Rapide, Portée-)</option>
+                                    <option value="snow">Polaire (Lent, Précision-)</option>
+                                    <option value="volcanic">Volcanique (Dégâts+ sur temps?)</option>
+                                    <option value="forest">Forêt (Couvert, Précision+)</option>
+                                    <option value="force_nexus">Nexus de Force</option>
+                                    <option value="industrial">Industriel</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex gap-3 mt-6">
+                     <button onClick={onClose} className="px-4 py-2 border border-gray-600 hover:bg-gray-800 rounded">Annuler</button>
+                     <button onClick={handleSimStart} className="flex-grow px-4 py-2 bg-red-700 hover:bg-red-600 font-bold rounded shadow-lg uppercase tracking-widest">Lancer Simulation</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ==========================================
 // COMPOSANT PRINCIPAL GALAXYMAP
 // ==========================================
-export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
+export default function GalaxyMap({ userFaction, userRole, userID, userName, heroData }) {
+  const [showBattleSimulator, setShowBattleSimulator] = useState(false);
+  
+  // --- NOUVEAU: COMBAT RTS ---
+  const [pendingBattle, setPendingBattle] = useState(null);
+  const [manualBattleMode, setManualBattleMode] = useState(true);
   const [planets, setPlanets] = useState([]);
   const [factions, setFactions] = useState([]);
   const [buildingsTemplates, setBuildingsTemplates] = useState([]);
@@ -427,6 +876,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
   const [selectedPlanet, setSelectedPlanet] = useState(null);
   const [planetBuildings, setPlanetBuildings] = useState([]); 
   const [showBuildMenu, setShowBuildMenu] = useState(false);
+  const [showGarrisonMenu, setShowGarrisonMenu] = useState(false);
   const [showAssignMenu, setShowAssignMenu] = useState(false);
   const [showDiplomacy, setShowDiplomacy] = useState(false);
   const [showCouncil, setShowCouncil] = useState(false);
@@ -446,17 +896,27 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
   const [movingFleet, setMovingFleet] = useState(null); 
   
   const [showResearch, setShowResearch] = useState(false);
+  const [showEncyclopedia, setShowEncyclopedia] = useState(false);
+  const [showMagicManager, setShowMagicManager] = useState(false);
+  const [magicDomains, setMagicDomains] = useState([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showFactionManager, setShowFactionManager] = useState(false);
   const [showBuildingManager, setShowBuildingManager] = useState(false);
+  const [showUnitManager, setShowUnitManager] = useState(false);
+  const [customUnits, setCustomUnits] = useState([]);
   const [maxLevels, setMaxLevels] = useState(1);
   const [currentLevelTab, setCurrentLevelTab] = useState(1);
   const [editingPlanet, setEditingPlanet] = useState(null);
   const [newPlanetCoords, setNewPlanetCoords] = useState({ x: 0, y: 0 });
   const [editorLinkSource, setEditorLinkSource] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // MAP EDITOR STATE
+  const [showMapEditor, setShowMapEditor] = useState(false);
+  const [currentMapToEdit, setCurrentMapToEdit] = useState(null);
+  const [savedMaps, setSavedMaps] = useState([]);
 
   const activePlanet = selectedPlanet ? planets.find(p => p.id === selectedPlanet.id) : null;
   const isTerritoryOwned = activePlanet?.owner === userFaction;
@@ -472,6 +932,17 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
   const isDarkCouncil = ['admin', 'emperor', 'conseil'].includes(userRole);
 
   const getFactionColor = (factionId) => { const f = factions.find(fact => fact.id === factionId); return f ? f.color : '#9ca3af'; };
+
+  // Load Custom Units & Magic
+  useEffect(() => {
+        const unsub = onSnapshot(collection(db, 'custom_units'), (snap) => {
+            setCustomUnits(snap.docs.map(d => ({ ...d.data(), dbId: d.id })));
+        });
+        const unsubMagic = onSnapshot(collection(db, 'magic_domains'), (snap) => {
+            setMagicDomains(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+        });
+        return () => { unsub(); unsubMagic(); };
+  }, []);
 
   useEffect(() => {
     const unsubPlanets = onSnapshot(collection(db, "provinces"), (snap) => setPlanets(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name))));
@@ -558,10 +1029,55 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
                 });
             }
         });
+
+        planets.filter(p => p.owner === userFaction).forEach(p => {
+            if (p.garrison) {
+                Object.entries(p.garrison).forEach(([type, count]) => {
+                    const stats = GARRISON_MAINTENANCE_VALUES[type];
+                    if (stats) { income.credits -= (stats.cr * count); income.manpower -= (stats.mp * count); }
+                });
+            }
+        });
+
         setProjectedIncome(income);
     });
     return () => unsubBuildings();
   }, [userFaction, planets, currentTurn, fleets]);
+
+  const handleBattleEnd = async (result) => {
+      if (!pendingBattle) return;
+      
+      // Mode Simulation
+      if (pendingBattle.isSimulation) {
+          setPendingBattle(null);
+          alert(`Simulation Terminée !\nVainqueur : ${result.winner.toUpperCase()}\n\nSurvivants Atttaquant : ${result.survivingAttackers.length}\nSurvivants Défenseur : ${result.survivingDefenders.length}`);
+          return;
+      }
+
+      const { winner, survivingAttackers } = result;
+      const { attackerFleet, defenderPlanet, defenderFleets } = pendingBattle;
+      const batch = writeBatch(db);
+
+      const newAttackerComp = {};
+      survivingAttackers.forEach(e => {
+        if (e.type && e.type !== 'turret') newAttackerComp[e.type] = (newAttackerComp[e.type] || 0) + 1;
+      });
+
+      if (winner === 'attacker') {
+           const oldOwner = defenderPlanet.owner;
+           batch.update(doc(db, "provinces", defenderPlanet.id), { owner: attackerFleet.owner, color: getFactionColor(attackerFleet.owner), governor_id: null, governor_name: null, garrison: {} });
+           batch.update(doc(db, "fleets", attackerFleet.id), { location_id: attackerFleet.destination_id, location_name: defenderPlanet.name, destination_id: null, arrival_turn: null, status: "stationed", path: null, start_turn: null, composition: newAttackerComp });
+           batch.set(doc(collection(db, "notifications")), { targetId: attackerFleet.owner, type: 'battle', title: 'Victoire !', message: `Nous avons conquis ${defenderPlanet.name}.`, read: false, createdAt: new Date() });
+           if(oldOwner && oldOwner !== 'neutral') batch.set(doc(collection(db, "notifications")), { targetId: oldOwner, type: 'battle', title: 'Invasion', message: `Nous avons perdu ${defenderPlanet.name}.`, read: false, createdAt: new Date() });
+           defenderFleets.forEach(df => batch.delete(doc(db, "fleets", df.id)));
+      } else {
+           batch.delete(doc(db, "fleets", attackerFleet.id));
+           batch.set(doc(collection(db, "notifications")), { targetId: attackerFleet.owner, type: 'battle', title: 'Défaite', message: `Notre flotte a été détruite sur ${defenderPlanet.name}.`, read: false, createdAt: new Date() });
+           if(defenderPlanet.owner && defenderPlanet.owner !== 'neutral') batch.set(doc(collection(db, "notifications")), { targetId: defenderPlanet.owner, type: 'battle', title: 'Victoire Défensive', message: `Invasion repoussée sur ${defenderPlanet.name}.`, read: false, createdAt: new Date() });
+      }
+      await batch.commit();
+      setPendingBattle(null);
+  };
 
   const handleNextTurn = async () => {
     if (isProcessingTurn || !confirm(`Passer au Tour ${currentTurn + 1} ?`)) return;
@@ -574,7 +1090,38 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
       
       const provinceMap = {}; 
       provincesSnap.forEach(p => provinceMap[p.id] = { id: p.id, ...p.data() });
+
+      // RTS Battle Detection
+      const fleetsForBattleCheck = [];
+      allFleetsSnap.forEach(f => fleetsForBattleCheck.push({ id: f.id, ...f.data() }));
       
+      if (manualBattleMode) {
+          for (const fleet of fleetsForBattleCheck) {
+              if (fleet.status === "moving" && fleet.arrival_turn <= currentTurn + 1) {
+                  const targetPlanet = provinceMap[fleet.destination_id];
+                  if (targetPlanet && targetPlanet.owner !== 'neutral' && targetPlanet.owner !== fleet.owner) {
+                      const defendingFleets = fleetsForBattleCheck.filter(f => f.location_id === targetPlanet.id && f.status === 'stationed' && f.owner === targetPlanet.owner);
+                      setPendingBattle({ attackerFleet: fleet, defenderPlanet: targetPlanet, defenderFleets: defendingFleets });
+                      setIsProcessingTurn(false);
+                      return; 
+                  }
+              }
+          }
+      }
+      
+      provincesSnap.forEach(snap => {
+            const p = snap.data();
+            if (p.owner && production[p.owner] && p.garrison) {
+                Object.entries(p.garrison).forEach(([type, count]) => {
+                    const stats = GARRISON_MAINTENANCE_VALUES[type];
+                    if (stats) {
+                        production[p.owner].credits -= (stats.cr * count);
+                        production[p.owner].manpower -= (stats.mp * count);
+                    }
+                });
+            }
+      });
+
       const fleetsList = [];
       allFleetsSnap.forEach(f => fleetsList.push({ id: f.id, ...f.data() }));
 
@@ -752,7 +1299,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
   };
   
   const handleCreatePlanet = async (e) => { e.preventDefault(); const d = new FormData(e.target); try { await addDoc(collection(db, "provinces"), { name: d.get('name'), region: d.get('region'), owner: d.get('owner'), planet_type: d.get('type'), color: getFactionColor(d.get('owner')), x: newPlanetCoords.x, y: newPlanetCoords.y, connected_to: [], population: Number(d.get('population')) || 0, base_production: { credits: Number(d.get('prod_credits')) || 0, materials: Number(d.get('prod_materials')) || 0 } }); setShowCreateModal(false); } catch (err) { console.error(err); } };
-  const handleUpdatePlanet = async (e) => { e.preventDefault(); if (!editingPlanet) return; const d = new FormData(e.target); try { await updateDoc(doc(db, "provinces", editingPlanet.id), { name: d.get('name'), region: d.get('region'), planet_type: d.get('planet_type'), owner: d.get('owner'), color: d.get('color'), population: Number(d.get('population')) || 0, base_production: { credits: Number(d.get('prod_credits')) || 0, materials: Number(d.get('prod_materials')) || 0 } }); setShowEditModal(false); } catch (err) { console.error(err); } };
+  const handleUpdatePlanet = async (e) => { e.preventDefault(); if (!editingPlanet) return; const d = new FormData(e.target); try { await updateDoc(doc(db, "provinces", editingPlanet.id), { name: d.get('name'), region: d.get('region'), planet_type: d.get('planet_type'), owner: d.get('owner'), color: d.get('color'), ground_map_id: d.get('ground_map_id'), population: Number(d.get('population')) || 0, base_production: { credits: Number(d.get('prod_credits')) || 0, materials: Number(d.get('prod_materials')) || 0 } }); setShowEditModal(false); } catch (err) { console.error(err); } };
   const handleDeletePlanet = async () => { if(!editingPlanet || !confirm("Supprimer ?")) return; const batch = writeBatch(db); batch.delete(doc(db, "provinces", editingPlanet.id)); const neighbors = planets.filter(p => p.connected_to?.includes(editingPlanet.id)); neighbors.forEach(n => { batch.update(doc(db, "provinces", n.id), { connected_to: arrayRemove(editingPlanet.id) }); }); await batch.commit(); setShowEditModal(false); };
   const startLinking = () => { setEditorLinkSource(editingPlanet); setShowEditModal(false); };
   const removeRoute = async (tid) => { await updateDoc(doc(db, "provinces", editingPlanet.id), { connected_to: arrayRemove(tid) }); await updateDoc(doc(db, "provinces", tid), { connected_to: arrayRemove(editingPlanet.id) }); };
@@ -762,6 +1309,66 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
   const handleCancel = async (building) => { if (!canBuild) return; if (!confirm("Annuler ?")) return; try { await deleteDoc(doc(db, `provinces/${selectedPlanet.id}/constructions`, building.id)); await updateDoc(doc(db, "factions", userFaction), { credits: increment(building.cost||0), materials: increment(building.cost_materials||0) }); } catch (e) { console.error(e); } };
   const fetchFactionMembers = async () => { if (isAdmin) { const snap = await getDocs(collection(db, "users")); setFactionMembers(snap.docs.map(d => ({ id: d.id, ...d.data() }))); return; } if (!userFaction) return; const snap = await getDocs(query(collection(db, "users"), where("faction_id", "==", userFaction))); setFactionMembers(snap.docs.map(d => ({ id: d.id, ...d.data() }))); };
   const handleAssignGovernor = async (member) => { if (confirm(`Nommer ${member.pseudo} ?`)) { await updateDoc(doc(db, "provinces", selectedPlanet.id), { governor_id: member.id, governor_name: member.pseudo }); setSelectedPlanet(p => ({ ...p, governor_id: member.id, governor_name: member.pseudo })); setShowAssignMenu(false); } };
+  
+  const handleRecruitGarrison = async (type) => {
+       if (!canBuild || !selectedPlanet) return;
+       const stats = GARRISON_STATS[type];
+       if (!stats) return;
+       const cost = stats.cost;
+       
+       if (factionData.credits < cost.cr || factionData.manpower < cost.mp) return alert("Ressources insuffisantes");
+
+       const currentGarrison = selectedPlanet.garrison || {};
+       const newCount = (currentGarrison[type] || 0) + 1;
+       const newGarrison = { ...currentGarrison, [type]: newCount };
+       
+       try {
+           await updateDoc(doc(db, "provinces", selectedPlanet.id), { garrison: newGarrison });
+           await updateDoc(doc(db, "factions", userFaction), { 
+               credits: increment(-cost.cr), 
+               manpower: increment(-cost.mp) 
+           });
+           setSelectedPlanet(prev => ({ ...prev, garrison: newGarrison }));
+       } catch (e) { console.error(e); }
+  };
+
+  const handleDisbandGarrison = async (type) => {
+       if (!canBuild || !selectedPlanet) return;
+       const currentGarrison = selectedPlanet.garrison || {};
+       const currentCount = currentGarrison[type] || 0;
+       if (currentCount <= 0) return;
+       
+       const newGarrison = { ...currentGarrison, [type]: currentCount - 1 };
+       if (newGarrison[type] === 0) delete newGarrison[type];
+
+       try {
+           await updateDoc(doc(db, "provinces", selectedPlanet.id), { garrison: newGarrison });
+           setSelectedPlanet(prev => ({ ...prev, garrison: newGarrison }));
+       } catch (e) { console.error(e); }
+  };
+  const handleStartSimulation = (data) => {
+       if (data.mode === 'ground') {
+           setPendingBattle({
+               id: `sim-ground-${Date.now()}`,
+               type: 'ground',
+               attackerArmy: { id: 'sim-army', name: 'Armée (Sim)', owner: 'republic', composition: data.attacker },
+               defenderGarrison: { id: 'sim-garrison', name: 'Garnison (Sim)', owner: 'empire', composition: data.defender },
+               defenderPlanet: { name: 'Simulation Surface', planet_type: 'standard' },
+               isSimulation: true
+           });
+       } else {
+           setPendingBattle({
+                id: `sim-${Date.now()}`,
+                type: 'space',
+                attackerFleet: { id: 'sim-attacker', name: 'Attaquant (Sim)', owner: 'republic', composition: data.attacker, totalPower: 1000 },
+                defenderFleets: [{ id: 'sim-defender', name: 'Défenseur (Sim)', owner: 'empire', composition: data.defender, totalPower: 1000 }],
+                defenderPlanet: { name: 'Simulation', garrison: data.garrison, owner: 'empire' },
+                isSimulation: true
+           });
+       }
+       setShowBattleSimulator(false);
+  };
+
   const maxSlotsDefined = activePlanet ? (PLANET_SLOTS_CONFIG[activePlanet.planet_type] || 4) : 0;
   const planetSlots = Array(maxSlotsDefined).fill(null).map((_, i) => planetBuildings[i] || null);
 
@@ -774,6 +1381,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
                   <div className="flex justify-between items-center"><h3 className="text-yellow-500 font-bold uppercase text-xs tracking-widest">Architecture</h3><button onClick={() => setIsEditorMode(false)} className="text-[10px] text-red-400 border border-red-900 px-1 rounded hover:bg-red-900">Fermer</button></div>
                   <button onClick={() => setShowFactionManager(true)} className="w-full bg-purple-900/30 border border-purple-800 text-purple-300 text-[10px] py-1 rounded font-bold uppercase">⚡ Gérer Factions</button>
                   <button onClick={() => setShowBuildingManager(true)} className="w-full bg-blue-900/30 border border-blue-800 text-blue-300 text-[10px] py-1 rounded font-bold uppercase">🏗️ Gérer Bâtiments</button>
+                  <button onClick={() => setShowUnitManager(true)} className="w-full bg-green-900/30 border border-green-800 text-green-300 text-[10px] py-1 rounded font-bold uppercase">🪖 Gérer Unités</button>
                   <input type="text" placeholder="Filtrer..." className="w-full bg-black border border-gray-700 text-white text-[10px] p-2 rounded outline-none" onChange={(e) => setSearchTerm(e.target.value)}/>
               </div>
               <div className="flex-grow overflow-y-auto custom-scrollbar">
@@ -787,13 +1395,30 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
           </div>
          )}
 
-         <div className="absolute bottom-4 left-4 z-50 flex flex-col gap-2 pointer-events-auto">
-             {!isEditorMode && isArchitect && (<button onClick={() => setIsEditorMode(true)} className="px-3 py-1 rounded font-bold uppercase text-xs tracking-widest border bg-gray-900 text-purple-400 border-purple-900 hover:bg-purple-900 hover:text-white transition shadow-xl">○ Éditeur</button>)}
-             {!isEditorMode && isHighCommand && (<button onClick={() => setShowCouncil(true)} className="bg-gray-900 text-[#cba660] w-10 h-10 rounded-lg border border-[#cba660] hover:bg-[#cba660] hover:text-black transition shadow-lg flex items-center justify-center text-xl shadow-[0_0_20px_black]">👑</button>)}
-             {!isEditorMode && isDiplomat && (<button onClick={() => setShowDiplomacy(true)} className="bg-[#8B5A2B] text-white w-10 h-10 rounded-lg border border-[#e5c07b] hover:bg-[#a67c52] transition shadow-lg flex items-center justify-center text-xl">⚖️</button>)}
-             {!isEditorMode && canAccessFleets && (<button onClick={() => setShowFleetManager(true)} className="bg-green-900 text-white w-10 h-10 rounded-lg border border-green-500 hover:bg-green-700 transition shadow-lg flex items-center justify-center text-xl shadow-[0_0_20px_black]">⚓</button>)}
-             {!isEditorMode && isHighCommand && (<button onClick={() => setShowResearch(true)} className="bg-blue-900 text-white w-10 h-10 rounded-lg border border-blue-500 hover:bg-blue-700 transition shadow-lg flex items-center justify-center text-xl shadow-[0_0_20px_black]">🧬</button>)}
-             {!isEditorMode && isArchitect && ( <button onClick={() => setShowSettingsModal(true)} className="w-10 h-10 rounded-lg border bg-gray-800 text-gray-400 border-gray-600 transition shadow-lg flex items-center justify-center text-xl hover:bg-gray-700 hover:text-white" title="Paramètres de Jeu">⚙️</button> )}
+         <div className="absolute bottom-4 left-4 z-50 pointer-events-auto">
+             <div className="flex items-end gap-2">
+                 {/* Main Management Dock */}
+                 {!isEditorMode && !activePlanet && (
+                     <div className="flex items-center gap-2 px-3 py-2 bg-gray-900/95 border border-gray-700 rounded-xl shadow-2xl backdrop-blur-md">
+                        {isHighCommand && (<button onClick={() => setShowCouncil(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-yellow-600/50 hover:bg-yellow-900/50 hover:border-yellow-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Conseil Noir"><span className="group-hover:scale-110 transition-transform">👑</span></button>)}
+                        {isDiplomat && (<button onClick={() => setShowDiplomacy(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-orange-600/50 hover:bg-orange-900/50 hover:border-orange-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Diplomatie"><span className="group-hover:scale-110 transition-transform">⚖️</span></button>)}
+                        {canAccessFleets && (<button onClick={() => setShowFleetManager(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-green-600/50 hover:bg-green-900/50 hover:border-green-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Gestion de Flotte"><span className="group-hover:scale-110 transition-transform">⚓</span></button>)}
+                        {isHighCommand && (<button onClick={() => setShowResearch(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-blue-600/50 hover:bg-blue-900/50 hover:border-blue-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Recherche & Technologie"><span className="group-hover:scale-110 transition-transform">🧬</span></button>)}
+                        <div className="w-px h-8 bg-gray-700 mx-1"></div>
+                        <button onClick={() => setShowEncyclopedia(true)} className="group relative w-10 h-10 bg-gray-800 rounded-lg border border-cyan-600/50 hover:bg-cyan-900/50 hover:border-cyan-400 transition-all flex items-center justify-center text-xl shadow-lg" title="Encyclopédie"><span className="group-hover:scale-110 transition-transform">📘</span></button>
+                     </div>
+                 )}
+
+                 {/* Admin / Architect Tools */}
+                 {!isEditorMode && (isArchitect || userRole === 'admin') && (
+                     <div className="flex items-center gap-2 px-3 py-2 bg-black/80 border border-gray-800 rounded-xl shadow-2xl backdrop-blur-md">
+                         {isArchitect && (<button onClick={() => setIsEditorMode(true)} className="w-8 h-8 rounded border border-purple-500/50 text-purple-400 hover:bg-purple-900/50 hover:text-white transition flex items-center justify-center text-sm" title="Mode Éditeur">✎</button>)}
+                         {isArchitect && (<button onClick={() => setShowMagicManager(true)} className="w-8 h-8 rounded border border-fuchsia-500/50 text-fuchsia-400 hover:bg-fuchsia-900/50 hover:text-white transition flex items-center justify-center text-sm" title="Éditeur Magie">⚡</button>)}
+                         {userRole === 'admin' && (<button onClick={() => setShowBattleSimulator(true)} className="w-8 h-8 rounded border border-red-500/50 text-red-500 hover:bg-red-900/50 hover:text-white transition flex items-center justify-center text-sm" title="Simulateur Combat">⚔️</button>)}
+                         {isArchitect && (<button onClick={() => setShowSettingsModal(true)} className="w-8 h-8 rounded border border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white transition flex items-center justify-center text-base" title="Paramètres">⚙️</button>)}
+                     </div>
+                 )}
+             </div>
          </div>
 
          {movingFleet && (
@@ -806,7 +1431,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
 
          {!isEditorMode && (
              <div className={isDarkCouncil ? "mt-24 transition-all duration-500" : ""}>
-                <TopHud userFaction={userFaction} factionData={factionData} projectedIncome={projectedIncome} currentTurn={currentTurn} isAdmin={isAdmin} isProcessingTurn={isProcessingTurn} handleNextTurn={handleNextTurn} handleLogout={() => signOut(auth)} onOpenProfile={() => setShowProfile(true)} />
+                <TopHud userFaction={userFaction} factionData={factionData} projectedIncome={projectedIncome} currentTurn={currentTurn} isAdmin={isAdmin} isProcessingTurn={isProcessingTurn} handleNextTurn={handleNextTurn} handleLogout={() => signOut(auth)} onOpenProfile={() => setShowProfile(true)} onOpenMapEditor={() => setShowMapEditor(true)} />
              </div>
          )}
 
@@ -820,15 +1445,61 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
             <defs>
                 <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1"/></pattern>
                 <filter id="routeGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>
+                <filter id="planetGlow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                    <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="glow" />
+                    <feMerge>
+                        <feMergeNode in="glow" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+                
+                {/* Planet Gradients */}
+                <radialGradient id="grad-standard">
+                    <stop offset="30%" stopColor="#4b5563" />
+                    <stop offset="90%" stopColor="#1f2937" />
+                    <stop offset="100%" stopColor="#000000" />
+                </radialGradient>
+                <radialGradient id="grad-industrial">
+                    <stop offset="20%" stopColor="#fb923c" />
+                    <stop offset="80%" stopColor="#7c2d12" />
+                    <stop offset="100%" stopColor="#431407" />
+                </radialGradient>
+                <radialGradient id="grad-capital">
+                    <stop offset="10%" stopColor="#fcd34d" />
+                    <stop offset="70%" stopColor="#b45309" />
+                    <stop offset="100%" stopColor="#451a03" />
+                </radialGradient>
+                <radialGradient id="grad-nexus">
+                    <stop offset="10%" stopColor="#d8b4fe" />
+                    <stop offset="70%" stopColor="#6b21a8" />
+                    <stop offset="100%" stopColor="#3b0764" />
+                </radialGradient>
+                <radialGradient id="grad-unknown">
+                    <stop offset="30%" stopColor="#374151" />
+                    <stop offset="100%" stopColor="#111827" />
+                </radialGradient>
             </defs>
-            <image href="/background.jpg" x="-5000" y="-5000" width="10000" height="10000" preserveAspectRatio="none" opacity="0.4" />
+            <image href="/carte_galactique.png" x="-5000" y="-5000" width="10000" height="10000" preserveAspectRatio="none" opacity="0.4" />
             <rect x="-5000" y="-5000" width="10000" height="10000" fill="url(#grid)" />
             <BorderLayer planets={planets} factions={factions} />
-            <g className="opacity-80">
+            <g>
                 {planets.flatMap(p => (p.connected_to||[]).map(tid => {
                     const t = planets.find(pl=>pl.id===tid);
                     if(!t || p.id > t.id) return null;
-                    return ( <g key={`route-${p.id}-${t.id}`}><line x1={p.x} y1={p.y} x2={t.x} y2={t.y} stroke="#444444" strokeWidth="4" opacity="0.5" strokeLinecap="round" /><line x1={p.x} y1={p.y} x2={t.x} y2={t.y} stroke="#000000" strokeWidth="2" strokeLinecap="round" /></g> );
+                    return ( 
+                        <g key={`route-${p.id}-${t.id}`}>
+                            {/* Glow Layer */}
+                            <line x1={p.x} y1={p.y} x2={t.x} y2={t.y} stroke="#3b82f6" strokeWidth="2" opacity="0.3" strokeLinecap="round" filter="url(#routeGlow)" />
+                            
+                            {/* Core Lane */}
+                            <line x1={p.x} y1={p.y} x2={t.x} y2={t.y} stroke="#60a5fa" strokeWidth="0.5" opacity="0.6" strokeDasharray="3,3" />
+                            
+                            {/* Connectors at planets */}
+                            <circle cx={p.x} cy={p.y} r="1" fill="#3b82f6" opacity="0.5" />
+                            <circle cx={t.x} cy={t.y} r="1" fill="#3b82f6" opacity="0.5" />
+                        </g> 
+                    );
                 }))}
             </g>
             {shouldShowFleets && fleets.filter(f => f.status === 'moving' && f.path).map(f => {
@@ -848,28 +1519,75 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
             {planets.map((p) => {
                 const f = factions.find(fact => fact.id === p.owner);
                 const orbitFleets = fleets.filter(fl => fl.location_id === p.id && fl.status === 'stationed');
+                
+                // Determine Visuals
+                const pType = p.planet_type || 'standard';
+                const gradId = pType === 'industrial' ? 'grad-industrial' :
+                               pType === 'capital' ? 'grad-capital' :
+                               pType === 'force_nexus' ? 'grad-nexus' : 'grad-standard';
+                               
+                const baseSize = 4;
+                const size = pType === 'capital' ? 8 : (pType === 'force_nexus' ? 6 : 4);
+
                 return (
-                    <g key={p.id} className="cursor-pointer" onClick={(e) => handlePlanetClick(e, p)} opacity={activePlanet?.id === p.id ? 1 : 0.8}>
+                    <g key={p.id} className="cursor-pointer" onClick={(e) => handlePlanetClick(e, p)} opacity={activePlanet?.id === p.id ? 1 : 0.9}>
+                         {/* Selection Ring */}
                         {shouldShowFleets && orbitFleets.length > 0 && ( <g><circle cx={p.x} cy={p.y} r="25" stroke="cyan" strokeWidth="1" fill="none" strokeDasharray="4,2" className="animate-spin-slow" /><circle cx={p.x + 18} cy={p.y - 18} r="7" fill="#0f172a" stroke="cyan" /><text x={p.x + 18} y={p.y - 15} textAnchor="middle" fontSize="7" fill="cyan" fontWeight="bold">⚓{orbitFleets.length}</text></g> )}
+                        
+                        {/* Hitbox */}
                         <circle cx={p.x} cy={p.y} r="30" fill="transparent" />
-                        {activePlanet?.id === p.id && <circle cx={p.x} cy={p.y} r="28" stroke="white" strokeWidth="1" fill="none" className="animate-spin-slow" strokeDasharray="6,4" />}
-                        <circle cx={p.x} cy={p.y} r="15" fill={f?.color || '#9ca3af'} fillOpacity="0.15" />
-                        <circle cx={p.x} cy={p.y} r="6" fill={f?.color || '#9ca3af'} stroke="rgba(0,0,0,0.5)" strokeWidth="2" />
-                        {p.governor_id && <text x={p.x + 10} y={p.y - 10} fontSize="10">👑</text>}
-                        <text x={p.x} y={p.y + 25} fill="#9ca3af" fontSize="10" textAnchor="middle" className="font-mono uppercase font-bold drop-shadow-md">{p.name}</text>
+                        
+                        {/* Active Indicator */}
+                        {activePlanet?.id === p.id && (
+                             <g className="animate-pulse">
+                                 <circle cx={p.x} cy={p.y} r="20" stroke="white" strokeWidth="0.5" fill="none" opacity="0.5" />
+                                 <circle cx={p.x} cy={p.y} r="24" stroke="white" strokeWidth="1" fill="none" strokeDasharray="2,4" />
+                             </g>
+                        )}
+
+                        {/* Faction Territory Halo */}
+                        {f && f.id !== 'neutral' && (
+                             <circle cx={p.x} cy={p.y} r="18" fill={f.color} fillOpacity="0.1" filter="url(#planetGlow)" />
+                        )}
+                        
+                        {/* Planet Body */}
+                        <circle cx={p.x} cy={p.y} r={size} fill={`url(#${gradId})`} stroke={f?.color || '#555'} strokeWidth={f?.id !== 'neutral' ? 1.5 : 0.5} />
+                        
+                        {/* Atmosphere / Shine */}
+                        <circle cx={p.x - size*0.3} cy={p.y - size*0.3} r={size*0.4} fill="white" fillOpacity="0.15" filter="url(#planetGlow)" />
+
+                        {/* Special Markers */}
+                        {p.planet_type === 'capital' && <circle cx={p.x} cy={p.y} r={size + 3} stroke={f?.color || 'goldenrod'} strokeWidth="1" fill="none" opacity="0.7" />}
+                        {p.planet_type === 'force_nexus' && <circle cx={p.x} cy={p.y} r={size + 2} stroke="#a855f7" strokeWidth="0.5" fill="none" className="animate-pulse" />}
+
+                        {p.governor_id && <text x={p.x + 8} y={p.y - 8} fontSize="8">👑</text>}
+                        
+                        {/* Label */}
+                        <text x={p.x} y={p.y + 18} fill="#e5e7eb" fontSize="8" textAnchor="middle" className="font-mono uppercase font-bold drop-shadow-md tracking-wider" style={{ textShadow: '0px 2px 4px black' }}>{p.name}</text>
                     </g>
                 );
             })}
          </svg>
       </div>
 
-      {!isEditorMode && activePlanet && ( <PlanetDock selectedPlanet={activePlanet} isTerritoryOwned={isTerritoryOwned} canBuild={canBuild} slots={planetSlots} buildingsTemplates={buildingsTemplates} currentTurn={currentTurn} setShowBuildMenu={setShowBuildMenu} handleUpgrade={handleUpgrade} handleDemolish={handleDemolish} handleCancel={handleCancel} showAssignMenu={showAssignMenu} setShowAssignMenu={(v)=>{setShowAssignMenu(v); if(v)fetchFactionMembers();}} factionMembers={factionMembers} handleAssignGovernor={handleAssignGovernor} isHighCommand={isHighCommand} /> )}
+      {!isEditorMode && activePlanet && ( <PlanetDock selectedPlanet={activePlanet} isTerritoryOwned={isTerritoryOwned} canBuild={canBuild} slots={planetSlots} buildingsTemplates={buildingsTemplates} currentTurn={currentTurn} setShowBuildMenu={setShowBuildMenu} handleUpgrade={handleUpgrade} handleDemolish={handleDemolish} handleCancel={handleCancel} showAssignMenu={showAssignMenu} setShowAssignMenu={(v)=>{setShowAssignMenu(v); if(v)fetchFactionMembers();}} factionMembers={factionMembers} handleAssignGovernor={handleAssignGovernor} isHighCommand={isHighCommand} setShowGarrisonMenu={setShowGarrisonMenu} /> )}
+      {showGarrisonMenu && activePlanet && (
+          <GarrisonManager planet={activePlanet} factionData={factionData} onClose={() => setShowGarrisonMenu(false)} onRecruit={handleRecruitGarrison} onDisband={handleDisbandGarrison} />
+      )}
       {showCouncil && (<CouncilManager userFaction={userFaction} userRole={userRole} onClose={()=>setShowCouncil(false)} />)}
       {showFleetManager && ( <FleetManager userFaction={userFaction} fleets={fleets} planets={planets} currentTurn={currentTurn} factionData={factionData} factionMembers={factionMembers} onSelectFleet={handleFleetActionFromMenu} onClose={() => setShowFleetManager(false)} /> )}
+      {pendingBattle && (
+          pendingBattle.type === 'ground' 
+            ? <GroundCombat attackerArmy={pendingBattle.attackerArmy} defenderGarrison={pendingBattle.defenderGarrison} planetType={pendingBattle.defenderPlanet?.planet_type || 'unknown'} onBattleEnd={handleBattleEnd} customUnits={customUnits.filter(u=>u.category==='ground')} customMap={savedMaps.find(m => m.id === pendingBattle.defenderPlanet?.ground_map_id)} heroData={heroData} magicDomains={magicDomains} />
+            : <FleetCombat attackerFleet={pendingBattle.attackerFleet} defenderFleets={pendingBattle.defenderFleets} defenderPlanet={pendingBattle.defenderPlanet} onBattleEnd={handleBattleEnd} customUnits={customUnits.filter(u=>u.category==='space')} />
+      )}
       {showDiplomacy && (<DiplomacyScreen userFaction={userFaction} onClose={()=>setShowDiplomacy(false)} />)}
       {showBuildMenu && canBuild && (<BuildMenuOverlay buildingsTemplates={buildingsTemplates} factionData={factionData} selectedPlanet={activePlanet} handleConstruct={handleConstruct} onClose={()=>setShowBuildMenu(false)} userFaction={userFaction} />)}
       {showProfile && ProfileScreen && (<ProfileScreen userID={userID} onClose={()=>setShowProfile(false)} />)}
       {showResearch && (<ResearchTree userFaction={userFaction} factionData={factionData} onClose={()=>setShowResearch(false)} />)}
+      {showEncyclopedia && (<Encyclopedia onClose={() => setShowEncyclopedia(false)} userFaction={userFaction} magicDomains={magicDomains} />)}
+      {showMagicManager && (<MagicManager onClose={() => setShowMagicManager(false)} />)}
+      {showBattleSimulator && (<BattleSimulator onClose={()=>setShowBattleSimulator(false)} onStart={handleStartSimulation} customUnits={customUnits} />)}
       
       {showSettingsModal && ( <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-white p-6 z-[100] w-80 shadow-2xl rounded"><div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2"><h3 className="text-white font-bold uppercase">Paramètres Globaux</h3><button onClick={()=>setShowSettingsModal(false)} className="text-gray-400 hover:text-white">✕</button></div><div className="flex justify-between items-center"><span className="text-sm text-gray-300 uppercase">Système de Flotte</span><button onClick={toggleFleetSystem} className={`px-3 py-1 rounded text-xs font-bold uppercase ${isFleetSystemEnabled ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{isFleetSystemEnabled ? 'ACTIF' : 'INACTIF'}</button></div></div> )}
       {showFactionManager && isEditorMode && (
@@ -884,6 +1602,9 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
               </form>
               <div className="overflow-y-auto space-y-1">{factions.map(f => (<div key={f.id} className="flex justify-between items-center p-2 border border-gray-800 bg-black"><div className="flex items-center gap-2"><span className="text-xs font-bold" style={{color: f.color}}>{f.name}</span></div><div className="flex gap-2"><button onClick={() => setEditingFaction(f)} className="text-yellow-500 text-[10px]">✎</button></div></div>))}</div>
           </div>
+      )}
+      {showUnitManager && isEditorMode && (
+          <UnitManager onClose={() => setShowUnitManager(false)} magicDomains={magicDomains} />
       )}
       {showBuildingManager && isEditorMode && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-blue-600 p-6 z-[100] w-[600px] max-h-[90vh] flex flex-col shadow-2xl">
@@ -914,6 +1635,24 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
               <div className="overflow-y-auto space-y-1 h-32 border-t border-gray-700 pt-2">{buildingsTemplates.map(b => (<div key={b.id} className="flex justify-between items-center p-2 bg-black border border-gray-800 text-[10px] text-white group"><span>{b.name}</span><button onClick={async()=>await deleteDoc(doc(db,"buildings",b.id))} className="text-red-500 opacity-0 group-hover:opacity-100">🗑️</button></div>))}</div>
           </div>
       )}
+      {showMapEditor && (
+        <GroundMapEditor 
+            onClose={() => setShowMapEditor(false)}
+            onSave={(mapData) => {
+                setSavedMaps(prev => {
+                    const idx = prev.findIndex(m => m.id === mapData.id);
+                    if (idx >= 0) {
+                        const newMaps = [...prev];
+                        newMaps[idx] = mapData;
+                        return newMaps;
+                    }
+                    return [...prev, mapData];
+                });
+                setShowMapEditor(false);
+            }}
+            existingMap={currentMapToEdit}
+        />
+      )}
       {showCreateModal && isEditorMode && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-purple-500 p-6 z-[100] w-80 shadow-2xl">
               <form onSubmit={handleCreatePlanet} className="space-y-3">
@@ -942,6 +1681,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName }) {
                       <div><label className="text-[10px] text-gray-500">Nom</label><input name="name" defaultValue={editingPlanet.name} className="w-full bg-black border border-gray-700 p-1 text-white text-xs" /></div>
                       <div><label className="text-[10px] text-gray-500">Région</label><input name="region" defaultValue={editingPlanet.region} className="w-full bg-black border border-gray-700 p-1 text-white text-xs" /></div>
                       <div><label className="text-[10px] text-gray-500">Type</label><select name="planet_type" defaultValue={editingPlanet.planet_type} className="w-full bg-black border border-gray-700 p-1 text-white text-xs"><option value="standard">Standard</option><option value="industrial">Industriel</option><option value="capital">Capitale</option><option value="force_nexus">Nexus</option></select></div>
+                      <div><label className="text-[10px] text-gray-500">Carte Tactique</label><select name="ground_map_id" defaultValue={editingPlanet.ground_map_id || ''} className="w-full bg-black border border-gray-700 p-1 text-white text-xs"><option value="">Aléatoire (Défaut)</option>{savedMaps.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
                       <div><label className="text-[10px] text-gray-500">Propriétaire</label><select name="owner" defaultValue={editingPlanet.owner} className="w-full bg-black border border-gray-700 p-1 text-white text-xs"><option value="neutral">Neutre</option>{factions.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
                       <div className="col-span-2"><label className="text-[10px] text-gray-500">Couleur</label><input name="color" type="color" defaultValue={editingPlanet.color} className="w-full h-6 cursor-pointer" /></div>
                   </div>

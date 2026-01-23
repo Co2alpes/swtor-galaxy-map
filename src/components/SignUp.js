@@ -9,6 +9,8 @@ export default function SignUp({ onSucces, onSwitchMode }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pseudo, setPseudo] = useState('');
+  const [magicDomain, setMagicDomain] = useState('dark'); // 'dark', 'light', 'mandalorian'
+  const [combatStyle, setCombatStyle] = useState('melee'); // 'melee', 'shooter'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,9 +36,12 @@ export default function SignUp({ onSucces, onSwitchMode }) {
         faction_id: "neutral",
         role: "user",
         credits: 1000,
+        magic_domain: magicDomain,
+        combat_style: combatStyle,
         createdAt: new Date(),
         is_general: false,
-        is_diplomat: false
+        is_diplomat: false,
+        hero_data: { level: 1, points: 1, unlocked: ['root'] }
       });
 
       if (onSucces) onSucces();
@@ -160,6 +165,33 @@ export default function SignUp({ onSucces, onSwitchMode }) {
                                       required
                                   />
                               </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className={inputContainerStyle}>
+                                <label className={labelStyle}>Style de Combat</label>
+                                <select 
+                                    value={combatStyle} 
+                                    onChange={(e) => setCombatStyle(e.target.value)}
+                                    className={`${inputStyle} appearance-none cursor-pointer`}
+                                >
+                                    <option value="melee">⚔️ Mêlée (Force/Sabre)</option>
+                                    <option value="shooter">🔫 Tireur (Blaster/Tech)</option>
+                                </select>
+                            </div>
+
+                            <div className={inputContainerStyle}>
+                                <label className={labelStyle}>Domaine de Pouvoir</label>
+                                <select 
+                                    value={magicDomain} 
+                                    onChange={(e) => setMagicDomain(e.target.value)}
+                                    className={`${inputStyle} appearance-none cursor-pointer`}
+                                >
+                                    <option value="dark">🟣 Obscurité (Corruption/Peur)</option>
+                                    <option value="light">🔵 Lumière (Soin/Protection)</option>
+                                    <option value="mandalorian">🟠 Mandalorien (Gadgets/Tech)</option>
+                                </select>
+                            </div>
                           </div>
 
                           <div className={inputContainerStyle}>

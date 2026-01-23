@@ -55,6 +55,7 @@ export default function Home() {
             userRole={userData.role || 'joueur'} 
             userID={user.uid}
             userName={userData.pseudo || user.displayName || "Commandant"} 
+            heroData={userData.hero_data}
         />
       </main>
     );

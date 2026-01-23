@@ -25,8 +25,8 @@ export default function Auth() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
-      console.error(err);
-      setError("Identifiants incorrects.");
+      // On masque l'erreur console pour ne pas effrayer l'utilisateur, c'est juste un mauvais mot de passe
+      setError("Email ou mot de passe incorrect.");
     } finally {
       setLoading(false);
     }
