@@ -2033,14 +2033,24 @@ export default function GroundCombat({ attackerArmy, defenderGarrison, planetTyp
                          if (traitData.archetype === 'projectile') {
                               projectilesRef.current.push({ id: Math.random(), x: ent.x, y: ent.y, targetX: wx, targetY: wy, speed: speed, damage: dmg, type: 'missile', color: color, faction: ent.faction, radius: 10 });
                          } else if (traitData.archetype === 'explosion') {
+                              // IMMEDIATE DAMAGE FOR EXPLOSION
+                              entitiesRef.current.forEach(t => {
+                                  if (t.faction !== ent.faction && t.hp > 0) {
+                                      const dist = Math.sqrt(Math.pow(t.x - wx, 2) + Math.pow(t.y - wy, 2));
+                                      if (dist < (radius || 100)) {
+                                          t.hp -= dmg;
+                                          commandFxRef.current.push({ type: 'miss', startX: t.x, startY: t.y, life: 10 }); // Hit marker
+                                      }
+                                  }
+                              });
                               explosionsRef.current.push({ x: wx, y: wy, radius: radius || 100, life: duration || 30, maxLife: duration || 30, color: color, damage: dmg, faction: ent.faction });
                          } else if (traitData.archetype === 'beam') {
-                              projectilesRef.current.push({ id: Math.random(), x: ent.x, y: ent.y, targetX: wx, targetY: wy, speed: 20, damage: dmg, type: 'beam', color: color, faction: ent.faction });
+                              projectilesRef.current.push({ id: Math.random(), x: ent.x, y: ent.y, targetX: wx, targetY: wy, speed: 40, damage: dmg, type: 'beam', color: color, faction: ent.faction }); // Faster speed for beam
                          } else if (traitData.archetype === 'heal') {
                              commandFxRef.current.push({ type: 'heal', startX: wx, startY: wy, life: 30 });
                              entitiesRef.current.forEach(t => {
                                 if (t.faction === ent.faction && Math.hypot(t.x-wx, t.y-wy) < (radius || 150)) {
-                                    t.hp = Math.min(t.maxHp, t.hp + (traitData.stats?.amount || 50));
+                                    t.hp = Math.min(t.maxHp, t.hp + (parseFloat(traitData.stats?.amount) || 50));
                                 } 
                              });
                          } else if (traitData.archetype === 'buff') {
@@ -2061,7 +2071,7 @@ export default function GroundCombat({ attackerArmy, defenderGarrison, planetTyp
                               const typeToSummon = traitData.stats?.unitId || 'infantry';
                               for(let i=0; i<count; i++) {
                                    entitiesRef.current.push({
-                                         id: Date.now()+i, type: typeToSummon, 
+                                         id: Date.now() + Math.random(), type: typeToSummon, 
                                          x: wx + (Math.random()-0.5)*50, y: wy + (Math.random()-0.5)*50,
                                          hp: UNIT_STATS[typeToSummon]?.hp || 20, 
                                          maxHp: UNIT_STATS[typeToSummon]?.hp || 20, 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { db } from '../app/lib/firebase';
-import { doc, updateDoc, addDoc, collection, increment } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, deleteDoc, collection, increment } from 'firebase/firestore';
 
 // --- CONFIGURATION DES VAISSEAUX (AVEC TECH REQUISE) ---
 export const SHIP_TYPES = {
@@ -33,9 +33,29 @@ export const SHIP_TYPES = {
     }
 };
 
+export const TROOP_TYPES = {
+    infantry: { 
+        name: "Infanterie Légère", type: "infantry", icon: "👮", desc: "Unité de base.", // Conforme GARRISON_STATS
+        power: 2, cost: 50, mat: 0, cost_mp: 10, upkeep_cr: 1, upkeep_mp: 1 
+    },
+    heavy_infantry: { 
+        name: "Infanterie Lourde", type: "heavy_infantry", icon: "💂", desc: "Unité d'élite.",
+        power: 5, cost: 150, mat: 0, cost_mp: 20, upkeep_cr: 4, upkeep_mp: 2 
+    },
+    vehicle: { 
+        name: "Véhicules Blindés", type: "vehicle", icon: "🚜", desc: "Soutien mécanisé.",
+        power: 12, cost: 400, mat: 0, cost_mp: 50, upkeep_cr: 15, upkeep_mp: 4 
+    },
+    air_support: { 
+        name: "Escadron Aérien", type: "air_support", icon: "🚁", desc: "Frappe aérienne.",
+        power: 15, cost: 600, mat: 0, cost_mp: 30, upkeep_cr: 25, upkeep_mp: 3 
+    }
+};
+
 export default function FleetManager({ userFaction, fleets, planets, currentTurn, factionMembers, factionData, onSelectFleet, onClose }) {
     const [selectedFleet, setSelectedFleet] = useState(null);
     const [viewMode, setViewMode] = useState('list'); 
+    const [buildTab, setBuildTab] = useState('ships'); // 'ships' | 'troops' 
     
     const isRepublic = userFaction === 'republic';
     const theme = {
@@ -53,24 +73,39 @@ export default function FleetManager({ userFaction, fleets, planets, currentTurn
     const availableAdmirals = factionMembers ? factionMembers.filter(m => m.role === 'general' || m.role === 'emperor') : [];
 
     const getFleetPower = (fleet) => {
-        if (!fleet.composition) return 0;
         let total = 0;
-        Object.entries(fleet.composition).forEach(([type, count]) => { 
-            if (SHIP_TYPES[type]) total += SHIP_TYPES[type].power * count; 
-        });
+        if(fleet.composition) {
+            Object.entries(fleet.composition).forEach(([type, count]) => { 
+                if (SHIP_TYPES[type]) total += SHIP_TYPES[type].power * count; 
+            });
+        }
+        if(fleet.troops) {
+             Object.entries(fleet.troops).forEach(([type, count]) => { 
+                if (TROOP_TYPES[type]) total += TROOP_TYPES[type].power * count; 
+            });
+        }
         if (fleet.commander_id) total = Math.round(total * 1.2);
         return total;
     };
 
     const getFleetUpkeep = (fleet) => {
-        if (!fleet.composition) return { cr: 0, mp: 0 };
         let cr = 0; let mp = 0;
-        Object.entries(fleet.composition).forEach(([type, count]) => {
-            if (SHIP_TYPES[type]) {
-                cr += SHIP_TYPES[type].upkeep_cr * count;
-                mp += SHIP_TYPES[type].upkeep_mp * count;
-            }
-        });
+        if(fleet.composition) {
+            Object.entries(fleet.composition).forEach(([type, count]) => {
+                if (SHIP_TYPES[type]) {
+                    cr += SHIP_TYPES[type].upkeep_cr * count;
+                    mp += SHIP_TYPES[type].upkeep_mp * count;
+                }
+            });
+        }
+        if(fleet.troops) {
+            Object.entries(fleet.troops).forEach(([type, count]) => {
+                if (TROOP_TYPES[type]) {
+                    cr += TROOP_TYPES[type].upkeep_cr * count;
+                    mp += TROOP_TYPES[type].upkeep_mp * count;
+                }
+            });
+        }
         return { cr, mp };
     };
 
@@ -82,6 +117,7 @@ export default function FleetManager({ userFaction, fleets, planets, currentTurn
             await addDoc(collection(db, "fleets"), {
                 name: name, owner: userFaction, location_id: planetId, location_name: planet.name, status: 'stationed',
                 composition: { fighter: 0, corvette: 0, frigate: 0, cruiser: 0, dreadnought: 0 },
+                troops: { infantry: 0, heavy_infantry: 0, vehicle: 0, air_support: 0 },
                 commander_id: null, commander_name: null,
                 start_turn: null, arrival_turn: null, destination_id: null
             });
@@ -97,31 +133,63 @@ export default function FleetManager({ userFaction, fleets, planets, currentTurn
         setSelectedFleet({ ...selectedFleet, commander_id: memberId, commander_name: memberName });
     };
 
-    const addShipToFleet = async (type) => {
+    const addUnitToFleet = async (type, category) => { // category: 'ship' | 'troop'
         if (!selectedFleet) return;
-        const ship = SHIP_TYPES[type];
+        const unit = category === 'ship' ? SHIP_TYPES[type] : TROOP_TYPES[type];
         
+        // LIMIT CHECK
+        if (category === 'ship') {
+             const currentShips = Object.values(selectedFleet.composition || {}).reduce((a, b) => a + b, 0);
+             if (currentShips >= 20) return alert("Limite de flotte atteinte (20 vaisseaux max)");
+        } else {
+             const currentTroops = Object.values(selectedFleet.troops || {}).reduce((a, b) => a + b, 0);
+             if (currentTroops >= 20) return alert("Limite de transport atteinte (20 troupes max)");
+        }
+        
+        const costCr = unit.cost;
+        const costMat = unit.mat || 0;
+        const costMp = unit.cost_mp || 0;
+
         // Vérification Ressources
-        if (factionData.credits < ship.cost || factionData.materials < ship.mat) {
+        if (factionData.credits < costCr || factionData.materials < costMat || (factionData.manpower || 0) < costMp) {
             return alert("Ressources insuffisantes !");
         }
 
-        if (!confirm(`Construire ${ship.name} ?\nCoût : ${ship.cost} CR, ${ship.mat} MAT`)) return;
+        if (!confirm(`Construire ${unit.name} ?\nCoût : ${costCr} CR${costMat > 0 ? `, ${costMat} MAT` : ''}${costMp > 0 ? `, ${costMp} MP` : ''}`)) return;
 
-        const newComposition = { ...selectedFleet.composition };
-        newComposition[type] = (newComposition[type] || 0) + 1;
+        if (category === 'ship') {
+            const newComposition = { ...(selectedFleet.composition || {}) };
+            newComposition[type] = (newComposition[type] || 0) + 1;
+            await updateDoc(doc(db, "fleets", selectedFleet.id), { composition: newComposition });
+            setSelectedFleet({ ...selectedFleet, composition: newComposition });
+        } else {
+             const newTroops = { ...(selectedFleet.troops || {}) };
+            newTroops[type] = (newTroops[type] || 0) + 1;
+            await updateDoc(doc(db, "fleets", selectedFleet.id), { troops: newTroops });
+            setSelectedFleet({ ...selectedFleet, troops: newTroops });
+        }
 
-        await updateDoc(doc(db, "fleets", selectedFleet.id), { composition: newComposition });
         await updateDoc(doc(db, "factions", userFaction), {
-            credits: increment(-ship.cost),
-            materials: increment(-ship.mat)
+            credits: increment(-costCr),
+            materials: increment(-costMat),
+            manpower: increment(-costMp)
         });
-        
-        setSelectedFleet({ ...selectedFleet, composition: newComposition });
+    };
+
+    const deleteFleet = async () => {
+        if (!selectedFleet) return;
+        if (!confirm(`Voulez-vous vraiment démanteler la flotte "${selectedFleet.name}" ? Cette action est irréversible.`)) return;
+
+        try {
+            await deleteDoc(doc(db, "fleets", selectedFleet.id));
+            setSelectedFleet(null);
+        } catch (e) {
+            console.error("Erreur suppression flotte:", e);
+        }
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-mono">
+        <div className="fixed inset-0 z-[100] flex items-center shadow-lg bg-black/80 backdrop-blur-sm p-4 font-mono">
             <div className={`w-full max-w-6xl h-[85vh] flex flex-col border-2 ${theme.border} ${theme.bg} ${theme.glow} rounded-lg overflow-hidden relative`}>
                 <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.5)_50%)] bg-[length:100%_4px] pointer-events-none opacity-20"></div>
 
@@ -206,70 +274,128 @@ export default function FleetManager({ userFaction, fleets, planets, currentTurn
                                 <div className="flex items-center gap-2 p-4 bg-black/20 border-b border-gray-800">
                                     <button onClick={() => setViewMode('details')} className={`px-4 py-1 text-xs font-bold uppercase border-b-2 transition-colors ${viewMode === 'details' ? `${theme.main} border-current` : 'text-gray-500 border-transparent hover:text-white'}`}>Composition</button>
                                     {selectedFleet.status !== 'moving' && <button onClick={() => setViewMode('build')} className={`px-4 py-1 text-xs font-bold uppercase border-b-2 transition-colors ${viewMode === 'build' ? `${theme.main} border-current` : 'text-gray-500 border-transparent hover:text-white'}`}>Chantier Naval</button>}
-                                    {selectedFleet.status !== 'moving' && <button onClick={() => onSelectFleet(selectedFleet, 'move')} className={`ml-auto px-4 py-2 text-xs font-bold uppercase ${theme.button} text-white shadow-lg`}>Ordre de Mouvement</button>}
+                                    
+                                    <div className="ml-auto flex gap-2">
+                                        <button onClick={deleteFleet} className="px-3 py-1 text-[10px] font-bold uppercase text-red-600 hover:text-red-400 border border-transparent hover:border-red-900 hover:bg-red-900/20 transition-all">Démanteler</button>
+                                        {selectedFleet.status !== 'moving' && <button onClick={() => onSelectFleet(selectedFleet, 'move')} className={`px-4 py-2 text-xs font-bold uppercase ${theme.button} text-white shadow-lg`}>Ordre de Mouvement</button>}
+                                    </div>
                                 </div>
 
                                 <div className="flex-grow p-6 overflow-y-auto">
                                     {viewMode === 'details' && (
-                                        <div className="grid grid-cols-4 gap-4">
-                                            {selectedFleet.composition && Object.entries(selectedFleet.composition).map(([type, count]) => {
-                                                if (count <= 0) return null;
-                                                const ship = SHIP_TYPES[type];
-                                                if (!ship) return null; 
-                                                return (
-                                                    <div key={type} className={`border border-gray-700 bg-black/60 p-4 rounded flex flex-col items-center justify-center relative overflow-hidden group hover:border-${isRepublic ? 'blue' : 'green'}-500 transition-colors`}>
-                                                        <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">{ship.icon}</div>
-                                                        <div className="text-2xl font-bold text-white">{count}</div>
-                                                        <div className="text-[9px] uppercase text-gray-400 tracking-widest">{ship.name}</div>
-                                                        <div className={`absolute top-0 right-0 p-1 text-[8px] font-bold ${theme.main}`}>PWR: {ship.power * count}</div>
-                                                    </div>
-                                                );
-                                            })}
-                                            {(!selectedFleet.composition || Object.values(selectedFleet.composition).every(v => v === 0)) && (<div className="col-span-4 text-center text-gray-500 py-10 italic">Aucun vaisseau assigné. Allez au Chantier Naval.</div>)}
+                                        <div className="space-y-8">
+                                            {/* --- SECTION VAISSEAUX --- */}
+                                            <div>
+                                                <h3 className="text-[10px] uppercase font-bold text-gray-500 mb-4 border-b border-gray-800 pb-1 tracking-widest">Forces Spatiales</h3>
+                                                <div className="grid grid-cols-4 gap-4">
+                                                    {selectedFleet.composition && Object.entries(selectedFleet.composition).map(([type, count]) => {
+                                                        if (count <= 0) return null;
+                                                        const ship = SHIP_TYPES[type];
+                                                        if (!ship) return null; 
+                                                        return (
+                                                            <div key={type} className={`border border-gray-700 bg-black/60 p-4 rounded flex flex-col items-center justify-center relative overflow-hidden group hover:border-${isRepublic ? 'blue' : 'green'}-500 transition-colors`}>
+                                                                <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">{ship.icon}</div>
+                                                                <div className="text-2xl font-bold text-white">{count}</div>
+                                                                <div className="text-[9px] uppercase text-gray-400 tracking-widest">{ship.name}</div>
+                                                                <div className={`absolute top-0 right-0 p-1 text-[8px] font-bold ${theme.main}`}>PWR: {ship.power * count}</div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {(!selectedFleet.composition || Object.values(selectedFleet.composition).every(v => v === 0)) && (<div className="col-span-4 text-center text-gray-500 italic text-xs">Aucun vaisseau assigné.</div>)}
+                                                </div>
+                                            </div>
+
+                                            {/* --- SECTION TROUPES --- */}
+                                            <div>
+                                                <h3 className="text-[10px] uppercase font-bold text-gray-500 mb-4 border-b border-gray-800 pb-1 tracking-widest">Troupes Embarquées</h3>
+                                                <div className="grid grid-cols-4 gap-4">
+                                                    {selectedFleet.troops && Object.entries(selectedFleet.troops).map(([type, count]) => {
+                                                        if (count <= 0) return null;
+                                                        const troop = TROOP_TYPES[type];
+                                                        if (!troop) return null; 
+                                                        return (
+                                                            <div key={type} className={`border border-gray-700 bg-black/60 p-4 rounded flex flex-col items-center justify-center relative overflow-hidden group hover:border-${isRepublic ? 'blue' : 'green'}-500 transition-colors`}>
+                                                                <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">{troop.icon}</div>
+                                                                <div className="text-2xl font-bold text-white">{count}</div>
+                                                                <div className="text-[9px] uppercase text-gray-400 tracking-widest">{troop.name}</div>
+                                                                <div className={`absolute top-0 right-0 p-1 text-[8px] font-bold ${theme.main}`}>PWR: {troop.power * count}</div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {(!selectedFleet.troops || Object.values(selectedFleet.troops).every(v => v === 0)) && (<div className="col-span-4 text-center text-gray-500 italic text-xs">Aucune troupe à bord.</div>)}
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
 
-                                    {/* --- CHANTIER NAVAL AVEC VERROUILLAGE TECH --- */}
+                                    {/* --- CHANTIER NAVAL & CASERNE --- */}
                                     {viewMode === 'build' && (
-                                        <div className="space-y-2">
-                                            {Object.entries(SHIP_TYPES).map(([key, ship]) => {
-                                                // Vérification de la technologie
-                                                const isLocked = ship.tech_req && !unlockedTechs.includes(ship.tech_req);
-                                                
-                                                return (
-                                                    <div key={key} className={`flex justify-between items-center border p-3 transition-colors relative overflow-hidden ${isLocked ? 'bg-gray-900/50 border-gray-800 opacity-60 grayscale' : 'bg-black/40 border-gray-800 hover:border-gray-600'}`}>
-                                                        {/* Filigrane Cadenas si verrouillé */}
-                                                        {isLocked && <div className="absolute right-4 text-6xl opacity-10 pointer-events-none">🔒</div>}
+                                        <>
+                                            <div className="flex gap-2 mb-4 border-b border-gray-800 pb-2">
+                                                <button 
+                                                    onClick={() => setBuildTab('ships')} 
+                                                    className={`px-4 py-1 text-[10px] font-bold uppercase transition-all ${buildTab === 'ships' ? `bg-${isRepublic ? 'blue' : 'green'}-900/50 text-white border border-${isRepublic ? 'blue' : 'green'}-500` : 'text-gray-500 border border-transparent hover:border-gray-700'}`}
+                                                >
+                                                    Vaisseaux
+                                                </button>
+                                                <button 
+                                                    onClick={() => setBuildTab('troops')} 
+                                                    className={`px-4 py-1 text-[10px] font-bold uppercase transition-all ${buildTab === 'troops' ? `bg-${isRepublic ? 'blue' : 'green'}-900/50 text-white border border-${isRepublic ? 'blue' : 'green'}-500` : 'text-gray-500 border border-transparent hover:border-gray-700'}`}
+                                                >
+                                                    Troupes
+                                                </button>
+                                            </div>
 
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="text-3xl bg-gray-900 w-12 h-12 flex items-center justify-center rounded border border-gray-700">{ship.icon}</div>
-                                                            <div>
-                                                                <div className="text-sm font-bold text-gray-200 uppercase">{ship.name}</div>
-                                                                <div className="text-[10px] text-gray-500">{ship.desc}</div>
-                                                                <div className="flex gap-3 mt-1 text-[9px] font-mono">
-                                                                    <span className="text-red-400">ATK: {ship.power}</span>
-                                                                    <span className="text-yellow-500">CR: {ship.cost}</span>
-                                                                    <span className="text-blue-400">MAT: {ship.mat}</span>
+                                            <div className="space-y-2">
+                                                {/* LISTE DES VAISSEAUX */}
+                                                {buildTab === 'ships' && Object.entries(SHIP_TYPES).map(([key, ship]) => {
+                                                    const isLocked = ship.tech_req && !unlockedTechs.includes(ship.tech_req);
+                                                    return (
+                                                        <div key={key} className={`flex justify-between items-center border p-3 transition-colors relative overflow-hidden ${isLocked ? 'bg-gray-900/50 border-gray-800 opacity-60 grayscale' : 'bg-black/40 border-gray-800 hover:border-gray-600'}`}>
+                                                            {isLocked && <div className="absolute right-4 text-6xl opacity-10 pointer-events-none">🔒</div>}
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="text-3xl bg-gray-900 w-12 h-12 flex items-center justify-center rounded border border-gray-700">{ship.icon}</div>
+                                                                <div>
+                                                                    <div className="text-sm font-bold text-gray-200 uppercase">{ship.name}</div>
+                                                                    <div className="text-[10px] text-gray-500">{ship.desc}</div>
+                                                                    <div className="flex gap-3 mt-1 text-[9px] font-mono">
+                                                                        <span className="text-red-400">ATK: {ship.power}</span>
+                                                                        <span className="text-yellow-500">CR: {ship.cost}</span>
+                                                                        <span className="text-blue-400">MAT: {ship.mat}</span>
+                                                                    </div>
                                                                 </div>
                                                             </div>
+                                                            {isLocked ? (
+                                                                <div className="px-4 py-2 border border-red-900 bg-red-950/20 text-red-500 text-[10px] font-bold uppercase rounded">Technologie Requise</div>
+                                                            ) : (
+                                                                <button onClick={() => addUnitToFleet(key, 'ship')} className={`px-4 py-2 border ${theme.border} ${theme.main} hover:bg-white/10 text-xs font-bold uppercase`}>Construire</button>
+                                                            )}
                                                         </div>
-                                                        
-                                                        {isLocked ? (
-                                                            <div className="px-4 py-2 border border-red-900 bg-red-950/20 text-red-500 text-[10px] font-bold uppercase rounded">
-                                                                Technologie Requise
+                                                    );
+                                                })}
+
+                                                {/* LISTE DES TROUPES */}
+                                                {buildTab === 'troops' && Object.entries(TROOP_TYPES).map(([key, troop]) => {
+                                                    return (
+                                                        <div key={key} className="flex justify-between items-center border border-gray-800 bg-black/40 p-3 hover:border-gray-600 transition-colors">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="text-3xl bg-gray-900 w-12 h-12 flex items-center justify-center rounded border border-gray-700">{troop.icon}</div>
+                                                                <div>
+                                                                    <div className="text-sm font-bold text-gray-200 uppercase">{troop.name}</div>
+                                                                    <div className="text-[10px] text-gray-500">{troop.desc}</div>
+                                                                    <div className="flex gap-3 mt-1 text-[9px] font-mono">
+                                                                        <span className="text-red-400">ATK: {troop.power}</span>
+                                                                        <span className="text-yellow-500">CR: {troop.cost}</span>
+                                                                        <span className="text-green-400">MP: {troop.cost_mp}</span>
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                        ) : (
-                                                            <button 
-                                                                onClick={() => addShipToFleet(key)} 
-                                                                className={`px-4 py-2 border ${theme.border} ${theme.main} hover:bg-white/10 text-xs font-bold uppercase`}
-                                                            >
-                                                                Construire
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                                            <button onClick={() => addUnitToFleet(key, 'troop')} className={`px-4 py-2 border ${theme.border} ${theme.main} hover:bg-white/10 text-xs font-bold uppercase`}>Recruter</button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </>
                                     )}
                                 </div>
                             </>

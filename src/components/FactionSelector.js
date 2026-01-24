@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { db } from '../app/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 
 // --- DONNÉES DES FACTIONS ---
 const FACTIONS = [
@@ -74,6 +74,35 @@ export default function FactionSelector({ userID, onFactionSelected }) {
     if (!selectedId) return;
     setLoading(true);
     try {
+      // 1. Vérifier si la faction existe, sinon la recréer (Auto-Repair)
+      const factionRef = doc(db, "factions", selectedId);
+      const factionSnap = await getDoc(factionRef);
+
+      if (!factionSnap.exists()) {
+          console.warn(`Faction ${selectedId} introuvable. Recreation automatique...`);
+          const factionData = FACTIONS.find(f => f.id === selectedId);
+          if (factionData) {
+              await setDoc(factionRef, {
+                  name: factionData.name,
+                  color: factionData.color === 'blue' ? '#3b82f6' : (factionData.color === 'red' ? '#ef4444' : '#eab308'),
+                  image: factionData.bgImage,
+                  description: factionData.desc,
+                  credits: 2000, 
+                  materials: 1000, 
+                  manpower: 500,
+                  science: 0,
+                  type: 'major',
+                  diplomatic_phrases: {
+                      war: "La guerre est déclarée.",
+                      alliance: "Une alliance est formée.",
+                      neutral_good: "Salutations.",
+                      neutral_bad: "Méfiance."
+                  }
+              });
+          }
+      }
+
+      // 2. Mettre à jour l'utilisateur
       await updateDoc(doc(db, "users", userID), {
         faction_id: selectedId
       });
