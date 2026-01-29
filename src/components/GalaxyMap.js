@@ -17,6 +17,7 @@ import UnitManager from './UnitManager';
 import GroundMapEditor from './GroundMapEditor';
 import Encyclopedia from './Encyclopedia';
 import MagicManager from './MagicManager';
+import HolonetEditor from './HolonetEditor';
 import { MapDefs, BackgroundLayer, RouteLayer, FleetLayer, PlanetLayer } from './MapLayers';
 
 // --- 1. CONFIGURATION GLOBALE ---
@@ -937,6 +938,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
   const [showFactionManager, setShowFactionManager] = useState(false);
   const [showBuildingManager, setShowBuildingManager] = useState(false);
   const [showUnitManager, setShowUnitManager] = useState(false);
+  const [showHolonetEditor, setShowHolonetEditor] = useState(false);
   const [showRegionManager, setShowRegionManager] = useState(false); // NEW
   const [customUnits, setCustomUnits] = useState([]);
   const [regions, setRegions] = useState([]); // NEW
@@ -1611,6 +1613,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                   <button onClick={() => setShowRegionManager(true)} className="w-full bg-orange-900/30 border border-orange-800 text-orange-300 text-[10px] py-1 rounded font-bold uppercase">🌍 Gérer Régions</button>
                   <button onClick={() => setShowBuildingManager(true)} className="w-full bg-blue-900/30 border border-blue-800 text-blue-300 text-[10px] py-1 rounded font-bold uppercase">🏗️ Gérer Bâtiments</button>
                   <button onClick={() => setShowUnitManager(true)} className="w-full bg-green-900/30 border border-green-800 text-green-300 text-[10px] py-1 rounded font-bold uppercase">🪖 Gérer Unités</button>
+                  <button onClick={() => setShowHolonetEditor(true)} className="w-full bg-cyan-900/30 border border-cyan-800 text-cyan-300 text-[10px] py-1 rounded font-bold uppercase">📰 Gérer Holonet</button>
                   
                   <div className="space-y-2 pt-2 border-t border-gray-800">
                       <input type="text" placeholder="Rechercher une planète..." className="w-full bg-black border border-gray-700 text-white text-[10px] p-2 rounded outline-none focus:border-yellow-500 transition-colors" onChange={(e) => setSearchTerm(e.target.value)}/>
@@ -1988,6 +1991,9 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
       {showUnitManager && isEditorMode && (
           <UnitManager onClose={() => setShowUnitManager(false)} magicDomains={magicDomains} />
       )}
+      {showHolonetEditor && (
+          <HolonetEditor onClose={() => setShowHolonetEditor(false)} />
+      )}
       {showBuildingManager && isEditorMode && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-blue-600 p-6 z-[100] w-[600px] max-h-[90vh] flex flex-col shadow-2xl">
               <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2"><h3 className="text-blue-400 font-bold uppercase">Architecte de Plans</h3><button onClick={() => { setShowBuildingManager(false); setEditingBuilding(null); }} className="text-white hover:text-red-500">X</button></div>
@@ -2162,6 +2168,10 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                   <div className="flex gap-2 pt-2"><button type="button" onClick={handleDeletePlanet} className="bg-red-900 hover:bg-red-800 text-white text-xs py-2 px-3 font-bold rounded">Suppr.</button><button type="submit" className="flex-1 bg-yellow-700 hover:bg-yellow-600 text-white py-2 font-bold uppercase text-xs rounded">Sauvegarder</button></div>
               </form>
           </div>
+      )}
+      
+      {showHolonetEditor && (
+        <HolonetEditor onClose={() => setShowHolonetEditor(false)} />
       )}
     </div>
   );

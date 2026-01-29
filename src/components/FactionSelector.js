@@ -65,7 +65,7 @@ const FACTIONS = [
   }
 ];
 
-export default function FactionSelector({ userID, onFactionSelected }) {
+export default function FactionSelector({ userID, onFactionSelected, onBack }) {
   const [selectedId, setSelectedId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -204,6 +204,17 @@ export default function FactionSelector({ userID, onFactionSelected }) {
                 </span>
             )}
           </div>
+          
+          {onBack && (
+            <div className="mt-8">
+                <button 
+                    onClick={onBack}
+                    className="text-gray-500 hover:text-white text-xs font-mono uppercase tracking-widest underline decoration-gray-700 underline-offset-4 hover:decoration-white transition-all"
+                >
+                    &lt; Retour (Déconnexion)
+                </button>
+            </div>
+          )}
       </div>
 
     </div>

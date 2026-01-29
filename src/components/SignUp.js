@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { auth, db } from '../app/lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, increment } from 'firebase/firestore';
 
 export default function SignUp({ onSucces, onSwitchMode }) {
   const [email, setEmail] = useState('');
