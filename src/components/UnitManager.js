@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../app/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import MagicManager from './MagicManager';
 
 const DEFAULT_SHIP = {
     id: 'new_ship',
@@ -13,6 +14,8 @@ const DEFAULT_SHIP = {
     cooldown: 50,
     size: 6,
     color: '#ffffff',
+    sprite: '', // URL
+    shape: 'triangle', // Default shape if no sprite
     armor: 0,
     armorPen: 0,
     accuracy: 0.85,
@@ -20,6 +23,7 @@ const DEFAULT_SHIP = {
     bonuses: {},
     availableFactions: ['republic', 'empire'],
     isHero: false,
+    hasAbilities: false,
     maxMana: 0,
     manaCost: 0,
     ability: ''
@@ -36,6 +40,8 @@ const DEFAULT_GROUND = {
     cooldown: 30,
     size: 4,
     color: '#ffffff',
+    sprite: '', // URL
+    shape: 'circle', // Default shape if no sprite
     armor: 0,
     armorPen: 0,
     accuracy: 0.85,
@@ -43,13 +49,16 @@ const DEFAULT_GROUND = {
     bonuses: {},
     availableFactions: ['republic', 'empire'],
     isHero: false,
+    hasAbilities: false,
     isMelee: false,
     maxMana: 0,
     manaCost: 0,
     ability: ''
 };
 
-const TRAIT_OPTIONS = ['biological', 'mechanized', 'robotic', 'vampirism', 'regeneration', 'stealth', 'rage', 'shielded'];
+const COMMON_TRAITS = ['biological', 'mechanized', 'robotic', 'vampirism', 'regeneration', 'stealth', 'rage', 'shielded'];
+const SPACE_TRAITS = ['bombardier', 'dreadnought', 'destroyer', 'corvette', 'chasseur'];
+
 const TRAIT_DESCRIPTIONS = {
     biological: "Cible standard pour les dégâts biologiques.",
     mechanized: "Cible mécanique, vulnérable aux armes anti-véhicules.",
@@ -58,7 +67,13 @@ const TRAIT_DESCRIPTIONS = {
     regeneration: "Régénère 1 HP toutes les secondes.",
     stealth: "Invisible pour les ennemis jusqu'à attaque ou proximité.",
     rage: "Les dégâts augmentent quand les PV diminuent.",
-    shielded: "Possède un bouclier qui se recharge hors combat."
+    shielded: "Possède un bouclier qui se recharge hors combat.",
+    // Space Roles (Rock-Paper-Scissors)
+    bombardier: "Rôle Bombardier. Contre Dreadnought.",
+    dreadnought: "Rôle Dreadnought. Contre Destroyer.",
+    destroyer: "Rôle Destroyer. Contre Corvette.",
+    corvette: "Rôle Corvette. Contre Chasseur.",
+    chasseur: "Rôle Chasseur. Contre Bombardier."
 };
 const FACTION_OPTIONS = [
     { id: 'republic', label: 'La République' },
@@ -74,6 +89,9 @@ export default function UnitManager({ onClose }) {
     const [magicDomains, setMagicDomains] = useState([]); // Internal state
     const [editingUnit, setEditingUnit] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showMagicManager, setShowMagicManager] = useState(false);
+
+    const availableTraits = activeTab === 'space' ? [...COMMON_TRAITS, ...SPACE_TRAITS] : COMMON_TRAITS;
 
     // Load units and magic domains
     useEffect(() => {
@@ -146,6 +164,15 @@ export default function UnitManager({ onClose }) {
                             + CRÉER
                         </button>
 
+                        {activeTab === 'ground' && (
+                            <button 
+                                onClick={() => setShowMagicManager(true)}
+                                className="w-full py-2 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded mb-4 uppercase text-sm border border-purple-500"
+                            >
+                                ⚡ Gérer les Pouvoirs
+                            </button>
+                        )}
+
                         <div className="space-y-2">
                             {filteredUnits.map(u => (
                                 <div key={u.dbId} onClick={() => setEditingUnit(u)} className={`p-3 rounded border cursor-pointer hover:bg-gray-800 transition-colors ${editingUnit?.dbId === u.dbId ? 'bg-gray-800 border-yellow-600' : 'bg-gray-900 border-gray-700'}`}>
@@ -175,11 +202,14 @@ export default function UnitManager({ onClose }) {
                     </div>
                 </div>
             </div>
+            {showMagicManager && <MagicManager onClose={() => setShowMagicManager(false)} />}
         </div>
     );
 }
 
 function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
+    const availableTraits = isSpace ? [...COMMON_TRAITS, ...SPACE_TRAITS] : COMMON_TRAITS;
+
     const handleChange = (field, value) => {
         onChange({ ...unit, [field]: value });
     };
@@ -239,7 +269,29 @@ function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
 
                  <div className="bg-gray-800/50 p-4 rounded border border-gray-700 space-y-3">
                      <h4 className="text-gray-400 font-bold text-xs uppercase border-b border-gray-700 pb-2 mb-2">Apparence & Type</h4>
+                     
                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Sprite / Image (URL)</label>
+                        <input type="text" value={unit.sprite || ''} onChange={e => handleChange('sprite', e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded px-2 text-sm text-white" placeholder="https://..." />
+                        {unit.sprite && <div className="mt-2 text-center bg-black/50 p-2 rounded"><img src={unit.sprite} alt="Preview" className="h-12 w-auto mx-auto object-contain" /></div>}
+                     </div>
+
+                     <div className="space-y-1 mt-2">
+                        <label className="text-xs text-gray-500">Forme de base (Si pas d'image)</label>
+                        <select 
+                            value={unit.shape || (isSpace ? 'triangle' : 'circle')} 
+                            onChange={e => handleChange('shape', e.target.value)}
+                            className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                        >
+                            <option value="triangle">Triangle (Chasseur)</option>
+                            <option value="circle">Cercle (Standard)</option>
+                            <option value="square">Carré (Lourd)</option>
+                            <option value="diamond">Losange (Spécial)</option>
+                            <option value="pentagon">Pentagone (Elite)</option>
+                        </select>
+                     </div>
+
+                     <div className="space-y-1 mt-2">
                         <label className="text-xs text-gray-500">Couleur (Hex)</label>
                         <div className="flex gap-2">
                             <input type="color" value={unit.color} onChange={e => handleChange('color', e.target.value)} className="w-8 h-8 rounded cursor-pointer"/>
@@ -288,15 +340,33 @@ function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
                      <div className="mb-4">
                          <label className="text-xs text-gray-500 block mb-1">Traits de l'unité</label>
                          <div className="flex gap-2 flex-wrap">
-                             {TRAIT_OPTIONS.map(t => (
+                             {availableTraits.map(t => (
                                  <button 
                                     key={t}
                                     title={TRAIT_DESCRIPTIONS[t] || t}
                                     onClick={() => {
-                                        const newTraits = unit.traits.includes(t) 
-                                            ? unit.traits.filter(x => x !== t) 
-                                            : [...unit.traits, t];
-                                        handleChange('traits', newTraits);
+                                        const isAdding = !unit.traits.includes(t);
+                                        const newTraits = isAdding 
+                                            ? [...unit.traits, t]
+                                            : unit.traits.filter(x => x !== t);
+                                        
+                                        let updates = { traits: newTraits };
+                                        
+                                        // Auto-apply counters for ships
+                                        if (isAdding) {
+                                            const map = {
+                                                bombardier: 'dreadnought',
+                                                dreadnought: 'destroyer',
+                                                destroyer: 'corvette',
+                                                corvette: 'chasseur',
+                                                chasseur: 'bombardier'
+                                            };
+                                            if (map[t]) {
+                                                 updates.bonuses = { ...unit.bonuses, [map[t]]: 2.0 };
+                                            }
+                                        }
+                                        
+                                        onChange({ ...unit, ...updates });
                                     }}
                                     className={`px-2 py-1 text-xs border rounded uppercase transition-colors ${
                                         unit.traits.includes(t) ? 'bg-indigo-900 border-indigo-500 text-indigo-200' : 'border-gray-700 text-gray-500 hover:border-gray-500'
@@ -311,7 +381,7 @@ function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
                      <div>
                          <label className="text-xs text-gray-500 block mb-1">Bonus de Dégâts (Multiplicateur)</label>
                          <div className="space-y-2">
-                             {TRAIT_OPTIONS.map(t => (
+                             {availableTraits.map(t => (
                                  <div key={t} className="flex items-center gap-2">
                                      <span className="text-xs text-gray-400 w-24 uppercase">vs {t}</span>
                                      <input 
@@ -330,14 +400,21 @@ function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
                 {/* Hero / Heroic Stats */}
                 <div className="bg-gray-800/50 p-4 rounded border border-gray-700">
                      <div className="flex items-center justify-between border-b border-gray-700 pb-2 mb-3">
-                        <h4 className="text-gray-400 font-bold text-xs uppercase">Héros & Capacités</h4>
-                        <div className="flex items-center gap-2">
-                             <input type="checkbox" checked={unit.isHero} onChange={e => handleChange('isHero', e.target.checked)} className="w-4 h-4 accent-yellow-500"/>
-                             <span className={`text-sm font-bold ${unit.isHero ? 'text-yellow-500' : 'text-gray-500'}`}>HÉROS</span>
-                        </div>
+                        <h4 className="text-gray-400 font-bold text-xs uppercase">Rôles & Capacités</h4>
                      </div>
 
-                     {unit.isHero && (
+                     <div className="flex items-center gap-4 mb-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                             <input type="checkbox" checked={unit.isHero} onChange={e => handleChange('isHero', e.target.checked)} className="w-4 h-4 accent-yellow-500"/>
+                             <span className={`text-sm font-bold ${unit.isHero ? 'text-yellow-500' : 'text-gray-500'}`}>EST UN HÉROS</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                             <input type="checkbox" checked={unit.hasAbilities} onChange={e => handleChange('hasAbilities', e.target.checked)} className="w-4 h-4 accent-blue-500"/>
+                             <span className={`text-sm font-bold ${unit.hasAbilities ? 'text-blue-400' : 'text-gray-500'}`}>A DES CAPACITÉS</span>
+                        </label>
+                     </div>
+
+                     {(unit.hasAbilities || unit.isHero) && (
                          <div className="space-y-3 animation-fade-in relative">
                              <NumberInput label="Mana Max" value={unit.maxMana} onChange={v => handleChange('maxMana', v)} />
                              <NumberInput label="Régénération Mana" value={unit.manaRegen || 1} onChange={v => handleChange('manaRegen', v)} step={0.1} />

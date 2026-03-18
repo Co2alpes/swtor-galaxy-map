@@ -9,6 +9,7 @@ export default function SignUp({ onSucces, onSwitchMode }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pseudo, setPseudo] = useState('');
+  const [activationCode, setActivationCode] = useState('');
   const [magicDomain, setMagicDomain] = useState('dark'); // 'dark', 'light', 'mandalorian'
   const [combatStyle, setCombatStyle] = useState('melee'); // 'melee', 'shooter'
   const [error, setError] = useState('');
@@ -28,13 +29,20 @@ export default function SignUp({ onSucces, onSwitchMode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+
+      // Vérification code admin
+      let assignedRole = "user";
+      if (activationCode === "IMPERATOR") {
+          assignedRole = "admin";
+      }
+
       await updateProfile(user, { displayName: pseudo });
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         pseudo: pseudo,
         email: email,
         faction_id: "neutral",
-        role: "user",
+        role: assignedRole,
         credits: 1000,
         magic_domain: magicDomain,
         combat_style: combatStyle,
@@ -195,7 +203,7 @@ export default function SignUp({ onSucces, onSwitchMode }) {
                           </div>
 
                           <div className={inputContainerStyle}>
-                              <label className={labelStyle}>Code d'Accès</label>
+                              <label className={labelStyle}>Mot de Passe</label>
                               <input
                                   type="password"
                                   placeholder="••••••••••••"
@@ -204,6 +212,17 @@ export default function SignUp({ onSucces, onSwitchMode }) {
                                   className={`${inputStyle} tracking-widest`}
                                   required
                                   minLength={6}
+                              />
+                          </div>
+
+                          <div className={inputContainerStyle}>
+                              <label className={labelStyle}>Code d'Activation (Optionnel)</label>
+                              <input
+                                  type="text"
+                                  placeholder="Code admin..."
+                                  value={activationCode}
+                                  onChange={(e) => setActivationCode(e.target.value)}
+                                  className={inputStyle}
                               />
                           </div>
 

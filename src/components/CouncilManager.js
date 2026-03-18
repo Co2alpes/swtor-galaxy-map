@@ -14,16 +14,17 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
     const [appointingDiplomatMember, setAppointingDiplomatMember] = useState(null); // Membre en cours de nomination diplomatique
 
     const isRepublic = userFaction === 'republic';
+    const isMandalorian = userFaction === 'mandalorians';
     const isAdmin = ['admin', 'gamemaster'].includes(userRole);
 
     // --- CONFIGURATION ---
     const theme = {
-        bgGradient: isRepublic ? "bg-[#050a15]" : "bg-[#150505]",
-        border: isRepublic ? "border-blue-600" : "border-red-800",
-        textMain: isRepublic ? "text-blue-300" : "text-red-400",
-        connector: isRepublic ? "bg-blue-500/30" : "bg-red-500/30",
-        button: isRepublic ? "bg-blue-900 hover:bg-blue-800 border-blue-500" : "bg-red-900 hover:bg-red-800 border-red-500",
-        bgImageUrl: isRepublic ? '/images/republic_bg.jpg' : '/images/empire_council.jpg'
+        bgGradient: isRepublic ? "bg-[#050a15]" : (isMandalorian ? "bg-[#1a0f05]" : "bg-[#150505]"),
+        border: isRepublic ? "border-blue-600" : (isMandalorian ? "border-orange-600" : "border-red-800"),
+        textMain: isRepublic ? "text-blue-300" : (isMandalorian ? "text-orange-400" : "text-red-400"),
+        connector: isRepublic ? "bg-blue-500/30" : (isMandalorian ? "bg-orange-500/30" : "bg-red-500/30"),
+        button: isRepublic ? "bg-blue-900 hover:bg-blue-800 border-blue-500" : (isMandalorian ? "bg-orange-900 hover:bg-orange-800 border-orange-500" : "bg-red-900 hover:bg-red-800 border-red-500"),
+        bgImageUrl: isRepublic ? '/images/republic_bg.jpg' : '/images/empire_council.jpg' // Garde l'image Empire par défaut pour Mando ou ajouter une spécifique
     };
 
     useEffect(() => {
@@ -117,10 +118,10 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
                 {/* --- EN-TÊTE --- */}
                 <div className={`relative z-40 flex justify-between items-center p-6 border-b ${theme.border} bg-black/90 backdrop-blur-md shadow-lg`}>
                     <div className="flex items-center gap-4">
-                        <span className={`text-5xl ${theme.textMain}`}>{isRepublic ? '⚜️' : '☠️'}</span>
+                        <span className={`text-5xl ${theme.textMain}`}>{isRepublic ? '⚜️' : (isMandalorian ? '🛡️' : '☠️')}</span>
                         <div>
                             <h1 className={`text-3xl font-serif font-black uppercase tracking-[0.2em] ${theme.textMain} drop-shadow-md`}>
-                                {isRepublic ? "Haute Chambre du Sénat" : "Citadelle du Conseil Noir"}
+                                {isRepublic ? "Haute Chambre du Sénat" : (isMandalorian ? "Grand Conseil des Clans" : "Citadelle du Conseil Noir")}
                             </h1>
                             <p className="text-[10px] text-gray-400 uppercase tracking-widest">
                                 Organigramme Officiel {isAdmin && <span className="text-yellow-500 font-bold ml-2">[MODE ADMIN]</span>}
@@ -146,7 +147,7 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
                                 
                                 {/* 1. SOMMET : EMPEREUR */}
                                 <div className="flex flex-col items-center mt-8">
-                                    <RoleSlot member={getEmperor()} roleName={isRepublic ? "Chancelier Suprême" : "Empereur"} theme={theme} isUnique={true} onUpdateRole={handleUpdateRole} isAdmin={isAdmin} />
+                                    <RoleSlot member={getEmperor()} roleName={isRepublic ? "Chancelier Suprême" : (isMandalorian ? "Mandalore" : "Empereur")} theme={theme} isUnique={true} onUpdateRole={handleUpdateRole} isAdmin={isAdmin} userRole={userRole} />
                                     <div className={`w-1 h-12 ${theme.connector} shadow-[0_0_10px_currentColor]`}></div>
                                 </div>
 
@@ -157,7 +158,7 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
                                         {Array.from({ length: 5 }).map((_, i) => (
                                             <div key={i} className="flex flex-col items-center w-full relative">
                                                 <div className={`absolute -top-4 w-1 h-4 ${theme.connector}`}></div>
-                                                <RoleSlot member={getCouncil()[i]} roleName="Conseiller" theme={theme} onUpdateRole={handleUpdateRole} isAdmin={isAdmin} />
+                                                <RoleSlot member={getCouncil()[i]} roleName={isMandalorian ? "Chef de Clan" : "Conseiller"} theme={theme} onUpdateRole={handleUpdateRole} isAdmin={isAdmin} userRole={userRole} />
                                             </div>
                                         ))}
                                     </div>
@@ -172,7 +173,7 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
                                         <h3 className="text-green-500 font-bold uppercase tracking-widest text-sm mb-6 flex items-center gap-2">⚔️ État-Major</h3>
                                         <div className="flex flex-wrap justify-center gap-4">
                                             {getGenerals().map(m => (
-                                                <RoleSlot key={m.id} member={m} roleName="Général" theme={theme} onUpdateRole={handleUpdateRole} isSmall={true} isAdmin={isAdmin} colorOverride="border-green-800 text-green-400" />
+                                                <RoleSlot key={m.id} member={m} roleName="Général" theme={theme} onUpdateRole={handleUpdateRole} isSmall={true} isAdmin={isAdmin} userRole={userRole} colorOverride="border-green-800 text-green-400" />
                                             ))}
                                             <AddSlot label="Nommer Général" color="text-green-600 border-green-900" />
                                         </div>
@@ -193,6 +194,7 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
                                                     onUpdateRole={handleUpdateRole} 
                                                     isSmall={true} 
                                                     isAdmin={isAdmin} 
+                                                    userRole={userRole}
                                                     colorOverride="border-blue-500 text-blue-300" 
                                                 />
                                             ))}
@@ -205,7 +207,7 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
                                         <h3 className="text-yellow-500 font-bold uppercase tracking-widest text-sm mb-6 flex items-center gap-2">🏛️ Administration</h3>
                                         <div className="flex flex-wrap justify-center gap-4">
                                             {getGovernors().map(m => (
-                                                <RoleSlot key={m.id} member={m} roleName="Gouverneur" theme={theme} onUpdateRole={handleUpdateRole} isSmall={true} isAdmin={isAdmin} colorOverride="border-yellow-700 text-yellow-400" />
+                                                <RoleSlot key={m.id} member={m} roleName="Gouverneur" theme={theme} onUpdateRole={handleUpdateRole} isSmall={true} isAdmin={isAdmin} userRole={userRole} colorOverride="border-yellow-700 text-yellow-400" />
                                             ))}
                                             <AddSlot label="Nommer Gouverneur" color="text-yellow-600 border-yellow-900" />
                                         </div>
@@ -240,8 +242,8 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
                                                             {/* ACTION SPÉCIALE DIPLOMATE : OUVRE LE MODAL */}
                                                             <button onClick={()=>{ setAppointingDiplomatMember(m); setSelectedMemberId(null); }} className="w-full text-[10px] text-blue-400 p-2 hover:bg-blue-900/30 text-left border-b border-gray-800 flex items-center gap-2">📜 Diplomate</button>
                                                             <button onClick={()=>handleUpdateRole(m.id, 'governor', m.pseudo)} className="w-full text-[10px] text-yellow-400 p-2 hover:bg-yellow-900/30 text-left border-b border-gray-800 flex items-center gap-2">🏛️ Gouverneur</button>
-                                                            <button onClick={()=>handleUpdateRole(m.id, 'conseil', m.pseudo)} className="w-full text-[10px] text-purple-400 p-2 hover:bg-purple-900/30 text-left border-b border-gray-800 flex items-center gap-2">⚡ Conseil</button>
-                                                            {isAdmin && <button onClick={()=>handleUpdateRole(m.id, 'emperor', m.pseudo)} className="w-full text-[10px] text-red-500 p-2 hover:bg-red-900/30 text-left font-bold border-t border-red-900">👑 EMPEREUR (Admin)</button>}
+                                                            <button onClick={()=>handleUpdateRole(m.id, 'conseil', m.pseudo)} className="w-full text-[10px] text-purple-400 p-2 hover:bg-purple-900/30 text-left border-b border-gray-800 flex items-center gap-2">⚡ {isMandalorian ? "Chef de Clan" : "Conseil"}</button>
+                                                            {isAdmin && <button onClick={()=>handleUpdateRole(m.id, 'emperor', m.pseudo)} className="w-full text-[10px] text-red-500 p-2 hover:bg-red-900/30 text-left font-bold border-t border-red-900">👑 {isRepublic ? "CHANCELIER" : (isMandalorian ? "MANDALORE" : "EMPEREUR")} (Admin)</button>}
                                                         </div>
                                                     )}
                                                 </div>
@@ -260,12 +262,15 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
 }
 
 // --- COMPOSANT CARTE DE RÔLE ---
-function RoleSlot({ member, roleName, subTitle, theme, isUnique, isSmall, onUpdateRole, isAdmin, colorOverride }) {
+function RoleSlot({ member, roleName, subTitle, theme, isUnique, isSmall, onUpdateRole, isAdmin, userRole, colorOverride }) {
     
     const frameStyle = colorOverride || `${theme.border} ${theme.textMain}`;
     const sizeClasses = isSmall ? 'w-32 h-40' : 'w-48 h-64';
     const avatarSize = isSmall ? 'w-16 h-16' : 'w-24 h-24';
-    const canManage = isAdmin || (roleName !== 'Empereur' && roleName !== 'Chancelier Suprême');
+    
+    const isLeader = ['emperor', 'conseil'].includes(userRole);
+    const targetIsTopLeader = ['Empereur', 'Chancelier Suprême', 'Mandalore'].includes(roleName);
+    const canManage = isAdmin || (isLeader && !targetIsTopLeader);
 
     return (
         <div className={`relative group flex flex-col items-center transition-transform hover:-translate-y-1 ${isSmall ? 'w-32' : 'w-48'}`}>

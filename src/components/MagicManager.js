@@ -6,7 +6,10 @@ const EFFECT_ARCHETYPES = [
     { id: 'projectile', label: 'Projectile (Tir)', params: ['damage', 'range', 'speed', 'color', 'sprite'] },
     { id: 'explosion', label: 'Explosion (Zone)', params: ['damage', 'range', 'radius', 'color'] },
     { id: 'beam', label: 'Rayon (Laser/Eclair)', params: ['damage', 'range', 'color'] },
-    { id: 'heal', label: 'Soin (Zone)', params: ['amount', 'radius', 'range'] },
+    { id: 'heal', label: 'Soin (Zone)', params: ['amount', 'radius', 'range', 'color'] },
+    { id: 'life_drain', label: 'Absorption de Vie (Zone)', params: ['damage', 'radius', 'percent_heal', 'color'] },
+    { id: 'push', label: 'Repoussement (Force Push)', params: ['force', 'radius', 'range', 'color'] },
+    { id: 'lightning_storm', label: 'Tempête d\'Eclairs (Zone continue)', params: ['damage', 'radius', 'duration', 'interval', 'color'] },
     { id: 'buff', label: 'Buff (Stats)', params: ['stat', 'amount', 'duration'] },
     { id: 'summon', label: 'Invocation', params: ['unitId', 'count', 'duration'] },
     { id: 'dash', label: 'Mouvement (Saut/Dash)', params: ['range', 'speed'] }

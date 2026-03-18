@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 
+const imageCache = {};
+
 const DEFAULT_STATS = {
     infantry: { speed: 1.5, hp: 15, damage: 3, range: 80, cooldown: 20, size: 3, color: '#aaaaff', label: 'Infanterie', armor: 10, armorPen: 0, accuracy: 0.85, traits: ['biological'], bonuses: { biological: 1.1 } },
     heavy_infantry: { speed: 1, hp: 40, damage: 10, range: 120, cooldown: 45, size: 5, color: '#8888ff', label: 'Infanterie Lourde', armor: 40, armorPen: 15, accuracy: 0.80, traits: ['biological'], bonuses: { mechanized: 1.5, robotic: 1.2 } },
@@ -45,49 +47,82 @@ export default function GroundCombat({ attackerArmy, defenderGarrison, planetTyp
     const UNIT_STATS = useMemo(() => {
         const stats = JSON.parse(JSON.stringify(DEFAULT_STATS)); // Deep copy 
         customUnits.forEach(u => {
-            const unitStats = { ...u, speed: u.speed||2, hp: u.hp||50, damage: u.damage||5, range: u.range||100, cooldown: u.cooldown||30, size: u.size||5, color: u.color||'#fff', label: u.name, armor: u.armor||0, armorPen: u.armorPen||0, accuracy: u.accuracy||0.8, traits: u.traits || ['biological'], bonuses: u.bonuses || {}, abilities: u.abilities || [] };
+            const unitStats = { 
+                ...u, 
+                // Ensure number types
+                speed: parseFloat(u.speed)||2, 
+                hp: parseFloat(u.hp)||50, 
+                maxHp: parseFloat(u.hp)||50, 
+                damage: parseFloat(u.damage)||5, 
+                range: parseFloat(u.range)||100, 
+                cooldown: parseFloat(u.cooldown)||30, 
+                size: parseFloat(u.size)||5, 
+                armor: parseFloat(u.armor)||0, 
+                armorPen: parseFloat(u.armorPen)||0, 
+                accuracy: parseFloat(u.accuracy)||0.8,
+                mana: parseFloat(u.maxMana) || 0, // Current Mana starts at full? or 0? 
+                maxMana: parseFloat(u.maxMana) || 0,
+                manaRegen: parseFloat(u.manaRegen) || 1,
+                // Arrays/Objects
+                color: u.color||'#fff', 
+                label: u.label || u.id, 
+                traits: u.traits || [], 
+                bonuses: u.bonuses || {}, 
+                abilities: [] 
+            };
             
-            // --- MAGIC DOMAIN INTEGRATION ---
-            if (magicDomains) {
-                // If unit has domainId
-                if (u.domainId) {
-                    const domain = magicDomains.find(d => d.id === u.domainId);
-                    if (domain && domain.talents) {
-                        domain.talents.forEach(t => {
-                            if ((t.type === 'active' || t.type === 'ultimate') && !unitStats.abilities.find(a => a.id === t.id)) {
-                                let targetType = 'point';
-                                if (t.archetype === 'projectile' || t.archetype === 'beam') targetType = 'target_enemy';
-                                if (t.archetype === 'explosion' || t.archetype === 'heal') targetType = 'area';
-                                if (t.archetype === 'buff' || t.archetype === 'summon' && !t.stats?.range) targetType = 'instant';
-                                
-                                unitStats.abilities.push({
-                                    id: t.id,
-                                    type: targetType,
-                                    label: t.label,
-                                    cost: t.stats?.cost || 0,
-                                    cooldown: t.stats?.cooldown || 100
-                                });
-                            }
-                        });
-                    }
-                }
-                
-                // If unit has explicit ability set (legacy or single selection)
-                if (u.ability && !unitStats.abilities.find(a => a.id === u.ability)) {
-                     for (const d of magicDomains) {
-                         const t = d.talents?.find(tal => tal.id === u.ability);
+            // --- MAGIC INTEGRATION VIA TRAITS ---
+            // UnitManager saves talents as TRAIT IDs in the 'traits' array.
+            if (magicDomains && unitStats.traits) {
+                 unitStats.traits.forEach(traitId => {
+                     for(const d of magicDomains) {
+                         const t = d.talents?.find(tal => tal.id === traitId);
                          if (t) {
-                                let targetType = 'point';
-                                if (t.archetype === 'projectile' || t.archetype === 'beam') targetType = 'target_enemy';
-                                if (t.archetype === 'explosion' || t.archetype === 'heal') targetType = 'area';
-                                if (t.archetype === 'buff' || t.archetype === 'summon' && !t.stats?.range) targetType = 'instant';
-                             unitStats.abilities.push({ id: t.id, type: targetType, label: t.label, cost: t.stats?.cost||0, cooldown: t.stats?.cooldown||100 });
-                             break;
+                             if (t.type === 'active' || t.type === 'ultimate') {
+                                 // Determine Target Type for UI
+                                 let targetType = 'point'; // Default clickable area
+                                 if (t.archetype === 'projectile' || t.archetype === 'beam' || t.archetype === 'life_drain') targetType = 'target_enemy';
+                                 if (t.archetype === 'explosion' || t.archetype === 'heal' || t.archetype === 'push' || t.archetype === 'lightning_storm') targetType = 'area';
+                                 if (t.archetype === 'buff' || (t.archetype === 'summon' && !t.stats?.range)) targetType = 'instant';
+                                 
+                                 unitStats.abilities.push({
+                                     id: t.id,
+                                     label: t.label,
+                                     type: targetType,
+                                     archetype: t.archetype, // Needed for execution
+                                     cost: parseFloat(t.stats?.cost || 0),
+                                     cooldown: parseFloat(t.stats?.cooldown || 100),
+                                     stats: t.stats // Pass full stats for execution
+                                 });
+                             }
                          }
                      }
-                }
+                 });
             }
-
+            
+            // Fallback: If 'ability' field is set (legacy single selection)
+            if (u.ability && !unitStats.abilities.find(a => a.id === u.ability)) {
+                 for (const d of magicDomains) {
+                     const t = d.talents?.find(tal => tal.id === u.ability);
+                     if (t) {
+                         let targetType = 'point';
+                         if (t.archetype === 'projectile' || t.archetype === 'beam') targetType = 'target_enemy';
+                         if (t.archetype === 'explosion' || t.archetype === 'heal') targetType = 'area';
+                         if (t.archetype === 'buff' || t.archetype === 'summon' && !t.stats?.range) targetType = 'instant';
+                         unitStats.abilities.push({ 
+                             id: t.id, 
+                             type: targetType, 
+                             archetype: t.archetype,
+                             label: t.label, 
+                             cost: parseFloat(t.stats?.cost||0), 
+                             cooldown: parseFloat(t.stats?.cooldown||100),
+                             stats: t.stats
+                         });
+                         break;
+                     }
+                 }
+            }
+            
             stats[u.id] = unitStats;
         });
 
@@ -997,8 +1032,30 @@ export default function GroundCombat({ attackerArmy, defenderGarrison, planetTyp
 
             // Update Explosions
             for (let i = explosions.length - 1; i >= 0; i--) {
-                explosions[i].life--;
-                if (explosions[i].life <= 0) explosions.splice(i, 1);
+                const ex = explosions[i];
+                ex.life--;
+
+                if (ex.isDoT && ex.damage > 0) {
+                     // DoT Logic
+                     if (!ex.tickTimer) ex.tickTimer = 0;
+                     ex.tickTimer++;
+                     
+                     if (ex.tickTimer >= (ex.interval || 20)) { // Default 20 frames (~0.3s)
+                         ex.tickTimer = 0;
+                         entitiesRef.current.forEach(t => {
+                             if (t.faction !== ex.faction && t.hp > 0) {
+                                 const dist = Math.sqrt(Math.pow(t.x - ex.x, 2) + Math.pow(t.y - ex.y, 2));
+                                 if (dist < ex.radius) {
+                                     t.hp -= ex.damage;
+                                     // Little zap fx
+                                     commandFxRef.current.push({ type: 'lightning', startX: ex.x + (Math.random()-0.5)*ex.radius, startY: ex.y + (Math.random()-0.5)*ex.radius, targetX: t.x, targetY: t.y, life: 5, color: ex.color });
+                                 }
+                             }
+                         });
+                     }
+                }
+
+                if (ex.life <= 0) explosions.splice(i, 1);
             }
 
             // Update Command FX
@@ -1439,52 +1496,77 @@ export default function GroundCombat({ attackerArmy, defenderGarrison, planetTyp
                 // Body
                 ctx.fillStyle = FACTION_COLORS[e.faction]?.units || '#fff';
                 
-                if (e.isSquad && e.soldiers) {
-                    // Render individual soldiers at their relative offsets
-                    e.soldiers.forEach(soldier => {
-                         ctx.beginPath(); 
-                         ctx.arc(soldier.xOff, soldier.yOff, stats.size, 0, Math.PI * 2); 
-                         ctx.fill();
-                    });
-                } 
-                else if (e.type === 'infantry') {
-                    ctx.beginPath(); ctx.arc(0, 0, stats.size, 0, Math.PI * 2); ctx.fill();
-                } else if (e.type === 'heavy_infantry') {
-                    ctx.fillRect(-stats.size, -stats.size, stats.size*2, stats.size*2);
-                } else if (e.type === 'vehicle') {
-                    ctx.fillRect(-stats.size*1.5, -stats.size, stats.size*3, stats.size*2);
-                    // Turret on top
-                    ctx.fillStyle = '#111';
-                    ctx.beginPath(); ctx.arc(0, 0, stats.size*0.6, 0, Math.PI * 2); ctx.fill();
-                } else if (e.type === 'turret') {
-                    ctx.beginPath(); ctx.moveTo(stats.size,0); ctx.lineTo(-stats.size, stats.size); ctx.lineTo(-stats.size, -stats.size); ctx.fill();
-                } else if (UNIT_STATS[e.type].isHero) {
-                     // HERO DRAWING
-                     ctx.shadowBlur = 15;
-                     ctx.shadowColor = e.faction === 'republic' ? '#00ff00' : '#ff0000';
-                     
-                     ctx.beginPath(); 
-                     ctx.arc(0, 0, stats.size, 0, Math.PI * 2); 
-                     ctx.fill();
-                     
-                     // Reset Shadow
-                     ctx.shadowBlur = 0;
-                     
-                     // Star/Icon
-                     ctx.fillStyle = '#fff';
-                     ctx.font = '10px Arial';
-                     ctx.textAlign = 'center';
-                     ctx.textBaseline = 'middle';
-                     ctx.fillText('★', 0, 0);
-
-                     // Mana Bar (Top Most)
-                     if (e.maxMana > 0) {
-                         const yOff = (e.maxShield > 0) ? -stats.size - 12 : -stats.size - 9;
-                         ctx.fillStyle = '#000044';
-                         ctx.fillRect(-6, yOff, 12, 2);
-                         ctx.fillStyle = '#aa00ff';
-                         ctx.fillRect(-6, yOff, 12 * (e.mana / e.maxMana), 2);
+                const drawUnitShape = (x, y, sz) => {
+                     if (stats.sprite) {
+                        if (!imageCache[stats.sprite]) {
+                            imageCache[stats.sprite] = new Image();
+                            imageCache[stats.sprite].src = stats.sprite;
+                        } else if (imageCache[stats.sprite].complete && imageCache[stats.sprite].naturalWidth > 0) {
+                            ctx.drawImage(imageCache[stats.sprite], x - sz*1.5, y - sz*1.5, sz*3, sz*3);
+                            return; 
+                        }
                      }
+                     
+                     if (stats.isHero) {
+                         ctx.shadowBlur = 15;
+                         ctx.shadowColor = e.faction === 'republic' ? '#00ff00' : '#ff0000';
+                     }
+
+                     const shape = stats.shape || (e.type === 'vehicle' ? 'square' : 'circle'); 
+                     
+                     ctx.beginPath();
+                     if (shape === 'square') { 
+                         ctx.rect(x - sz, y - sz, sz*2, sz*2);
+                     } else if (shape === 'triangle') { 
+                         ctx.moveTo(x + sz, y);
+                         ctx.lineTo(x - sz, y - sz/2);
+                         ctx.lineTo(x - sz, y + sz/2);
+                     } else if (shape === 'diamond') {
+                         ctx.moveTo(x, y - sz);
+                         ctx.lineTo(x + sz, y);
+                         ctx.lineTo(x, y + sz);
+                         ctx.lineTo(x - sz, y);
+                     } else if (shape === 'pentagon') {
+                        for (let i = 0; i < 5; i++) {
+                            const angle = i * 2 * Math.PI / 5 - Math.PI/2; 
+                            const px = x + sz * Math.cos(angle);
+                            const py = y + sz * Math.sin(angle);
+                            if (i === 0) ctx.moveTo(px, py);
+                            else ctx.lineTo(px, py);
+                        }
+                     } else { 
+                         ctx.arc(x, y, sz, 0, Math.PI * 2);
+                     }
+                     ctx.fill();
+
+                     if (stats.isHero) {
+                         ctx.shadowBlur = 0;
+                         if (!stats.sprite) {
+                             ctx.fillStyle = '#fff';
+                             ctx.font = '10px Arial';
+                             ctx.textAlign = 'center';
+                             ctx.textBaseline = 'middle';
+                             ctx.fillText('★', x, y);
+                             ctx.fillStyle = FACTION_COLORS[e.faction]?.units || '#fff';
+                         }
+                     }
+                };
+
+                if (e.isSquad && e.soldiers) {
+                    e.soldiers.forEach(soldier => {
+                         drawUnitShape(soldier.xOff, soldier.yOff, stats.size);
+                    });
+                } else {
+                    drawUnitShape(0, 0, stats.size);
+                }
+
+                // Mana Bar (Moved outside)
+                if (stats.isHero && e.maxMana > 0) {
+                     const yOff = (e.maxShield > 0) ? -stats.size - 12 : -stats.size - 9;
+                     ctx.fillStyle = '#000044';
+                     ctx.fillRect(-6, yOff, 12, 2);
+                     ctx.fillStyle = '#aa00ff';
+                     ctx.fillRect(-6, yOff, 12 * (e.mana / e.maxMana), 2);
                 }
 
                 // Shield Bar (Middle)
@@ -1943,12 +2025,15 @@ export default function GroundCombat({ attackerArmy, defenderGarrison, planetTyp
         
         const stats = UNIT_STATS[ent.type];
         const ability = stats.abilities ? stats.abilities.find(a => a.id === targetingData.id) : null;
-        const cost = ability ? ability.cost : (stats.manaCost || 0);
+        const cost = parseFloat(ability ? ability.cost : (stats.manaCost || 0));
 
         if (ent.mana < cost) return;
         ent.mana -= cost;
 
         // ABILITY LOGIC
+        // Priority 1: Check Built-in Abilities (Switch Case)
+        let handled = false;
+        
         switch(targetingData.id) {
             case 'jetpack_jump': {
                 executeJetpackJump(targetingData, wx, wy); // Reuse legacy function but check mana there? No, mana deducted here.
@@ -2013,88 +2098,135 @@ export default function GroundCombat({ attackerArmy, defenderGarrison, planetTyp
                     });
                     commandFxRef.current.push({ type: 'spawn', startX: wx+offsetX, startY: wy+offsetY, life: 30 });
                 }
+                handled = true;
                 break;
             }
-            default: {
-                if (magicDomains) {
-                     let traitData = null;
-                     for (const d of magicDomains) {
-                         const found = d.talents?.find(t => t.id === targetingData.id);
-                         if (found) { traitData = found; break; }
-                     }
+        }
 
-                     if (traitData) {
-                         const dmg = parseFloat(traitData.stats?.damage || 0);
-                         const radius = parseFloat(traitData.stats?.radius || 0);
-                         const duration = parseFloat(traitData.stats?.duration || 0);
-                         const speed = parseFloat(traitData.stats?.speed || 20);
-                         const color = traitData.stats?.color || '#ffffff';
+        if (handled) return;
 
-                         if (traitData.archetype === 'projectile') {
-                              projectilesRef.current.push({ id: Math.random(), x: ent.x, y: ent.y, targetX: wx, targetY: wy, speed: speed, damage: dmg, type: 'missile', color: color, faction: ent.faction, radius: 10 });
-                         } else if (traitData.archetype === 'explosion') {
-                              // IMMEDIATE DAMAGE FOR EXPLOSION
-                              entitiesRef.current.forEach(t => {
-                                  if (t.faction !== ent.faction && t.hp > 0) {
-                                      const dist = Math.sqrt(Math.pow(t.x - wx, 2) + Math.pow(t.y - wy, 2));
-                                      if (dist < (radius || 100)) {
-                                          t.hp -= dmg;
-                                          commandFxRef.current.push({ type: 'miss', startX: t.x, startY: t.y, life: 10 }); // Hit marker
-                                      }
-                                  }
-                              });
-                              explosionsRef.current.push({ x: wx, y: wy, radius: radius || 100, life: duration || 30, maxLife: duration || 30, color: color, damage: dmg, faction: ent.faction });
-                         } else if (traitData.archetype === 'beam') {
-                              projectilesRef.current.push({ id: Math.random(), x: ent.x, y: ent.y, targetX: wx, targetY: wy, speed: 40, damage: dmg, type: 'beam', color: color, faction: ent.faction }); // Faster speed for beam
-                         } else if (traitData.archetype === 'heal') {
-                             commandFxRef.current.push({ type: 'heal', startX: wx, startY: wy, life: 30 });
-                             entitiesRef.current.forEach(t => {
-                                if (t.faction === ent.faction && Math.hypot(t.x-wx, t.y-wy) < (radius || 150)) {
-                                    t.hp = Math.min(t.maxHp, t.hp + (parseFloat(traitData.stats?.amount) || 50));
-                                } 
-                             });
-                         } else if (traitData.archetype === 'buff') {
-                             commandFxRef.current.push({ type: 'heal', startX: wx, startY: wy, life: 30, color: '#ffff00' });
-                             entitiesRef.current.forEach(t => {
-                                if (t.faction === ent.faction && Math.hypot(t.x-wx, t.y-wy) < (radius || 150)) {
-                                    if(!t.buffs) t.buffs = []; // Safety init
-                                    t.buffs.push({
-                                        stat: traitData.stats?.stat || 'damage',
-                                        amount: parseFloat(traitData.stats?.amount || 0),
-                                        duration: parseFloat(traitData.stats?.duration || 300), // frames
-                                        label: traitData.label
-                                    });
-                                } 
-                             });
-                         } else if (traitData.archetype === 'summon') {
-                              const count = parseInt(traitData.stats?.count || 1);
-                              const typeToSummon = traitData.stats?.unitId || 'infantry';
-                              for(let i=0; i<count; i++) {
-                                   entitiesRef.current.push({
-                                         id: Date.now() + Math.random(), type: typeToSummon, 
-                                         x: wx + (Math.random()-0.5)*50, y: wy + (Math.random()-0.5)*50,
-                                         hp: UNIT_STATS[typeToSummon]?.hp || 20, 
-                                         maxHp: UNIT_STATS[typeToSummon]?.hp || 20, 
-                                         faction: ent.faction, isAttacker: ent.isAttacker,
-                                         angle: 0, state: 'idle', cooldown: 0, mana: 0, maxMana: 0, 
-                                         buffs: [], soldiers: []
-                                    });
-                                    commandFxRef.current.push({ type: 'spawn', startX: wx, startY: wy, life: 30 });
-                              }
-                         } else if (traitData.archetype === 'dash') {
-                              const dx = wx - ent.x;
-                              const dy = wy - ent.y;
-                              const dist = Math.sqrt(dx*dx + dy*dy);
-                              const maxDist = parseFloat(traitData.stats?.range || 300);
-                              let jumpX = wx; let jumpY = wy;
-                              if (dist > maxDist) { jumpX = ent.x + dx * (maxDist/dist); jumpY = ent.y + dy * (maxDist/dist); }
-                              commandFxRef.current.push({ type: 'move', startX: ent.x, startY: ent.y, targetX: jumpX, targetY: jumpY, life: 15 });
-                              ent.x = jumpX; ent.y = jumpY;
-                         }
-                     }
-                }
-                break;
-            }
+        // Custom Ability Logic via data-driven stats
+        if (ability && ability.archetype) {
+             const traitData = ability;
+             const dmg = parseFloat(traitData.stats?.damage || 0);
+             const radius = parseFloat(traitData.stats?.radius || 0);
+             const duration = parseFloat(traitData.stats?.duration || 0);
+             const speed = parseFloat(traitData.stats?.speed || 20);
+             const color = traitData.stats?.color || '#ffffff';
+             const archetype = traitData.archetype;
+
+             if (archetype === 'projectile') {
+                  projectilesRef.current.push({ id: Math.random(), x: ent.x, y: ent.y, targetX: wx, targetY: wy, speed: speed, damage: dmg, type: 'missile', color: color, faction: ent.faction, radius: 10 });
+             } else if (archetype === 'explosion') {
+                  entitiesRef.current.forEach(t => {
+                      if (t.faction !== ent.faction && t.hp > 0) {
+                          const dist = Math.sqrt(Math.pow(t.x - wx, 2) + Math.pow(t.y - wy, 2));
+                          if (dist < (radius || 100)) {
+                              t.hp -= dmg;
+                              commandFxRef.current.push({ type: 'miss', startX: t.x, startY: t.y, life: 10 }); 
+                          }
+                      }
+                  });
+                  explosionsRef.current.push({ x: wx, y: wy, radius: radius || 100, life: duration || 30, maxLife: duration || 30, color: color, damage: dmg, faction: ent.faction });
+             } else if (archetype === 'beam') {
+                  projectilesRef.current.push({ id: Math.random(), x: ent.x, y: ent.y, targetX: wx, targetY: wy, speed: 40, damage: dmg, type: 'beam', color: color, faction: ent.faction });
+             } else if (archetype === 'heal') {
+                 commandFxRef.current.push({ type: 'heal', startX: wx, startY: wy, life: 30, color: color });
+                 entitiesRef.current.forEach(t => {
+                    if (t.faction === ent.faction && Math.hypot(t.x-wx, t.y-wy) < (radius || 150)) {
+                        t.hp = Math.min(t.maxHp, t.hp + (parseFloat(traitData.stats?.amount) || 50));
+                    } 
+                 });
+             } else if (archetype === 'life_drain') {
+                  const drainDmg = parseFloat(traitData.stats?.damage || 50);
+                  const drainRadius = parseFloat(traitData.stats?.radius || 150);
+                  const healPct = parseFloat(traitData.stats?.percent_heal || 1.0); 
+                  let totalDrain = 0;
+                  
+                  entitiesRef.current.forEach(t => {
+                      if (t.faction !== ent.faction && Math.hypot(t.x-wx, t.y-wy) < drainRadius) {
+                          t.hp -= drainDmg;
+                          totalDrain += drainDmg;
+                          commandFxRef.current.push({ type: 'lightning', startX: ent.x, startY: ent.y, targetX: t.x, targetY: t.y, life: 15, color: color });
+                      }
+                  });
+                  
+                  if (totalDrain > 0) {
+                      ent.hp = Math.min(ent.maxHp, ent.hp + (totalDrain * healPct));
+                      commandFxRef.current.push({ type: 'heal', startX: ent.x, startY: ent.y, life: 20, color: '#ff0000' });
+                  }
+                  
+                  explosionsRef.current.push({ x: wx, y: wy, radius: drainRadius, life: 20, maxLife: 20, color: color, damage: 0, faction: ent.faction });
+
+             } else if (archetype === 'push') {
+                  const pushForce = parseFloat(traitData.stats?.force || 50);
+                  const pushRadius = parseFloat(traitData.stats?.radius || 150);
+                  
+                  entitiesRef.current.forEach(t => {
+                      if (t.faction !== ent.faction && Math.hypot(t.x-wx, t.y-wy) < pushRadius) {
+                          const angle = Math.atan2(t.y - wy, t.x - wx);
+                          t.x += Math.cos(angle) * pushForce;
+                          t.y += Math.sin(angle) * pushForce;
+                      }
+                  });
+                  explosionsRef.current.push({ x: wx, y: wy, radius: pushRadius, life: 20, maxLife: 20, color: color, damage: 0, faction: ent.faction });
+
+             } else if (archetype === 'lightning_storm') {
+                  const stormDmg = parseFloat(traitData.stats?.damage || 10);
+                  const stormRadius = parseFloat(traitData.stats?.radius || 150);
+                  const stormDuration = parseFloat(traitData.stats?.duration || 60); 
+                  const stormInterval = parseFloat(traitData.stats?.interval || 20); 
+
+                  explosionsRef.current.push({ 
+                      x: wx, y: wy, 
+                      radius: stormRadius, 
+                      life: stormDuration, 
+                      maxLife: stormDuration, 
+                      color: color, 
+                      damage: stormDmg,
+                      isDoT: true, 
+                      interval: stormInterval,
+                      faction: ent.faction 
+                  });
+
+             } else if (archetype === 'buff') {
+                 commandFxRef.current.push({ type: 'heal', startX: wx, startY: wy, life: 30, color: '#ffff00' });
+                 entitiesRef.current.forEach(t => {
+                    if (t.faction === ent.faction && Math.hypot(t.x-wx, t.y-wy) < (radius || 150)) {
+                        if(!t.buffs) t.buffs = []; 
+                        t.buffs.push({
+                            stat: traitData.stats?.stat || 'damage',
+                            amount: parseFloat(traitData.stats?.amount || 0),
+                            duration: parseFloat(traitData.stats?.duration || 300),
+                            label: traitData.label
+                        });
+                    } 
+                 });
+             } else if (archetype === 'summon') {
+                  const count = parseInt(traitData.stats?.count || 1);
+                  const typeToSummon = traitData.stats?.unitId || 'infantry';
+                  for(let i=0; i<count; i++) {
+                       entitiesRef.current.push({
+                             id: Date.now() + Math.random(), type: typeToSummon, 
+                             x: wx + (Math.random()-0.5)*50, y: wy + (Math.random()-0.5)*50,
+                             hp: UNIT_STATS[typeToSummon]?.hp || 20, 
+                             maxHp: UNIT_STATS[typeToSummon]?.hp || 20, 
+                             faction: ent.faction, isAttacker: ent.isAttacker,
+                             angle: 0, state: 'idle', cooldown: 0, mana: 0, maxMana: 0, 
+                             buffs: [], soldiers: []
+                        });
+                        commandFxRef.current.push({ type: 'spawn', startX: wx, startY: wy, life: 30 });
+                  }
+             } else if (archetype === 'dash') {
+                  const dx = wx - ent.x;
+                  const dy = wy - ent.y;
+                  const dist = Math.sqrt(dx*dx + dy*dy);
+                  const maxDist = parseFloat(traitData.stats?.range || 300);
+                  let jumpX = wx; let jumpY = wy;
+                  if (dist > maxDist) { jumpX = ent.x + dx * (maxDist/dist); jumpY = ent.y + dy * (maxDist/dist); }
+                  commandFxRef.current.push({ type: 'move', startX: ent.x, startY: ent.y, targetX: jumpX, targetY: jumpY, life: 15 });
+                  ent.x = jumpX; ent.y = jumpY;
+             }
         }
     };
 
@@ -2353,27 +2485,36 @@ export default function GroundCombat({ attackerArmy, defenderGarrison, planetTyp
                           <span className="text-sm uppercase tracking-wider">Orienter</span>
                       </button>
                       
-                      {selectedUnitData && UNIT_STATS[selectedUnitData.type] && UNIT_STATS[selectedUnitData.type].abilities && UNIT_STATS[selectedUnitData.type].abilities.map((ab) => (
-                          <button 
-                            key={ab.id}
-                            onClick={() => {
-                                  if (selectedUnitData.mana >= ab.cost) {
-                                       setAbilityTargeting({ id: ab.id, type: ab.type, sourceId: selectedUnitData.id });
-                                       isAbilityHoveredRef.current = false;
-                                  }
-                            }}
-                            onMouseEnter={() => isAbilityHoveredRef.current = true}
-                            onMouseLeave={() => isAbilityHoveredRef.current = false}
-                            className={`border-2 px-4 py-2 rounded-t-lg font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(168,85,247,0.5)] ${selectedUnitData.mana >= ab.cost ? 'bg-purple-900/80 hover:bg-purple-700 border-purple-500 text-white' : 'bg-gray-800 border-gray-600 text-gray-500 cursor-not-allowed'}`}
-                            title={`${ab.label} (Coût: ${ab.cost})`}
-                          >
-                              <span className="text-xl">⚡</span>
-                              <div className="flex flex-col items-start leading-none">
-                                  <span className="text-sm uppercase tracking-wider font-bold">{ab.label}</span>
-                                  <span className="text-[10px] text-purple-200">Coût: {ab.cost} FP</span>
-                              </div>
-                          </button>
-                      ))}
+                      {selectedUnitData && UNIT_STATS[selectedUnitData.type] && (UNIT_STATS[selectedUnitData.type].talents || UNIT_STATS[selectedUnitData.type].abilities) && (UNIT_STATS[selectedUnitData.type].talents || UNIT_STATS[selectedUnitData.type].abilities).map((ab) => {
+                          // Compatibility: Handle both new 'talents' (created via editor) and legacy 'abilities' 
+                          // The editor saves them as 'talents', but some preset units might use 'abilities'.
+                          // Standardize access here.
+                          const cost = ab.stats?.cost || ab.cost || 0;
+                          const label = ab.label;
+                          const abId = ab.id;
+
+                          return (
+                              <button 
+                                key={abId}
+                                onClick={() => {
+                                      if (selectedUnitData.mana >= cost) {
+                                           setAbilityTargeting({ id: abId, type: ab.archetype || ab.type, sourceId: selectedUnitData.id });
+                                           isAbilityHoveredRef.current = false;
+                                      }
+                                }}
+                                onMouseEnter={() => isAbilityHoveredRef.current = true}
+                                onMouseLeave={() => isAbilityHoveredRef.current = false}
+                                className={`border-2 px-4 py-2 rounded-t-lg font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(168,85,247,0.5)] ${selectedUnitData.mana >= cost ? 'bg-purple-900/80 hover:bg-purple-700 border-purple-500 text-white' : 'bg-gray-800 border-gray-600 text-gray-500 cursor-not-allowed'}`}
+                                title={`${label} (Coût: ${cost})`}
+                              >
+                                  <span className="text-xl">⚡</span>
+                                  <div className="flex flex-col items-start leading-none">
+                                      <span className="text-sm uppercase tracking-wider font-bold">{label}</span>
+                                      <span className="text-[10px] text-purple-200">Coût: {cost} FP</span>
+                                  </div>
+                              </button>
+                          );
+                      })}
                  </div>
             )}
             

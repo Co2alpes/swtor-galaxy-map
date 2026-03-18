@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 
+const imageCache = {};
+
 const DEFAULT_STATS = {
     fighter: { speed: 4, hp: 20, damage: 5, range: 100, cooldown: 30, size: 4, color: '#aaaaff', label: 'Chasseur TIE/X', armor: 0, armorPen: 0, accuracy: 0.85, traits: ['mechanized'], bonuses: { robotic: 1.5 } },
     corvette: { speed: 3, hp: 100, damage: 20, range: 200, cooldown: 60, size: 8, color: '#8888ff', label: 'Corvette', armor: 10, armorPen: 5, accuracy: 0.80, traits: ['mechanized'], bonuses: { mechanized: 1.2 } },
@@ -657,15 +659,58 @@ export default function FleetCombat({ attackerFleet, defenderFleets, defenderPla
                          ctx.fill();
                     });
                 } else {
-                    ctx.beginPath();
-                    if (e.type === 'turret') {
-                        ctx.rect(-stats.size, -stats.size, stats.size*2, stats.size*2);
-                    } else {
-                        ctx.moveTo(stats.size, 0);
-                        ctx.lineTo(-stats.size, -stats.size/2);
-                        ctx.lineTo(-stats.size, stats.size/2);
+                    // IMAGE RENDERING
+                    let drawn = false;
+                    if (stats.sprite) {
+                        if (!imageCache[stats.sprite]) {
+                            // Load Image
+                            imageCache[stats.sprite] = new Image();
+                            imageCache[stats.sprite].src = stats.sprite;
+                        } else if (imageCache[stats.sprite].complete && imageCache[stats.sprite].naturalWidth > 0) {
+                             ctx.save();
+                             ctx.rotate(-Math.PI/2); // Rotate to face up for standard sprites if needed, or adjust as per asset convention
+                             // Assuming standard sprites face UP, but game uses 0 = RIGHT. 
+                             // Adjusting: if sprite points UP, and 0 is RIGHT, we need +90 deg or -90 deg. 
+                             // Let's assume sprites usually point UP (standard) -> rotate 90 deg.
+                             // Actually better not to assume rotation for now, or match standard 0=Right.
+                             // If standard icons are used, they might be square.
+                             
+                             // Let's draw it centered
+                             ctx.drawImage(imageCache[stats.sprite], -stats.size*1.5, -stats.size*1.5, stats.size*3, stats.size*3);
+                             ctx.restore();
+                             drawn = true;
+                        }
                     }
-                    ctx.fill();
+
+                    if (!drawn) {
+                        ctx.beginPath();
+                        const shape = stats.shape || (e.type === 'turret' ? 'square' : 'triangle');
+                        
+                        if (shape === 'square') {
+                            ctx.rect(-stats.size, -stats.size, stats.size*2, stats.size*2);
+                        } else if (shape === 'circle') {
+                            ctx.arc(0, 0, stats.size, 0, Math.PI * 2);
+                        } else if (shape === 'diamond') {
+                            ctx.moveTo(stats.size, 0);
+                            ctx.lineTo(0, stats.size);
+                            ctx.lineTo(-stats.size, 0);
+                            ctx.lineTo(0, -stats.size);
+                        } else if (shape === 'pentagon') {
+                            for (let i = 0; i < 5; i++) {
+                                const angle = i * 2 * Math.PI / 5;
+                                const x = stats.size * Math.cos(angle);
+                                const y = stats.size * Math.sin(angle);
+                                if (i === 0) ctx.moveTo(x, y);
+                                else ctx.lineTo(x, y);
+                            }
+                        } else {
+                            // Triangle
+                            ctx.moveTo(stats.size, 0);
+                            ctx.lineTo(-stats.size, -stats.size/2);
+                            ctx.lineTo(-stats.size, stats.size/2);
+                        }
+                        ctx.fill();
+                    }
                 }
 
                 // HP Bar

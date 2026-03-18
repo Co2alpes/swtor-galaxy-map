@@ -16,8 +16,10 @@ import ResearchTree from './ResearchTree';
 import UnitManager from './UnitManager';
 import GroundMapEditor from './GroundMapEditor';
 import Encyclopedia from './Encyclopedia';
+import AdminUserList from './AdminUserList';
 import MagicManager from './MagicManager';
 import HolonetEditor from './HolonetEditor';
+import IntroPopup from './IntroPopup';
 import { MapDefs, BackgroundLayer, RouteLayer, FleetLayer, PlanetLayer } from './MapLayers';
 
 // --- 1. CONFIGURATION GLOBALE ---
@@ -388,7 +390,7 @@ const GarrisonManager = ({ planet, factionData, onClose, onRecruit, onDisband, p
 };
 
 // --- COMPOSANTS HUD ---
-const TopHud = ({ userFaction, factionData, projectedIncome, currentTurn, isAdmin, isProcessingTurn, handleNextTurn, handleLogout, onOpenProfile, onOpenMapEditor }) => (
+const TopHud = ({ userFaction, factionData, projectedIncome, currentTurn, isAdmin, isProcessingTurn, handleNextTurn, handleLogout, onOpenProfile, onOpenMapEditor, onOpenAdminUsers }) => (
     <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none">
         <div className="flex items-start gap-2 pointer-events-auto">
             <NotificationPanel userID={userFaction} />
@@ -408,9 +410,14 @@ const TopHud = ({ userFaction, factionData, projectedIncome, currentTurn, isAdmi
                 </div>
                 <div className="w-px bg-gray-700 my-1"></div>
                 {isAdmin && (
-                    <button onClick={onOpenMapEditor} className="px-3 hover:bg-gray-800 group flex flex-col items-center justify-center transition-colors rounded" title="Éditeur de Carte">
-                        <div className="text-gray-500 group-hover:text-blue-400">🗺️</div>
-                    </button>
+                    <>
+                        <button onClick={onOpenAdminUsers} className="px-3 hover:bg-gray-800 group flex flex-col items-center justify-center transition-colors rounded" title="Admin Utilisateurs">
+                         <div className="text-gray-500 group-hover:text-red-500 font-bold">👤!</div>
+                        </button>
+                        <button onClick={onOpenMapEditor} className="px-3 hover:bg-gray-800 group flex flex-col items-center justify-center transition-colors rounded" title="Éditeur de Carte">
+                            <div className="text-gray-500 group-hover:text-blue-400">🗺️</div>
+                        </button>
+                    </>
                 )}
                 <button onClick={onOpenProfile} className="px-3 hover:bg-gray-800 group flex flex-col items-center justify-center transition-colors rounded" title="Profil">
                     <div className="text-gray-500 group-hover:text-[#cba660]"><Icons.User /></div>
@@ -892,6 +899,7 @@ const BattleSimulator = ({ onClose, onStart, customUnits = [] }) => {
 // ==========================================
 export default function GalaxyMap({ userFaction, userRole, userID, userName, heroData }) {
   const [showBattleSimulator, setShowBattleSimulator] = useState(false);
+  const [showIntro, setShowIntro] = useState(false);
   
   // --- NOUVEAU: COMBAT RTS ---
   const [pendingBattle, setPendingBattle] = useState(null);
@@ -905,6 +913,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
   const [projectedIncome, setProjectedIncome] = useState({ credits: 0, materials: 0, manpower: 0, science: 0 });
   const [isProcessingTurn, setIsProcessingTurn] = useState(false);
   const [isFleetSystemEnabled, setIsFleetSystemEnabled] = useState(true); 
+  const [isRegionClickEnabled, setIsRegionClickEnabled] = useState(true);
   const [selectedPlanet, setSelectedPlanet] = useState(null);
   const [planetBuildings, setPlanetBuildings] = useState([]); 
   const [showBuildMenu, setShowBuildMenu] = useState(false);
@@ -914,6 +923,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
   const [showCouncil, setShowCouncil] = useState(false);
   const [showFleetManager, setShowFleetManager] = useState(false); 
   const [showProfile, setShowProfile] = useState(false); 
+  const [showAdminUsers, setShowAdminUsers] = useState(false);
   const [factionMembers, setFactionMembers] = useState([]); 
   const [fleets, setFleets] = useState([]);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -1054,6 +1064,20 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
           return () => unsub();
       }
   }, [userFaction, isHighCommand]);
+
+  // --- INTRO POPUP ---
+  useEffect(() => {
+    if (userData && userData.hasSeenIntro !== true) {
+        setShowIntro(true);
+    }
+  }, [userData]);
+
+  const handleCloseIntro = async () => {
+    setShowIntro(false);
+    if (userID) {
+        await updateDoc(doc(db, "users", userID), { hasSeenIntro: true });
+    }
+  };
 
   useEffect(() => {
       const svgElement = svgRef.current;
@@ -1580,10 +1604,11 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
   const planetSlots = Array(maxSlotsDefined).fill(null).map((_, i) => planetBuildings[i] || null);
 
   const handleRegionClick = useCallback((rName) => {
+    if (!isRegionClickEnabled) return;
     const rData = regions.find(r => r.name === rName);
     const rPlanets = planets.filter(p => p.region === rName);
     setSelectedRegion({ name: rName, description: rData?.description || "", planets: rPlanets });
-  }, [regions, planets]);
+  }, [regions, planets, isRegionClickEnabled]);
 
   const visiblePlanets = useMemo(() => {
     // Si toutes les factions sont visibles, on rend tous les planètes (opti)
@@ -1594,6 +1619,20 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
         return visibleFactions.includes(owner);
     });
   }, [planets, visibleFactions, factions]);
+
+  // OPTIMIZATION: Only render planets within the current viewport (with a margin)
+  const renderedPlanets = useMemo(() => {
+      // PlanetLayer hides planets when zoomLevel (viewBox.w) >= 2500, so we can return empty list
+      if (viewBox.w >= 2500) return [];
+
+      const margin = 200; // Generous margin to cover aspect ratio differences and planet sizes
+      return visiblePlanets.filter(p => 
+          p.x >= viewBox.x - margin && 
+          p.x <= viewBox.x + viewBox.w + margin &&
+          p.y >= viewBox.y - margin && 
+          p.y <= viewBox.y + viewBox.h + margin
+      );
+  }, [visiblePlanets, viewBox]);
 
   // OPTIMIZATION: Memoize filtered/derived props for map layers to prevent unnecessary re-renders
   const mapFactions = useMemo(() => factions.filter(f => visibleFactions.includes(f.id)), [factions, visibleFactions]);
@@ -1676,13 +1715,14 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                  {/* Main Management Dock */}
                  {!isEditorMode && !activePlanet && !isAnyModalOpen && (
                      <div className="flex items-center gap-2 px-3 py-2 bg-gray-900/95 border border-gray-700 rounded-xl shadow-2xl backdrop-blur-md">
-                        {isHighCommand && (<button onClick={() => setShowCouncil(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-yellow-600/50 hover:bg-yellow-900/50 hover:border-yellow-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Conseil Noir"><span className="group-hover:scale-110 transition-transform">👑</span></button>)}
+                        {(isHighCommand || userFaction === 'mandalorians') && (<button onClick={() => setShowCouncil(true)} className={`group relative w-12 h-12 bg-gray-800 rounded-lg border transition-all flex items-center justify-center text-2xl shadow-lg ${userFaction === 'mandalorians' ? 'border-orange-600/50 hover:bg-orange-900/50 hover:border-orange-400' : (userFaction === 'republic' ? 'border-blue-600/50 hover:bg-blue-900/50 hover:border-blue-400' : 'border-yellow-600/50 hover:bg-yellow-900/50 hover:border-yellow-400')}`} title={userFaction === 'republic' ? "Sénat Galactique" : (userFaction === 'mandalorians' ? "Gestion de Clan" : "Conseil Noir")}><span className="group-hover:scale-110 transition-transform">{userFaction === 'mandalorians' ? '🛡️' : (userFaction === 'republic' ? '⚜️' : '👑')}</span></button>)}
                         {isDiplomat && (<button onClick={() => setShowDiplomacy(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-orange-600/50 hover:bg-orange-900/50 hover:border-orange-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Diplomatie"><span className="group-hover:scale-110 transition-transform">⚖️</span></button>)}
                         {canAccessFleets && (<button onClick={() => setShowFleetManager(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-green-600/50 hover:bg-green-900/50 hover:border-green-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Gestion de Flotte"><span className="group-hover:scale-110 transition-transform">⚓</span></button>)}
                         {isHighCommand && (<button onClick={() => setShowResearch(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-blue-600/50 hover:bg-blue-900/50 hover:border-blue-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Recherche & Technologie"><span className="group-hover:scale-110 transition-transform">🧬</span></button>)}
                         <div className="w-px h-8 bg-gray-700 mx-1"></div>
                         <button onClick={() => setShowEncyclopedia(true)} className="group relative w-10 h-10 bg-gray-800 rounded-lg border border-cyan-600/50 hover:bg-cyan-900/50 hover:border-cyan-400 transition-all flex items-center justify-center text-xl shadow-lg" title="Encyclopédie"><span className="group-hover:scale-110 transition-transform">📘</span></button>
                         <button onClick={() => setShowFactionFilter(true)} className="group relative w-10 h-10 bg-gray-800 rounded-lg border border-white/30 hover:bg-white/10 hover:border-white/60 transition-all flex items-center justify-center text-xl shadow-lg" title="Filtres de Carte"><span className="group-hover:scale-110 transition-transform">👁️</span></button>
+                        <button onClick={() => setShowSettingsModal(true)} className="group relative w-10 h-10 bg-gray-800 rounded-lg border border-gray-600/50 hover:bg-gray-700/50 hover:border-gray-400 transition-all flex items-center justify-center text-lg shadow-lg" title="Paramètres"><span className="group-hover:scale-110 transition-transform">⚙️</span></button>
                      </div>
                  )}
 
@@ -1693,7 +1733,6 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                          <button onClick={() => { setIsRouteMode(!isRouteMode); setEditorLinkSource(null); }} className={`w-8 h-8 rounded border transition flex items-center justify-center text-sm ${isRouteMode ? 'border-blue-500 bg-blue-900/50 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'border-blue-500/50 text-blue-400 hover:bg-blue-900/50 hover:text-white'}`} title="Mode Routes">🔗</button>
                          {isArchitect && (<button onClick={() => setShowMagicManager(true)} className="w-8 h-8 rounded border border-fuchsia-500/50 text-fuchsia-400 hover:bg-fuchsia-900/50 hover:text-white transition flex items-center justify-center text-sm" title="Éditeur Magie">⚡</button>)}
                          {userRole === 'admin' && (<button onClick={() => setShowBattleSimulator(true)} className="w-8 h-8 rounded border border-red-500/50 text-red-500 hover:bg-red-900/50 hover:text-white transition flex items-center justify-center text-sm" title="Simulateur Combat">⚔️</button>)}
-                         {isArchitect && (<button onClick={() => setShowSettingsModal(true)} className="w-8 h-8 rounded border border-gray-600 text-gray-400 hover:bg-gray-700 hover:text-white transition flex items-center justify-center text-base" title="Paramètres">⚙️</button>)}
                      </div>
                  )}
              </div>
@@ -1709,7 +1748,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
 
          {!isEditorMode && !showDiplomacy && (
              <div className={isDarkCouncil ? "mt-24 transition-all duration-500" : ""}>
-                <TopHud userFaction={userFaction} factionData={factionData} projectedIncome={projectedIncome} currentTurn={currentTurn} isAdmin={isAdmin} isProcessingTurn={isProcessingTurn} handleNextTurn={handleNextTurn} handleLogout={() => signOut(auth)} onOpenProfile={() => setShowProfile(true)} onOpenMapEditor={() => setShowMapEditor(true)} />
+                <TopHud userFaction={userFaction} factionData={factionData} projectedIncome={projectedIncome} currentTurn={currentTurn} isAdmin={isAdmin} isProcessingTurn={isProcessingTurn} handleNextTurn={handleNextTurn} handleLogout={() => signOut(auth)} onOpenProfile={() => setShowProfile(true)} onOpenMapEditor={() => setShowMapEditor(true)} onOpenAdminUsers={() => setShowAdminUsers(true)} />
              </div>
          )}
 
@@ -1729,7 +1768,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
               />}
             <RouteLayer planets={visiblePlanets} />
             <FleetLayer fleets={mapFleets} planets={planets} currentTurn={currentTurn} shouldShowFleets={shouldShowFleets} fleetMovePreview={fleetMovePreview} />
-            <PlanetLayer planets={visiblePlanets} factions={mapFactions} fleets={mapFleets} activePlanet={activePlanet} shouldShowFleets={shouldShowFleets} onPlanetClick={handlePlanetClick} zoomLevel={viewBox.w} />
+            <PlanetLayer planets={renderedPlanets} factions={mapFactions} fleets={mapFleets} activePlanet={activePlanet} shouldShowFleets={shouldShowFleets} onPlanetClick={handlePlanetClick} zoomLevel={viewBox.w} />
          </svg>
       </div>
 
@@ -1778,6 +1817,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
       {showDiplomacy && (<DiplomacyScreen userFaction={userFaction} onClose={()=>setShowDiplomacy(false)} />)}
       {showBuildMenu && canBuild && (<BuildMenuOverlay buildingsTemplates={buildingsTemplates} factionData={factionData} selectedPlanet={activePlanet} handleConstruct={handleConstruct} onClose={()=>setShowBuildMenu(false)} userFaction={userFaction} />)}
       {showProfile && ProfileScreen && (<ProfileScreen userID={userID} onClose={()=>setShowProfile(false)} />)}
+      {showAdminUsers && <AdminUserList onClose={() => setShowAdminUsers(false)} />}
       
       {/* MODALE CONFIRMATION FLOTTE */}
       {fleetMovePreview && (
@@ -1923,7 +1963,26 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
           </div>
       )}
 
-      {showSettingsModal && ( <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-white p-6 z-[100] w-80 shadow-2xl rounded"><div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2"><h3 className="text-white font-bold uppercase">Paramètres Globaux</h3><button onClick={()=>setShowSettingsModal(false)} className="text-gray-400 hover:text-white">✕</button></div><div className="flex justify-between items-center"><span className="text-sm text-gray-300 uppercase">Système de Flotte</span><button onClick={toggleFleetSystem} className={`px-3 py-1 rounded text-xs font-bold uppercase ${isFleetSystemEnabled ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{isFleetSystemEnabled ? 'ACTIF' : 'INACTIF'}</button></div></div> )}
+      {showSettingsModal && ( 
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-white p-6 z-[100] w-80 shadow-2xl rounded">
+            <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                <h3 className="text-white font-bold uppercase">Paramètres</h3>
+                <button onClick={()=>setShowSettingsModal(false)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            <div className="flex flex-col gap-4">
+                {userRole === 'admin' && (
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-300 uppercase">Système de Flotte</span>
+                        <button onClick={toggleFleetSystem} className={`px-3 py-1 rounded text-xs font-bold uppercase ${isFleetSystemEnabled ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{isFleetSystemEnabled ? 'ACTIF' : 'INACTIF'}</button>
+                    </div>
+                )}
+                <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-300 uppercase">Infos Régions</span>
+                    <button onClick={() => setIsRegionClickEnabled(!isRegionClickEnabled)} className={`px-3 py-1 rounded text-xs font-bold uppercase ${isRegionClickEnabled ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{isRegionClickEnabled ? 'ACTIF' : 'INACTIF'}</button>
+                </div>
+            </div>
+        </div> 
+      )}
       {showFactionManager && isEditorMode && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-purple-600 p-6 z-[100] w-[500px] max-h-[85vh] flex flex-col shadow-2xl">
               <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2"><h3 className="text-purple-400 font-bold uppercase">{editingFaction ? 'Modifier Faction' : 'Gérer Factions'}</h3><button onClick={() => { setShowFactionManager(false); setEditingFaction(null); }} className="text-white hover:text-red-500">X</button></div>
@@ -2172,6 +2231,14 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
       
       {showHolonetEditor && (
         <HolonetEditor onClose={() => setShowHolonetEditor(false)} />
+      )}
+      
+      {showAdminUsers && (
+          <AdminUserList onClose={() => setShowAdminUsers(false)} />
+      )}
+
+      {showIntro && factionData && (
+        <IntroPopup userFaction={factionData.name} onClose={handleCloseIntro} />
       )}
     </div>
   );

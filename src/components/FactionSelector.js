@@ -61,38 +61,89 @@ const FACTIONS = [
     glow: "shadow-yellow-600/50",
     text: "text-yellow-500",
     hoverStyle: "hover:border-yellow-500/60 hover:shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:bg-yellow-900/10",
-    overlayColor: "from-yellow-400/30 to-yellow-950/60"
+    overlayColor: "from-yellow-400/30 to-yellow-950/60",
+    subFactions: [
+      {
+        id: 'mandalorians',
+        name: "Clan Mandalorien",
+        desc: "Honneur. Gloire. Combat.",
+        color: "orange",
+        icon: "🛡️",
+        style: "bg-orange-950/40 border-orange-600 text-orange-500 hover:shadow-orange-500/50"
+      },
+      {
+        id: 'civil',
+        name: "Citoyen (Spectateur)",
+        desc: "Observateur neutre. Mode passif.",
+        color: "gray",
+        icon: "👁️",
+        style: "bg-gray-950/40 border-gray-600 text-gray-400 hover:shadow-gray-500/50"
+      }
+    ]
+  },
+  // Sub-factions hidden definitions for auto-creation logic
+  {
+    id: 'mandalorians',
+    name: 'Clan Mandalorien',
+    color: 'orange',
+    bgImage: '/images/neutral_bg.jpg',
+    hidden: true,
+    desc: "Guerriers d'élite. La Voie de Mandalore.",
+    bg: "bg-orange-950/40",
+    border: "border-orange-600",
+    glow: "shadow-orange-600/50", 
+    text: "text-orange-500",
+    overlayColor: "from-orange-400/30 to-orange-950/60",
+    diplomatic_phrases: { war: "C'est la voie.", alliance: "Nous combattons ensemble.", neutral_good: "Honneur.", neutral_bad: "Lâche." }
+  },
+  {
+    id: 'civil',
+    name: 'Citoyen Galactique',
+    color: 'gray',
+    bgImage: '/images/neutral_bg.jpg',
+    hidden: true,
+    desc: "Observateur passif des conflits galactiques.",
+    bg: "bg-gray-950/40",
+    border: "border-gray-600",
+    glow: "shadow-gray-600/50",
+    text: "text-gray-400",
+    overlayColor: "from-gray-400/30 to-gray-900/60",
+    diplomatic_phrases: { war: "Je ne veux pas d'ennuis.", alliance: "Je reste neutre.", neutral_good: "Bonjour.", neutral_bad: "Laissez-moi." }
   }
 ];
 
 export default function FactionSelector({ userID, onFactionSelected, onBack }) {
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedSubId, setSelectedSubId] = useState(null); // Pour les sous-factions (Mandalorien/Civil)
   const [hoveredId, setHoveredId] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleJoin = async () => {
-    if (!selectedId) return;
+    // Si c'est 'neutral', on attend la sous-sélection
+    const finalId = (selectedId === 'neutral' && selectedSubId) ? selectedSubId : selectedId;
+    if (!finalId) return;
+    
     setLoading(true);
     try {
       // 1. Vérifier si la faction existe, sinon la recréer (Auto-Repair)
-      const factionRef = doc(db, "factions", selectedId);
+      const factionRef = doc(db, "factions", finalId);
       const factionSnap = await getDoc(factionRef);
 
       if (!factionSnap.exists()) {
-          console.warn(`Faction ${selectedId} introuvable. Recreation automatique...`);
-          const factionData = FACTIONS.find(f => f.id === selectedId);
+          console.warn(`Faction ${finalId} introuvable. Recreation automatique...`);
+          const factionData = FACTIONS.find(f => f.id === finalId);
           if (factionData) {
               await setDoc(factionRef, {
                   name: factionData.name,
-                  color: factionData.color === 'blue' ? '#3b82f6' : (factionData.color === 'red' ? '#ef4444' : '#eab308'),
+                  color: factionData.color === 'blue' ? '#3b82f6' : (factionData.color === 'red' ? '#ef4444' : (factionData.color === 'orange' ? '#f97316' : '#eab308')), // Orange added
                   image: factionData.bgImage,
                   description: factionData.desc,
-                  credits: 2000, 
-                  materials: 1000, 
-                  manpower: 500,
+                  credits: finalId === 'civil' ? 0 : 2000, 
+                  materials: finalId === 'civil' ? 0 : 1000, 
+                  manpower: finalId === 'civil' ? 0 : 500,
                   science: 0,
-                  type: 'major',
-                  diplomatic_phrases: {
+                  type: finalId === 'civil' ? 'spectator' : 'major', // Marquer comme spectateur
+                  diplomatic_phrases: factionData.diplomatic_phrases || {
                       war: "La guerre est déclarée.",
                       alliance: "Une alliance est formée.",
                       neutral_good: "Salutations.",
@@ -104,7 +155,8 @@ export default function FactionSelector({ userID, onFactionSelected, onBack }) {
 
       // 2. Mettre à jour l'utilisateur
       await updateDoc(doc(db, "users", userID), {
-        faction_id: selectedId
+        faction_id: finalId,
+        is_spectator: finalId === 'civil' // Flag utile pour le frontend
       });
       if (onFactionSelected) onFactionSelected();
     } catch (e) {
@@ -113,7 +165,7 @@ export default function FactionSelector({ userID, onFactionSelected, onBack }) {
     }
   };
 
-  const activeBgFaction = hoveredId ? FACTIONS.find(f => f.id === hoveredId) : (selectedId ? FACTIONS.find(f => f.id === selectedId) : null);
+  const activeBgFaction = hoveredId ? FACTIONS.find(f => f.id === hoveredId) : (selectedSubId ? FACTIONS.find(f => f.id === selectedSubId) : (selectedId ? FACTIONS.find(f => f.id === selectedId) : null));
 
   return (
     <div className="w-full flex flex-col items-center relative">
@@ -144,13 +196,13 @@ export default function FactionSelector({ userID, onFactionSelected, onBack }) {
       {/* --- CONTENU PRINCIPAL (GRILLE + BOUTON) --- */}
       <div className="relative z-10 w-full flex flex-col items-center">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-8">
-            {FACTIONS.map((f) => {
+            {FACTIONS.filter(f => !f.hidden).map((f) => {
               const isSelected = selectedId === f.id;
               
               return (
                 <button
                   key={f.id}
-                  onClick={() => setSelectedId(f.id)}
+                  onClick={() => { setSelectedId(f.id); setSelectedSubId(null); }}
                   onMouseEnter={() => setHoveredId(f.id)}
                   onMouseLeave={() => setHoveredId(null)}
                   className={`relative group flex flex-col items-center text-center p-6 rounded-xl border-2 transition-all duration-300 transform backdrop-blur-sm
@@ -186,8 +238,39 @@ export default function FactionSelector({ userID, onFactionSelected, onBack }) {
             })}
           </div>
 
+          {/* SUB-SELECTION POUR FACTION NEUTRE */}
+          {selectedId === 'neutral' && (
+             <div className="grid grid-cols-2 gap-8 w-full max-w-2xl mb-8 animate-in slide-in-from-bottom-5 fade-in duration-500">
+                {FACTIONS.find(f => f.id === 'neutral').subFactions.map(sub => {
+                  const isSubSelected = selectedSubId === sub.id;
+                  return (
+                    <button
+                      key={sub.id}
+                      onClick={() => setSelectedSubId(sub.id)}
+                      className={`relative overflow-hidden p-6 rounded-xl border-2 transition-all duration-300 flex flex-col items-center gap-3 text-center group
+                        ${isSubSelected 
+                           ? sub.style + " scale-105 shadow-[0_0_25px_currentColor] ring-2 ring-white/20" 
+                           : "bg-black/60 border-gray-800 text-gray-500 hover:text-white hover:border-gray-500 hover:bg-gray-900/80"
+                        }
+                      `}
+                    >
+                       <div className="text-4xl">{sub.icon}</div>
+                       <div>
+                          <h4 className="font-bold uppercase tracking-widest text-sm">{sub.name}</h4>
+                          <p className="text-[10px] opacity-70 mt-1">{sub.desc}</p>
+                       </div>
+                       
+                       {isSubSelected && (
+                         <div className="absolute top-2 right-2 w-3 h-3 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]"></div>
+                       )}
+                    </button>
+                  );
+                })}
+             </div>
+          )}
+
           <div className="h-16 flex items-center justify-center w-full">
-            {selectedId ? (
+            {(selectedId && (selectedId !== 'neutral' || selectedSubId)) ? (
                 <button
                     onClick={handleJoin}
                     disabled={loading}

@@ -165,6 +165,60 @@ export const FleetLayer = memo(({ fleets, planets, currentTurn, shouldShowFleets
     );
 });
 
+const PlanetItem = memo(({ planet, faction, orbitFleetsCount, isActive, shouldShowFleets, onPlanetClick, showLabels }) => {
+    const pType = planet.planet_type || 'standard';
+    const gradId = pType === 'industrial' ? 'grad-industrial' :
+                   pType === 'capital' ? 'grad-capital' :
+                   pType === 'force_nexus' ? 'grad-nexus' : 'grad-standard';
+                   
+    const size = pType === 'capital' ? 8 : (pType === 'force_nexus' ? 6 : 4);
+
+    return (
+        <g className="cursor-pointer" onClick={(e) => onPlanetClick(e, planet)} opacity={isActive ? 1 : 0.9}>
+            {/* Selection Ring */}
+            {shouldShowFleets && orbitFleetsCount > 0 && (
+                <g>
+                    <circle cx={planet.x} cy={planet.y} r="25" stroke="cyan" strokeWidth="1" fill="none" strokeDasharray="4,2" className="animate-spin-slow" />
+                    <circle cx={planet.x + 18} cy={planet.y - 18} r="7" fill="#0f172a" stroke="cyan" />
+                    <text x={planet.x + 18} y={planet.y - 15} textAnchor="middle" fontSize="7" fill="cyan" fontWeight="bold">⚓{orbitFleetsCount}</text>
+                </g>
+            )}
+            
+            {/* Hitbox */}
+            <circle cx={planet.x} cy={planet.y} r="30" fill="transparent" />
+            
+            {/* Active Indicator */}
+            {isActive && (
+                <g className="animate-pulse">
+                    <circle cx={planet.x} cy={planet.y} r="20" stroke="white" strokeWidth="0.5" fill="none" opacity="0.5" />
+                    <circle cx={planet.x} cy={planet.y} r="24" stroke="white" strokeWidth="1" fill="none" strokeDasharray="2,4" />
+                </g>
+            )}
+
+            {/* Faction Territory Halo */}
+            {faction && faction.id !== 'neutral' && (
+                <circle cx={planet.x} cy={planet.y} r="18" fill={faction.color} fillOpacity="0.1" />
+            )}
+            
+            {/* Planet Body */}
+            <circle cx={planet.x} cy={planet.y} r={size} fill={`url(#${gradId})`} stroke={faction?.color || '#555'} strokeWidth={faction?.id !== 'neutral' ? 1.5 : 0.5} />
+            
+            {/* Atmosphere / Shine */}
+            <circle cx={planet.x - size*0.3} cy={planet.y - size*0.3} r={size*0.4} fill="white" fillOpacity="0.1" />
+
+            {/* Special Markers */}
+            {planet.planet_type === 'capital' && <circle cx={planet.x} cy={planet.y} r={size + 3} stroke={faction?.color || 'goldenrod'} strokeWidth="1" fill="none" opacity="0.7" />}
+            {planet.planet_type === 'force_nexus' && <circle cx={planet.x} cy={planet.y} r={size + 2} stroke="#a855f7" strokeWidth="0.5" fill="none" className="animate-pulse" />}
+            {planet.governor_id && <text x={planet.x + 8} y={planet.y - 8} fontSize="8">👑</text>}
+            
+            {/* Label */}
+            {showLabels && (
+                <text x={planet.x} y={planet.y + 18} fill="#e5e7eb" fontSize="8" textAnchor="middle" className="font-mono uppercase font-bold drop-shadow-md tracking-wider" style={{ textShadow: '0px 2px 4px black' }}>{planet.name}</text>
+            )}
+        </g>
+    );
+});
+
 export const PlanetLayer = memo(({ planets, factions, fleets, activePlanet, shouldShowFleets, onPlanetClick, zoomLevel }) => {
     // Optimization: Maps for O(1) lookups
     const factionMap = useMemo(() => new Map(factions.map(f => [f.id, f])), [factions]);
@@ -172,8 +226,8 @@ export const PlanetLayer = memo(({ planets, factions, fleets, activePlanet, shou
         const map = new Map();
         fleets.forEach(f => {
             if (f.status === 'stationed') {
-                if (!map.has(f.location_id)) map.set(f.location_id, []);
-                map.get(f.location_id).push(f);
+                if (!map.has(f.location_id)) map.set(f.location_id, 0);
+                map.set(f.location_id, map.get(f.location_id) + 1);
             }
         });
         return map;
@@ -183,63 +237,22 @@ export const PlanetLayer = memo(({ planets, factions, fleets, activePlanet, shou
     const showPlanets = z < 2500; // Planètes visibles sous 2500
     const showLabels = z < 1000;  // Noms visibles sous 1000
 
+    if (!showPlanets) return null;
+
     return (
         <>
-            {planets.map((p) => {
-                if (!showPlanets) return null;
-
-                const f = factionMap.get(p.owner);
-                const orbitFleets = shouldShowFleets ? (fleetsMap.get(p.id) || []) : [];
-                
-                // Determine Visuals
-                const pType = p.planet_type || 'standard';
-                const gradId = pType === 'industrial' ? 'grad-industrial' :
-                               pType === 'capital' ? 'grad-capital' :
-                               pType === 'force_nexus' ? 'grad-nexus' : 'grad-standard';
-                               
-                const baseSize = 4;
-                const size = pType === 'capital' ? 8 : (pType === 'force_nexus' ? 6 : 4);
-
-                return (
-                    <g key={p.id} className="cursor-pointer" onClick={(e) => onPlanetClick(e, p)} opacity={activePlanet?.id === p.id ? 1 : 0.9}>
-                         {/* Selection Ring */}
-                        {shouldShowFleets && orbitFleets.length > 0 && ( <g><circle cx={p.x} cy={p.y} r="25" stroke="cyan" strokeWidth="1" fill="none" strokeDasharray="4,2" className="animate-spin-slow" /><circle cx={p.x + 18} cy={p.y - 18} r="7" fill="#0f172a" stroke="cyan" /><text x={p.x + 18} y={p.y - 15} textAnchor="middle" fontSize="7" fill="cyan" fontWeight="bold">⚓{orbitFleets.length}</text></g> )}
-                        
-                        {/* Hitbox */}
-                        <circle cx={p.x} cy={p.y} r="30" fill="transparent" />
-                        
-                        {/* Active Indicator */}
-                        {activePlanet?.id === p.id && (
-                             <g className="animate-pulse">
-                                 <circle cx={p.x} cy={p.y} r="20" stroke="white" strokeWidth="0.5" fill="none" opacity="0.5" />
-                                 <circle cx={p.x} cy={p.y} r="24" stroke="white" strokeWidth="1" fill="none" strokeDasharray="2,4" />
-                             </g>
-                        )}
-
-                        {/* Faction Territory Halo - Optimized: No Filter */}
-                        {f && f.id !== 'neutral' && (
-                             <circle cx={p.x} cy={p.y} r="18" fill={f.color} fillOpacity="0.1" />
-                        )}
-                        
-                        {/* Planet Body */}
-                        <circle cx={p.x} cy={p.y} r={size} fill={`url(#${gradId})`} stroke={f?.color || '#555'} strokeWidth={f?.id !== 'neutral' ? 1.5 : 0.5} />
-                        
-                        {/* Atmosphere / Shine - Optimized: No Filter */}
-                        <circle cx={p.x - size*0.3} cy={p.y - size*0.3} r={size*0.4} fill="white" fillOpacity="0.1" />
-
-                        {/* Special Markers */}
-                        {p.planet_type === 'capital' && <circle cx={p.x} cy={p.y} r={size + 3} stroke={f?.color || 'goldenrod'} strokeWidth="1" fill="none" opacity="0.7" />}
-                        {p.planet_type === 'force_nexus' && <circle cx={p.x} cy={p.y} r={size + 2} stroke="#a855f7" strokeWidth="0.5" fill="none" className="animate-pulse" />}
-
-                        {p.governor_id && <text x={p.x + 8} y={p.y - 8} fontSize="8">👑</text>}
-                        
-                        {/* Label */}
-                        {showLabels && (
-                            <text x={p.x} y={p.y + 18} fill="#e5e7eb" fontSize="8" textAnchor="middle" className="font-mono uppercase font-bold drop-shadow-md tracking-wider" style={{ textShadow: '0px 2px 4px black' }}>{p.name}</text>
-                        )}
-                    </g>
-                );
-            })}
+            {planets.map((p) => (
+                <PlanetItem 
+                    key={p.id}
+                    planet={p}
+                    faction={factionMap.get(p.owner)}
+                    orbitFleetsCount={fleetsMap.get(p.id) || 0}
+                    isActive={activePlanet?.id === p.id}
+                    shouldShowFleets={shouldShowFleets}
+                    onPlanetClick={onPlanetClick}
+                    showLabels={showLabels}
+                />
+            ))}
         </>
     );
 });
