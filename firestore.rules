@@ -1,0 +1,150 @@
+rules_version = '2';
+
+// ============================================================
+//  SWTOR Galactic Conquest - règles de sécurité Firestore
+//
+//  Rôles (users.role) : user | diplomat | conseil | general | emperor | gamemaster | admin
+//
+//  Principes :
+//   - l'état du jeu (provinces, factions, régions, bâtiments...) est lisible par
+//     tous, y compris sans compte : le HoloNet l'affiche dans ses pages ;
+//   - les comptes (pseudo, e-mail, héros) ne sont lisibles que par les joueurs
+//     connectés, et un joueur ne peut jamais se donner un rôle ;
+//   - la configuration (régions, bâtiments, unités, domaines, tour de jeu,
+//     panneau système) n'est modifiable que par les administrateurs ;
+//   - les actions de jeu (flottes, garnisons, constructions, diplomatie,
+//     trésoreries de faction) restent ouvertes aux comptes, comme dans le client.
+// ============================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+    function hasAccount() {
+      return signedIn() && exists(userPath(request.auth.uid));
+    }
+    function me() {
+      return get(userPath(request.auth.uid)).data;
+    }
+    function role() {
+      return hasAccount() ? me().get('role', 'user') : '';
+    }
+    function isAdmin() {
+      return role() in ['admin', 'gamemaster'];
+    }
+    function isHighCommand() {
+      return role() in ['admin', 'gamemaster', 'conseil', 'general', 'emperor'];
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function changedKeys() {
+      return incoming().diff(resource.data).affectedKeys();
+    }
+
+    // ---------- Comptes ----------
+    match /users/{uid} {
+      // Listes de faction, conseils, affectations : visibles par les joueurs connectés seulement.
+      allow read: if signedIn();
+      // Inscription : toujours en simple citoyen. Un rôle ne s'obtient que d'un administrateur.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && incoming().uid == uid
+        && incoming().role == 'user'
+        && incoming().pseudo is string
+        && incoming().pseudo.size() >= 1
+        && incoming().pseudo.size() <= 40;
+      allow update: if isAdmin()
+        || (
+          // Le joueur gère sa fiche (pseudo, avatar, héros, faction...), jamais son rôle.
+          request.auth.uid == uid
+          && !changedKeys().hasAny(['role', 'diplomatic_assignment', 'diplomatic_assignment_name', 'uid', 'email'])
+        )
+        || (
+          // Le haut commandement affecte les membres de sa propre faction, sans pouvoir créer d'administrateur.
+          isHighCommand()
+          && resource.data.faction_id == me().faction_id
+          && changedKeys().hasOnly(['role', 'diplomatic_assignment', 'diplomatic_assignment_name'])
+          && incoming().role in ['user', 'diplomat', 'conseil', 'general', 'emperor']
+        );
+      allow delete: if isAdmin();
+    }
+
+    // ---------- État du jeu (public en lecture) ----------
+    match /factions/{fid} {
+      allow read: if true;
+      // Trésoreries, recherches, relations : mises à jour par les joueurs ; création automatique des factions de base.
+      allow create, update: if hasAccount();
+      allow delete: if isAdmin();
+
+      // Relations entre factions : chaque camp écrit sa fiche et celle de l'autre.
+      match /diplomacy/{did} {
+        allow read, write: if hasAccount();
+      }
+    }
+
+    match /provinces/{pid} {
+      allow read: if true;
+      // Conquête, garnison, gouverneur.
+      allow update: if hasAccount();
+      // Éditeur de carte.
+      allow create, delete: if isAdmin();
+
+      match /constructions/{cid} {
+        allow read: if true;
+        allow write: if hasAccount();
+      }
+    }
+
+    // Revenus de la carte : requête collectionGroup('constructions'), qui
+    // n'est autorisée que par une règle {path=**}.
+    match /{path=**}/constructions/{cid} {
+      allow read: if true;
+    }
+
+    match /game_state/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /system/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /regions/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /buildings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /custom_units/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /magic_domains/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------- Actions de jeu (comptes uniquement) ----------
+    match /fleets/{id} {
+      allow read, write: if hasAccount();
+    }
+    match /notifications/{id} {
+      allow read, write: if hasAccount();
+    }
+    match /diplomacy_requests/{id} {
+      allow read, write: if hasAccount();
+    }
+
+    // Tout le reste est interdit.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
