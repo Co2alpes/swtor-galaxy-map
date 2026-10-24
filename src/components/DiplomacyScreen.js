@@ -219,7 +219,7 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
             <div className={`w-80 flex flex-col ${isMe ? 'items-start' : 'items-end'} pointer-events-auto transition-all`}>
                 <div className="relative z-10 mb-[-20px] mx-4">
                     {/* ANNEAU SCANNER */}
-                    <SwIcon name="/ui/swtor/scanner.png" size={208} className="absolute -inset-6 max-w-none opacity-60 animate-sw-spin pointer-events-none" style={{ animationDuration: '18s' }} />
+                    <SwIcon name="/ui/swtor/scanner.png" size={208} className="absolute -inset-6 max-w-none opacity-60 pointer-events-none" />
 
                     {/* CERCLE DU PORTRAIT */}
                     <div

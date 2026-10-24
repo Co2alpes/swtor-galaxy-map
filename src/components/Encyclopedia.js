@@ -480,7 +480,7 @@ export default function Encyclopedia({ onClose, userFaction, magicDomains, build
                         /* EMPTY STATE */
                         <div className="h-full flex flex-col items-center justify-center select-none gap-4">
                             <div className="relative w-32 h-32 flex items-center justify-center opacity-60">
-                                <SwIcon name="/ui/swtor/scanner.png" size={128} className="absolute inset-0 animate-sw-spin" style={{ animationDuration: '10s' }} />
+                                <SwIcon name="/ui/swtor/scanner.png" size={128} className="absolute inset-0" />
                                 <SwIcon name="datapad" size={48} className="animate-pulse" />
                             </div>
                             <span className="sw-title text-xl tracking-[0.3em] text-sw-faint">En attente de données</span>

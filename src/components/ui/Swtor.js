@@ -206,7 +206,7 @@ export function SwPortrait({ faction, src, size = 96, scanner = false, className
     return (
         <div className={cx('relative shrink-0', className)} style={{ width: size, height: size }}>
             {scanner && (
-                <img src="/ui/swtor/scanner.png" alt="" draggable={false} className="absolute inset-[-18%] w-[136%] h-[136%] max-w-none opacity-70 animate-sw-spin pointer-events-none" />
+                <img src="/ui/swtor/scanner.png" alt="" draggable={false} className="absolute inset-[-18%] w-[136%] h-[136%] max-w-none opacity-70 pointer-events-none" />
             )}
             {/* Le médaillon est plein : le contenu se pose par-dessus, dans le disque central */}
             <img src={k.portrait} alt="" draggable={false} className="absolute inset-0 w-full h-full pointer-events-none" />
