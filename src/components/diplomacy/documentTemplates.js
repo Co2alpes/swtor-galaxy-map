@@ -52,11 +52,11 @@ export function signatoryTitle(factionId, role) {
     return lh.titles[role] || lh.titles.diplomat;
 }
 
-/** Référence lisible : SG-T012-4F2A. */
+/** Référence lisible : SG-M012-4F2A. */
 export function documentReference(docData, docId) {
     const lh = LETTERHEADS[docData.fromFaction] || DEFAULT_LETTERHEAD;
     const turn = String(docData.turn ?? 0).padStart(3, '0');
-    return `${lh.prefix}-T${turn}-${(docId || '----').slice(0, 4).toUpperCase()}`;
+    return `${lh.prefix}-M${turn}-${(docId || '----').slice(0, 4).toUpperCase()}`;
 }
 
 // --- Modèles ------------------------------------------------------------------
@@ -100,13 +100,13 @@ export const DOCUMENT_TEMPLATES = [
         nature: 'ack',
         fields: [
             { key: 'place', label: 'Lieu proposé', placeholder: 'Alderaan, palais royal' },
-            { key: 'when', label: 'Échéance (tour)', type: 'number', placeholder: '12' },
+            { key: 'when', label: 'Échéance (mois)', type: 'number', placeholder: '12' },
             { key: 'agenda', label: 'Ordre du jour', type: 'textarea', placeholder: 'Statut des routes commerciales de la Bordure…' },
         ],
         build: (f, ctx) => [
             p(`${ctx.opening} nous sollicitons une audience auprès des représentants ${de(ctx.toName)}.`),
             art('Lieu', or(f.place, 'Un lieu neutre à convenir.')),
-            art('Échéance', f.when ? `Au plus tard au tour ${f.when}.` : 'Dans les meilleurs délais.'),
+            art('Échéance', f.when ? `Au plus tard au mois ${f.when}.` : 'Dans les meilleurs délais.'),
             art('Ordre du jour', or(f.agenda, 'À définir entre les délégations.')),
             p("Les délégations seront protégées par l'immunité diplomatique durant toute la durée des pourparlers."),
         ],
@@ -156,13 +156,13 @@ export const DOCUMENT_TEMPLATES = [
         nature: 'sign',
         fields: [
             { key: 'systems', label: 'Systèmes concernés', placeholder: 'Corellia, Taris' },
-            { key: 'duration', label: 'Durée (tours)', type: 'number', placeholder: '5' },
+            { key: 'duration', label: 'Durée (mois)', type: 'number', placeholder: '5' },
             { key: 'terms', label: 'Conditions', type: 'textarea', placeholder: 'Gel des positions, aucun mouvement de flotte…' },
         ],
         build: (f, ctx) => [
             p(`${ctx.opening} il est proposé à ${ctx.toName} la suspension immédiate des hostilités.`),
             art('Article I — Périmètre', or(f.systems, "L'ensemble des fronts ouverts entre les parties.")),
-            art('Article II — Durée', f.duration ? `${f.duration} tours à compter de la signature.` : 'Jusqu\'à dénonciation par l\'une des parties.'),
+            art('Article II — Durée', f.duration ? `${f.duration} mois à compter de la signature.` : 'Jusqu\'à dénonciation par l\'une des parties.'),
             art('Article III — Conditions', or(f.terms, 'Les forces en présence conservent leurs positions et s\'abstiennent de tout acte hostile.')),
         ],
     },
@@ -174,13 +174,13 @@ export const DOCUMENT_TEMPLATES = [
         description: 'Engagement mutuel à ne pas s\'attaquer.',
         nature: 'sign',
         fields: [
-            { key: 'duration', label: 'Durée (tours)', type: 'number', placeholder: '10' },
+            { key: 'duration', label: 'Durée (mois)', type: 'number', placeholder: '10' },
             { key: 'zones', label: 'Zones démilitarisées', placeholder: 'Couloir hyperspatial de Hydian' },
-            { key: 'clauses', label: 'Clauses particulières', type: 'textarea', placeholder: 'Préavis de trois tours avant toute dénonciation…' },
+            { key: 'clauses', label: 'Clauses particulières', type: 'textarea', placeholder: 'Préavis de trois mois avant toute dénonciation…' },
         ],
         build: (f, ctx) => [
             p(`${ctx.opening} les représentants ${de(ctx.fromName)} et ${de(ctx.toName)} s'engagent mutuellement à s'abstenir de tout acte d'agression.`),
-            art('Article I — Durée', f.duration ? `Le présent pacte est conclu pour ${f.duration} tours.` : 'Le présent pacte est conclu pour une durée indéterminée.'),
+            art('Article I — Durée', f.duration ? `Le présent pacte est conclu pour ${f.duration} mois.` : 'Le présent pacte est conclu pour une durée indéterminée.'),
             art('Article II — Zones démilitarisées', or(f.zones, 'Aucune zone n\'est démilitarisée.')),
             art('Article III — Clauses particulières', or(f.clauses, 'Néant.')),
         ],
@@ -196,14 +196,14 @@ export const DOCUMENT_TEMPLATES = [
             { key: 'route', label: 'Route hyperspatiale', placeholder: 'Voie Perlemienne' },
             { key: 'goods', label: 'Marchandises', placeholder: 'Duracier, kolto, minerais' },
             { key: 'tariff', label: 'Droits de douane (%)', type: 'number', placeholder: '5' },
-            { key: 'duration', label: 'Durée (tours)', type: 'number', placeholder: '8' },
+            { key: 'duration', label: 'Durée (mois)', type: 'number', placeholder: '8' },
         ],
         build: (f, ctx) => [
             p(`${ctx.opening} nous proposons à ${ctx.toName} l'ouverture d'échanges commerciaux réguliers.`),
             art('Article I — Route', or(f.route, 'Route à désigner par les autorités portuaires.')),
             art('Article II — Marchandises', or(f.goods, 'Toutes marchandises licites.')),
             art('Article III — Droits de douane', f.tariff ? `${f.tariff} % de la valeur déclarée.` : 'Exonération réciproque.'),
-            art('Article IV — Durée', f.duration ? `${f.duration} tours, renouvelable.` : 'Durée indéterminée.'),
+            art('Article IV — Durée', f.duration ? `${f.duration} mois, renouvelable.` : 'Durée indéterminée.'),
         ],
     },
     {
@@ -254,13 +254,13 @@ export const DOCUMENT_TEMPLATES = [
         nature: 'ack',
         fields: [
             { key: 'demands', label: 'Exigences', type: 'textarea', placeholder: 'Évacuation immédiate du système d\'Ilum…' },
-            { key: 'deadline', label: 'Délai (tours)', type: 'number', placeholder: '2' },
+            { key: 'deadline', label: 'Délai (mois)', type: 'number', placeholder: '2' },
             { key: 'consequences', label: 'Conséquences', placeholder: 'Bombardement orbital' },
         ],
         build: (f, ctx) => [
             p(`${ctx.opening} ${ctx.toName} est sommé de se conformer aux exigences suivantes.`),
             art('Exigences', or(f.demands, 'À préciser.')),
-            art('Délai', f.deadline ? `${f.deadline} tours à compter de la réception.` : 'Effet immédiat.'),
+            art('Délai', f.deadline ? `${f.deadline} mois à compter de la réception.` : 'Effet immédiat.'),
             art('Conséquences', or(f.consequences, 'Toute mesure jugée nécessaire.')),
             p('Aucune autre sommation ne sera adressée.'),
         ],

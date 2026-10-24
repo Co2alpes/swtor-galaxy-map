@@ -104,7 +104,7 @@ export default function DocumentsPanel({ me, factions, turn, documents, initialT
                                 <div className="min-w-0 flex-1">
                                     <div className={`text-xs font-bold truncate ${unread ? 'text-sw-gold' : 'text-sw-text'}`}>{d.title || t.name}</div>
                                     <div className="text-[10px] text-sw-dim truncate">
-                                        {box === 'received' ? `De : ${d.fromFactionName}` : `À : ${d.toFactionName}`} · Tour {d.turn ?? '—'}
+                                        {box === 'received' ? `De : ${d.fromFactionName}` : `À : ${d.toFactionName}`} · Mois {d.turn ?? '—'}
                                     </div>
                                 </div>
                                 <span className="text-[9px] font-bold uppercase tracking-wider shrink-0" style={{ color: st.color }}>{unread ? 'Nouveau' : st.label}</span>

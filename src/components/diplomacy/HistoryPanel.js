@@ -7,7 +7,7 @@ import { SwCell, SwEmblem, SwIcon, SwInput, SwLabel } from '../ui/Swtor';
 import { LOG_TYPES } from './diplomacyLog';
 
 // Historique des actes diplomatiques de la faction, du plus récent au plus ancien,
-// regroupés par tour et filtrables par faction et par nature.
+// regroupés par mois et filtrables par faction et par nature.
 
 const FILTERS = {
     all: { label: 'Tous les actes', types: null },
@@ -95,7 +95,7 @@ export default function HistoryPanel({ me, factions }) {
                 {groups.map((g) => (
                     <div key={`${g.turn}-${g.items[0].id}`} className="mb-4">
                         <div className="flex items-center gap-3 mb-2 sticky top-0 bg-sw-bg/90 backdrop-blur-sm py-1 z-10">
-                            <span className="sw-title text-sm">Tour {g.turn}</span>
+                            <span className="sw-title text-sm">Mois {g.turn}</span>
                             <div className="flex-1 sw-divider" />
                         </div>
                         <div className="space-y-1.5 pl-2 border-l border-sw-border ml-2">

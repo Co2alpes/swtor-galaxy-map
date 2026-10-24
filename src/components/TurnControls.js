@@ -20,7 +20,7 @@ export default function TurnControls({ userRole }) {
 
   const handleNextTurn = async () => {
     if (isProcessing) return;
-    const confirm = window.confirm(`Passer au Tour ${turn + 1} ? \nCela va générer les ressources des bâtiments actifs.`);
+    const confirm = window.confirm(`Passer au mois ${turn + 1} ? \nCela va générer les ressources des bâtiments actifs.`);
     if (!confirm) return;
 
     setIsProcessing(true);
@@ -105,7 +105,7 @@ export default function TurnControls({ userRole }) {
       });
 
       await batch.commit();
-      alert("Tour terminé ! Ressources distribuées.");
+      alert("Mois terminé ! Ressources distribuées.");
 
     } catch (error) {
       console.error("Erreur tour :", error);
@@ -114,7 +114,7 @@ export default function TurnControls({ userRole }) {
       if (error.message.includes("index")) {
           alert("ATTENTION ADMIN : Il manque un Index Firestore. Ouvre la console (F12) et clique sur le lien fourni par Firebase.");
       } else {
-          alert("Erreur critique lors du calcul du tour.");
+          alert("Erreur critique lors du calcul du mois.");
       }
     } finally {
         setIsProcessing(false);
@@ -124,7 +124,7 @@ export default function TurnControls({ userRole }) {
   return (
     <SwGlass className="flex flex-col items-center justify-center px-3 py-2 min-w-[120px]">
       <SwLabel className="text-[10px]">Calendrier</SwLabel>
-      <div className="sw-title text-2xl mb-1">TOUR {turn}</div>
+      <div className="sw-title text-2xl mb-1">MOIS {turn}</div>
 
       {userRole === 'admin' && (
         <SwButton

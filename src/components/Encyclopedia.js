@@ -377,7 +377,7 @@ export default function Encyclopedia({ onClose, userFaction, magicDomains, build
 
                                     <div className="grid grid-cols-2 gap-5">
                                         <SwPanel className="p-5">
-                                            <SwLabel as="h4" className="text-sw-gold mb-3">Production / Tour</SwLabel>
+                                            <SwLabel as="h4" className="text-sw-gold mb-3">Production / Mois</SwLabel>
                                             <div className="space-y-2">
                                                 {selectedItem.production && Object.entries(selectedItem.production).map(([k, v]) => (
                                                     v !== 0 && (

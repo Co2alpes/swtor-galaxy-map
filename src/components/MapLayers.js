@@ -157,7 +157,7 @@ export const FleetLayer = memo(({ fleets, planets, currentTurn, shouldShowFleets
                     
                     <rect x={fleetMovePreview.target.x - 25} y={fleetMovePreview.target.y - 30} width="50" height="20" rx="4" fill="black" stroke="#fbbf24" strokeWidth="1" />
                     <text x={fleetMovePreview.target.x} y={fleetMovePreview.target.y - 17} fill="#fbbf24" fontSize="10" textAnchor="middle" fontWeight="bold" fontFamily="monospace">
-                        {fleetMovePreview.turns} Tours
+                        {fleetMovePreview.turns} Mois
                     </text>
                 </g>
             )}

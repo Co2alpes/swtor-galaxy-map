@@ -404,7 +404,7 @@ const TopHud = ({ userFaction, factionData, projectedIncome, currentTurn, isAdmi
                 <div className="px-3 py-1.5 flex flex-col justify-center border-r border-sw-border min-w-[100px] text-center">
                     <SwLabel as="span" className="text-[9px] leading-none mb-1">Calendrier</SwLabel>
                     <div className="flex flex-col items-center">
-                        <span className="sw-title text-lg leading-none">TOUR {currentTurn}</span>
+                        <span className="sw-title text-lg leading-none">MOIS {currentTurn}</span>
                         {isAdmin && (<SwButton size="sm" variant="accent" onClick={handleNextTurn} disabled={isProcessingTurn} className="mt-1.5 w-full text-[9px]">{isProcessingTurn ? "..." : "SUIVANT >>"}</SwButton>)}
                     </div>
                 </div>
@@ -1183,7 +1183,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
   };
 
   const handleNextTurn = async () => {
-    if (isProcessingTurn || !confirm(`Passer au Tour ${currentTurn + 1} ?`)) return;
+    if (isProcessingTurn || !confirm(`Passer au mois ${currentTurn + 1} ?`)) return;
     setIsProcessingTurn(true);
     try {
       const batch = writeBatch(db);
@@ -1845,7 +1845,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                               <div className="w-full h-px bg-sw-gold-dim/60 relative">
                                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-sw-bg px-2 text-sw-gold text-xs">➜</div>
                               </div>
-                              <span className="text-[10px] text-sw-dim mt-2 font-mono">{fleetMovePreview.turns} Tours</span>
+                              <span className="text-[10px] text-sw-dim mt-2 font-mono">{fleetMovePreview.turns} Mois</span>
                           </div>
 
                           <div className="flex flex-col items-center gap-1 group">
@@ -1859,7 +1859,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                           <SwLabel as="span">Durée estimée</SwLabel>
                           <div className="flex items-baseline gap-1">
                              <span className="text-2xl font-mono font-bold text-sw-gold">{fleetMovePreview.turns}</span>
-                             <span className="sw-label text-sw-gold-dim">Tours</span>
+                             <span className="sw-label text-sw-gold-dim">Mois</span>
                           </div>
                       </SwPanel>
                   </div>
@@ -2170,8 +2170,8 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                       <div className="col-span-2 sw-label text-[10px]">Données Démographiques</div>
                       <input name="population" type="number" placeholder="Population" className="sw-input p-1 text-xs" />
                       <div className="col-span-2 sw-label text-[10px] mt-1">Ressources Naturelles</div>
-                      <input name="prod_credits" type="number" placeholder="Crédits/Tour" className="sw-input p-1 text-xs" />
-                      <input name="prod_materials" type="number" placeholder="Matériaux/Tour" className="sw-input p-1 text-xs" />
+                      <input name="prod_credits" type="number" placeholder="Crédits/Mois" className="sw-input p-1 text-xs" />
+                      <input name="prod_materials" type="number" placeholder="Matériaux/Mois" className="sw-input p-1 text-xs" />
                   </div>
                   <SwButton type="submit" variant="accent" className="w-full mt-2">Créer</SwButton>
                   <button type="button" onClick={()=>setShowCreateModal(false)} className="w-full sw-label text-[10px] text-sw-faint hover:text-sw-text">Annuler</button>

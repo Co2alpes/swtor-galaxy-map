@@ -42,7 +42,7 @@ export default function HoloDocument({ data, docId, className = '' }) {
                     <div className="text-right shrink-0">
                         <div className="sw-label text-[9px]">Référence</div>
                         <div className="font-mono text-xs text-sw-text">{documentReference(data, docId)}</div>
-                        <div className="sw-label text-[9px] mt-1">Tour {data.turn ?? '—'}</div>
+                        <div className="sw-label text-[9px] mt-1">Mois {data.turn ?? '—'}</div>
                     </div>
                 </div>
                 <div className="sw-divider mt-4 mb-5" />
