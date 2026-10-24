@@ -1,28 +1,408 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------
+   Habillage SWTOR — textures tirées du pack « ERC V2 - Materials »
+   (public/ui/swtor, public/ui/icons, polices Eurostile).
+   Palette reprise du thème Lua des addons : encre bleu nuit, cadres
+   bleus, accent ambre façon HoloNet. Chaque faction remplace l'accent.
+------------------------------------------------------------------- */
+
+@font-face {
+  font-family: "Eurostile";
+  src: url("/fonts/eurostile_medium.ttf") format("truetype");
+  font-weight: 400 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Eurostile";
+  src: url("/fonts/eurostile_heavy.ttf") format("truetype");
+  font-weight: 700 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Eurostile Ext";
+  src: url("/fonts/eurostile.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Accent (ambre HoloNet par défaut, remplacé par [data-faction]) */
+  --sw-accent: rgb(240 163 58);
+  --sw-accent-light: rgb(250 196 104);
+  --sw-accent-dim: rgb(160 108 38);
+  --sw-accent-dark: rgb(74 50 20);
+  --sw-accent-rgb: 240 163 58;
+  --sw-gold: rgb(240 200 120);
+  --sw-gold-dim: rgb(160 134 80);
+  --sw-blue: rgb(70 150 220);
+  --sw-blue-dim: rgb(40 90 140);
+
+  /* Fonds et cadres */
+  --sw-bg: rgb(9 12 18);
+  --sw-panel: rgb(16 22 32 / 0.96);
+  --sw-panel-light: rgb(26 36 52 / 0.96);
+  --sw-panel-dark: rgb(6 9 14 / 0.97);
+  --sw-border: rgb(36 62 92);
+  --sw-line: rgb(52 92 136);
+  --sw-line-light: rgb(90 160 230);
+
+  /* Texte */
+  --sw-text: rgb(232 236 242);
+  --sw-text-dim: rgb(160 172 190);
+  --sw-text-faint: rgb(100 112 130);
+
+  /* États */
+  --sw-success: rgb(112 212 122);
+  --sw-warn: rgb(236 192 82);
+  --sw-error: rgb(232 86 86);
+  --sw-info: rgb(132 176 255);
+
+  --sw-logo: url("/ui/swtor/civ_logo.png");
+  --sw-background: url("/ui/swtor/background_civil.webp");
+  --sw-hud: url("/ui/swtor/hud_civil.png");
+  --sw-portrait: url("/ui/swtor/portrait_civil.png");
+}
+
+[data-faction="republic"] {
+  --sw-accent: rgb(96 170 245);
+  --sw-accent-light: rgb(150 205 255);
+  --sw-accent-dim: rgb(52 110 175);
+  --sw-accent-dark: rgb(18 44 78);
+  --sw-accent-rgb: 96 170 245;
+  --sw-logo: url("/ui/swtor/jedi_logo.png");
+  --sw-background: url("/ui/swtor/background_jedi.webp");
+  --sw-hud: url("/ui/swtor/hud_jedi.png");
+  --sw-portrait: url("/ui/swtor/portrait_order.png");
+}
+
+[data-faction="empire"] {
+  --sw-accent: rgb(232 64 58);
+  --sw-accent-light: rgb(255 120 108);
+  --sw-accent-dim: rgb(150 36 34);
+  --sw-accent-dark: rgb(64 14 14);
+  --sw-accent-rgb: 232 64 58;
+  --sw-logo: url("/ui/swtor/sith_logo.png");
+  --sw-background: url("/ui/swtor/background_sith.webp");
+  --sw-hud: url("/ui/swtor/hud_sith.png");
+  --sw-portrait: url("/ui/swtor/portrait_dark.png");
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-background: var(--sw-bg);
+  --color-foreground: var(--sw-text);
+  --font-sans: "Eurostile", var(--font-geist-sans), "Trebuchet MS", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-swtor: "Eurostile", "Trebuchet MS", sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-sw-accent: var(--sw-accent);
+  --color-sw-accent-light: var(--sw-accent-light);
+  --color-sw-accent-dim: var(--sw-accent-dim);
+  --color-sw-accent-dark: var(--sw-accent-dark);
+  --color-sw-gold: var(--sw-gold);
+  --color-sw-gold-dim: var(--sw-gold-dim);
+  --color-sw-blue: var(--sw-blue);
+  --color-sw-blue-dim: var(--sw-blue-dim);
+  --color-sw-bg: var(--sw-bg);
+  --color-sw-panel: var(--sw-panel);
+  --color-sw-panel-light: var(--sw-panel-light);
+  --color-sw-panel-dark: var(--sw-panel-dark);
+  --color-sw-border: var(--sw-border);
+  --color-sw-line: var(--sw-line);
+  --color-sw-line-light: var(--sw-line-light);
+  --color-sw-text: var(--sw-text);
+  --color-sw-dim: var(--sw-text-dim);
+  --color-sw-faint: var(--sw-text-faint);
+  --color-sw-success: var(--sw-success);
+  --color-sw-warn: var(--sw-warn);
+  --color-sw-error: var(--sw-error);
+  --color-sw-info: var(--sw-info);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--sw-bg);
+  color: var(--sw-text);
+  font-family: var(--font-swtor);
+}
+
+/* ------------------------------------------------------------------
+   Briques (utilisées par src/components/ui/Swtor.js)
+------------------------------------------------------------------- */
+
+@layer components {
+  /* Fenêtre : fond bleu nuit, espace en transparence, contour lumineux */
+  .sw-window {
+    position: relative;
+    background:
+      linear-gradient(rgb(9 12 18 / 0.88), rgb(9 12 18 / 0.94)),
+      url("/ui/swtor/backdrop.webp") center / cover;
+    border: 1px solid var(--sw-line);
+    border-radius: 10px;
+    box-shadow:
+      0 0 0 1px rgb(0 0 0 / 0.8),
+      0 0 18px rgb(70 150 220 / 0.25),
+      inset 0 0 24px rgb(70 150 220 / 0.08),
+      0 18px 50px rgb(0 0 0 / 0.7);
+  }
+  .sw-window::before {
+    /* liseré intérieur, comme le contour du pack */
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border: 1px solid rgb(90 160 230 / 0.18);
+    border-radius: 8px;
+    pointer-events: none;
+  }
+
+  /* Bandeau de titre : filet accent 2px + filet or 1px dessous */
+  .sw-window-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 10px 14px 0;
+    padding: 6px 8px 8px;
+    background: rgb(6 10 16 / 0.85);
+    border-radius: 8px 8px 0 0;
+    box-shadow:
+      0 2px 0 var(--sw-accent),
+      0 3px 0 var(--sw-gold-dim);
+  }
+
+  /* Panneau plat (encart dans une fenêtre) */
+  .sw-panel {
+    background: var(--sw-panel);
+    border: 1px solid var(--sw-border);
+    border-radius: 6px;
+  }
+  .sw-panel-dark {
+    background: var(--sw-panel-dark);
+    border: 1px solid var(--sw-border);
+    border-radius: 6px;
+  }
+
+  /* Verre sombre de la charte HUD : filet de 2px à gauche */
+  .sw-glass {
+    background: rgb(10 12 15 / 0.78);
+    backdrop-filter: blur(6px);
+    border-radius: 3px;
+    box-shadow: inset 2px 0 0 var(--sw-accent);
+  }
+
+  /* Bouton : texture key_idle / key_hover en neuf morceaux */
+  .sw-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.25rem;
+    padding: 0.35rem 1.1rem;
+    border: 8px solid transparent;
+    border-image: url("/ui/swtor/btn.png") 8 fill stretch;
+    color: var(--sw-text);
+    font-family: var(--font-swtor);
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 120ms, filter 120ms;
+    user-select: none;
+    margin: -4px 0;
+  }
+  .sw-btn:hover:not(:disabled),
+  .sw-btn[data-active="true"] {
+    border-image-source: url("/ui/swtor/btn_hover.png");
+    color: var(--sw-gold);
+  }
+  .sw-btn:active:not(:disabled) {
+    filter: brightness(1.25);
+  }
+  .sw-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .sw-btn-accent {
+    color: var(--sw-accent-light);
+    text-shadow: 0 0 8px rgb(var(--sw-accent-rgb) / 0.6);
+  }
+  .sw-btn-danger {
+    color: var(--sw-error);
+  }
+  .sw-btn-danger:hover:not(:disabled) {
+    color: rgb(255 140 130);
+  }
+  .sw-btn-sm {
+    min-height: 1.75rem;
+    padding: 0.15rem 0.7rem;
+    font-size: 0.7rem;
+    border-width: 6px;
+    border-image-slice: 8 fill;
+    margin: -3px 0;
+  }
+
+  /* Onglet : satchel_a (fermé) / satchel_b (ouvert) */
+  .sw-tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 7rem;
+    height: 2.4rem;
+    padding: 0 1.4rem;
+    background: url("/ui/swtor/satchel_b.png") center / 100% 100% no-repeat;
+    color: var(--sw-text-dim);
+    font-family: var(--font-swtor);
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    filter: saturate(0.5) brightness(0.75);
+    transition: filter 120ms, color 120ms;
+  }
+  .sw-tab:hover {
+    filter: none;
+    color: var(--sw-text);
+  }
+  .sw-tab[data-active="true"] {
+    background-image: url("/ui/swtor/satchel_a.png");
+    color: #fff;
+    filter: none;
+    text-shadow: 0 0 6px rgb(90 180 255 / 0.8);
+  }
+
+  /* Case d'objet / d'icône */
+  .sw-cell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: url("/ui/swtor/cell_empty_a.png") center / 100% 100% no-repeat;
+    flex: none;
+  }
+  .sw-cell > img {
+    max-width: 82%;
+    max-height: 82%;
+  }
+  .sw-cell[data-active="true"],
+  .sw-cell-alt {
+    background-image: url("/ui/swtor/cell_empty_b.png");
+  }
+
+  /* Info-bulle */
+  .sw-tooltip {
+    background: rgb(0 0 0 / 0.92);
+    border: 1px solid rgb(24 125 181 / 0.85);
+    border-radius: 6px;
+    box-shadow: 0 0 10px rgb(24 125 181 / 0.35);
+    color: var(--sw-text);
+  }
+
+  /* Champ de saisie */
+  .sw-input {
+    width: 100%;
+    background: rgb(4 7 12 / 0.9);
+    border: 1px solid var(--sw-border);
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    color: var(--sw-text);
+    font-family: var(--font-swtor);
+    outline: none;
+    transition: border-color 120ms, box-shadow 120ms;
+  }
+  .sw-input:focus {
+    border-color: var(--sw-line-light);
+    box-shadow: 0 0 0 1px rgb(90 160 230 / 0.35), 0 0 10px rgb(90 160 230 / 0.25);
+  }
+  .sw-input::placeholder {
+    color: var(--sw-text-faint);
+  }
+
+  /* Titres */
+  .sw-title {
+    font-family: var(--font-swtor);
+    font-weight: 800;
+    color: var(--sw-gold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .sw-label {
+    font-family: var(--font-swtor);
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--sw-text-dim);
+  }
+
+  /* Séparateur : filet accent + filet or */
+  .sw-divider {
+    height: 3px;
+    border: 0;
+    background: linear-gradient(var(--sw-accent), var(--sw-accent)) top / 100% 2px no-repeat,
+      linear-gradient(var(--sw-gold-dim), var(--sw-gold-dim)) bottom / 100% 1px no-repeat;
+    opacity: 0.85;
+  }
+
+  /* Barre fine de la charte (3px) */
+  .sw-bar {
+    position: relative;
+    height: 4px;
+    background: rgb(255 255 255 / 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .sw-bar > span {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--sw-bar-color, var(--sw-accent));
+    box-shadow: 0 0 6px var(--sw-bar-color, var(--sw-accent));
+    transition: width 300ms;
+  }
+
+  /* Ligne de liste cliquable */
+  .sw-row {
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: rgb(16 22 32 / 0.6);
+    transition: background 120ms, border-color 120ms;
+  }
+  .sw-row:hover {
+    background: rgb(26 36 52 / 0.85);
+    border-color: var(--sw-border);
+  }
+  .sw-row[data-active="true"] {
+    background: rgb(var(--sw-accent-rgb) / 0.12);
+    border-color: rgb(var(--sw-accent-rgb) / 0.6);
+  }
+
+  /* Bouton de fermeture */
+  .sw-close {
+    width: 22px;
+    height: 22px;
+    background: url("/ui/swtor/close.png") center / 100% 100% no-repeat;
+    image-rendering: pixelated;
+    opacity: 0.85;
+    cursor: pointer;
+    flex: none;
+  }
+  .sw-close:hover {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px var(--sw-accent));
+  }
+
+  /* Défilement fin */
+  .sw-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sw-line) transparent;
+  }
+}
+
+/* Barre de défilement globale */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sw-border) transparent;
 }
 
 @keyframes hyperspace {
@@ -36,6 +416,23 @@ body {
   100% { transform: translateX(-50%); }
 }
 
+@keyframes sw-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes sw-open {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
 .animate-marquee {
   animation: marquee 20s linear infinite;
+}
+
+.animate-sw-spin {
+  animation: sw-spin 12s linear infinite;
+}
+
+.animate-sw-open {
+  animation: sw-open 180ms ease-out;
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../app/lib/firebase';
 import { collection, query, where, onSnapshot, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { SwButton, SwDivider, SwIcon, SwLabel, SwPanel, SwPortrait, SwSpinner, SwWindow } from './ui/Swtor';
 
 export default function CouncilManager({ userFaction, userRole, onClose }) {
     const [members, setMembers] = useState([]);
@@ -18,12 +19,12 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
     const isAdmin = ['admin', 'gamemaster'].includes(userRole);
 
     // --- CONFIGURATION ---
+    // L'accent sw-accent suit déjà la faction (bleu République, rouge Empire, ambre sinon)
     const theme = {
-        bgGradient: isRepublic ? "bg-[#050a15]" : (isMandalorian ? "bg-[#1a0f05]" : "bg-[#150505]"),
-        border: isRepublic ? "border-blue-600" : (isMandalorian ? "border-orange-600" : "border-red-800"),
-        textMain: isRepublic ? "text-blue-300" : (isMandalorian ? "text-orange-400" : "text-red-400"),
-        connector: isRepublic ? "bg-blue-500/30" : (isMandalorian ? "bg-orange-500/30" : "bg-red-500/30"),
-        button: isRepublic ? "bg-blue-900 hover:bg-blue-800 border-blue-500" : (isMandalorian ? "bg-orange-900 hover:bg-orange-800 border-orange-500" : "bg-red-900 hover:bg-red-800 border-red-500"),
+        faction: userFaction,
+        border: "border-sw-accent/60",
+        textMain: "text-sw-accent-light",
+        connector: "bg-sw-accent/40",
         bgImageUrl: isRepublic ? '/images/republic_bg.jpg' : '/images/empire_council.jpg' // Garde l'image Empire par défaut pour Mando ou ajouter une spécifique
     };
 
@@ -85,189 +86,181 @@ export default function CouncilManager({ userFaction, userRole, onClose }) {
     const getCitizens = () => members.filter(m => !['emperor', 'conseil', 'general', 'diplomat', 'governor'].includes(m.role));
 
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center font-sans perspective-1000" onClick={() => setSelectedMemberId(null)}>
-            <div className="absolute inset-0 bg-black/95 backdrop-blur-sm animate-in fade-in duration-500"></div>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center perspective-1000" onClick={() => setSelectedMemberId(null)}>
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-500"></div>
 
-            <div className={`w-[98vw] max-w-[1600px] h-[95vh] relative overflow-hidden flex flex-col rounded-xl border-2 ${theme.border} ${theme.bgGradient} shadow-[0_0_100px_rgba(0,0,0,1)]`} onClick={(e) => e.stopPropagation()}>
-                
+            <SwWindow
+                faction={userFaction}
+                icon={isMandalorian ? 'mtx_flair_mandalorian' : undefined}
+                title={isRepublic ? "Haute Chambre du Sénat" : (isMandalorian ? "Grand Conseil des Clans" : "Citadelle du Conseil Noir")}
+                subtitle={<>Organigramme Officiel {isAdmin && <span className="text-sw-warn ml-2">[MODE ADMIN]</span>}</>}
+                onClose={onClose}
+                className="w-[98vw] max-w-[1600px] h-[95vh] overflow-hidden"
+                bodyClassName="flex flex-col p-0 pt-1 overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+
                 {/* --- MODAL DE SÉLECTION DE FACTION (POPUP DIPLOMATE) --- */}
                 {appointingDiplomatMember && (
-                    <div className="absolute inset-0 z-50 bg-black/90 flex items-center justify-center animate-in fade-in duration-200">
-                        <div className={`bg-gray-900 border-2 ${theme.border} p-6 rounded-lg w-96 shadow-2xl flex flex-col gap-4`}>
-                            <h3 className={`text-xl font-bold uppercase text-center ${theme.textMain}`}>Affectation Diplomatique</h3>
-                            <p className="text-gray-400 text-xs text-center">Choisissez la faction auprès de laquelle <strong>{appointingDiplomatMember.pseudo}</strong> sera Ambassadeur.</p>
-                            
-                            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto custom-scrollbar border-t border-b border-gray-800 py-2">
+                    <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-200">
+                        <SwWindow title="Affectation Diplomatique" icon="datapad" className="w-96" bodyClassName="flex flex-col gap-4 p-5">
+                            <p className="text-sw-dim text-xs text-center">Choisissez la faction auprès de laquelle <strong className="text-sw-gold">{appointingDiplomatMember.pseudo}</strong> sera Ambassadeur.</p>
+
+                            <SwPanel dark className="flex flex-col gap-1 max-h-60 overflow-y-auto sw-scroll p-1.5">
                                 {factions.map(f => (
-                                    <button 
+                                    <button
                                         key={f.id}
                                         onClick={() => handleUpdateRole(appointingDiplomatMember.id, 'diplomat', appointingDiplomatMember.pseudo, { targetFactionId: f.id, targetFactionName: f.name })}
-                                        className="flex items-center gap-3 p-2 hover:bg-white/10 transition rounded border border-transparent hover:border-gray-600"
+                                        className="sw-row flex items-center gap-3 p-2 cursor-pointer text-left"
                                     >
-                                        <div className="w-6 h-6 rounded-full" style={{backgroundColor: f.color}}></div>
-                                        <span className="text-sm font-bold text-gray-200">{f.name}</span>
+                                        <div className="w-5 h-5 rounded-full ring-1 ring-black/70 shadow-[0_0_6px_currentColor]" style={{backgroundColor: f.color, color: f.color}}></div>
+                                        <span className="text-sm font-bold text-sw-text">{f.name}</span>
                                     </button>
                                 ))}
-                            </div>
-                            
-                            <button onClick={() => setAppointingDiplomatMember(null)} className="text-xs text-red-500 uppercase font-bold hover:text-white mt-2">Annuler</button>
-                        </div>
+                            </SwPanel>
+
+                            <SwButton size="sm" variant="danger" onClick={() => setAppointingDiplomatMember(null)} className="self-center mt-1">Annuler</SwButton>
+                        </SwWindow>
                     </div>
                 )}
 
-                {/* --- EN-TÊTE --- */}
-                <div className={`relative z-40 flex justify-between items-center p-6 border-b ${theme.border} bg-black/90 backdrop-blur-md shadow-lg`}>
-                    <div className="flex items-center gap-4">
-                        <span className={`text-5xl ${theme.textMain}`}>{isRepublic ? '⚜️' : (isMandalorian ? '🛡️' : '☠️')}</span>
-                        <div>
-                            <h1 className={`text-3xl font-serif font-black uppercase tracking-[0.2em] ${theme.textMain} drop-shadow-md`}>
-                                {isRepublic ? "Haute Chambre du Sénat" : (isMandalorian ? "Grand Conseil des Clans" : "Citadelle du Conseil Noir")}
-                            </h1>
-                            <p className="text-[10px] text-gray-400 uppercase tracking-widest">
-                                Organigramme Officiel {isAdmin && <span className="text-yellow-500 font-bold ml-2">[MODE ADMIN]</span>}
-                            </p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className={`px-6 py-2 border ${theme.border} text-white uppercase font-bold hover:bg-white/10 transition`}>Fermer</button>
-                </div>
-
                 {/* --- ZONE DE CONTENU --- */}
-                <div className="flex-grow overflow-y-auto custom-scrollbar relative z-10">
-                    
+                <div className="flex-grow overflow-y-auto sw-scroll relative z-10">
+
                     {/* ARRIÈRE-PLAN */}
-                    <div className="absolute top-0 left-0 right-0 h-[700px] bg-cover bg-top bg-no-repeat pointer-events-none z-0" style={{ backgroundImage: `url('${theme.bgImageUrl}')`, opacity: 1 }}>
-                        <div className={`absolute inset-0`} style={{background: `linear-gradient(to bottom, transparent 0%, transparent 70%, ${isRepublic ? '#050a15' : '#150505'} 100%)`}}></div>
+                    <div className="absolute top-0 left-0 right-0 h-[700px] bg-cover bg-top bg-no-repeat pointer-events-none z-0" style={{ backgroundImage: `url('${theme.bgImageUrl}')`, opacity: 0.85 }}>
+                        <div className={`absolute inset-0`} style={{background: 'linear-gradient(to bottom, rgb(9 12 18 / 0.25) 0%, transparent 40%, rgb(9 12 18 / 0.7) 75%, rgb(9 12 18) 100%)'}}></div>
                     </div>
 
                     <div className="p-8 flex flex-col items-center relative z-20">
                         {loading ? (
-                            <div className={`mt-20 text-2xl font-mono animate-pulse ${theme.textMain}`}>CHARGEMENT...</div>
+                            <SwSpinner faction={userFaction} label="Chargement..." className="mt-20" />
                         ) : (
                             <div className="flex flex-col items-center w-full space-y-12 pb-20">
-                                
+
                                 {/* 1. SOMMET : EMPEREUR */}
                                 <div className="flex flex-col items-center mt-8">
                                     <RoleSlot member={getEmperor()} roleName={isRepublic ? "Chancelier Suprême" : (isMandalorian ? "Mandalore" : "Empereur")} theme={theme} isUnique={true} onUpdateRole={handleUpdateRole} isAdmin={isAdmin} userRole={userRole} />
-                                    <div className={`w-1 h-12 ${theme.connector} shadow-[0_0_10px_currentColor]`}></div>
+                                    <div className={`w-0.5 h-12 ${theme.connector} shadow-[0_0_8px_rgb(var(--sw-accent-rgb)/0.6)]`}></div>
                                 </div>
 
                                 {/* 2. CONSEIL */}
                                 <div className="flex flex-col items-center w-full">
-                                    <div className={`w-[70%] h-1 ${theme.connector} mb-4 shadow-[0_0_10px_currentColor]`}></div>
+                                    <div className={`w-[70%] h-0.5 ${theme.connector} mb-4 shadow-[0_0_8px_rgb(var(--sw-accent-rgb)/0.6)]`}></div>
                                     <div className="grid grid-cols-5 gap-8 w-full justify-items-center px-10">
                                         {Array.from({ length: 5 }).map((_, i) => (
                                             <div key={i} className="flex flex-col items-center w-full relative">
-                                                <div className={`absolute -top-4 w-1 h-4 ${theme.connector}`}></div>
+                                                <div className={`absolute -top-4 w-0.5 h-4 ${theme.connector}`}></div>
                                                 <RoleSlot member={getCouncil()[i]} roleName={isMandalorian ? "Chef de Clan" : "Conseiller"} theme={theme} onUpdateRole={handleUpdateRole} isAdmin={isAdmin} userRole={userRole} />
                                             </div>
                                         ))}
                                     </div>
-                                    <div className={`w-1 h-20 ${theme.connector} mt-4`}></div>
+                                    <div className={`w-0.5 h-20 ${theme.connector} mt-4`}></div>
                                 </div>
 
                                 {/* 3. BRANCHES SPÉCIALISÉES */}
-                                <div className="grid grid-cols-3 gap-8 w-full border-t border-dashed border-gray-800 pt-8 bg-black/80 rounded-xl p-6 shadow-2xl border border-white/5">
-                                    
+                                <SwPanel dark className="grid grid-cols-3 gap-8 w-full p-6 shadow-2xl">
+
                                     {/* MILITAIRE */}
-                                    <div className="flex flex-col items-center border-r border-gray-800/50">
-                                        <h3 className="text-green-500 font-bold uppercase tracking-widest text-sm mb-6 flex items-center gap-2">⚔️ État-Major</h3>
+                                    <div className="flex flex-col items-center border-r border-sw-border">
+                                        <SwLabel as="h3" className="text-sw-success text-sm mb-6 flex items-center gap-2"><SwIcon name="assault" size={22} /> État-Major</SwLabel>
                                         <div className="flex flex-wrap justify-center gap-4">
                                             {getGenerals().map(m => (
-                                                <RoleSlot key={m.id} member={m} roleName="Général" theme={theme} onUpdateRole={handleUpdateRole} isSmall={true} isAdmin={isAdmin} userRole={userRole} colorOverride="border-green-800 text-green-400" />
+                                                <RoleSlot key={m.id} member={m} roleName="Général" theme={theme} onUpdateRole={handleUpdateRole} isSmall={true} isAdmin={isAdmin} userRole={userRole} colorOverride="border-sw-success/60 text-sw-success" />
                                             ))}
-                                            <AddSlot label="Nommer Général" color="text-green-600 border-green-900" />
+                                            <AddSlot label="Nommer Général" color="text-sw-success border-sw-success/50" />
                                         </div>
                                     </div>
 
                                     {/* DIPLOMATIE (AVEC AFFICHAGE DE LA CIBLE) */}
-                                    <div className="flex flex-col items-center border-r border-gray-800/50">
-                                        <h3 className="text-blue-400 font-bold uppercase tracking-widest text-sm mb-6 flex items-center gap-2">📜 Diplomatie</h3>
+                                    <div className="flex flex-col items-center border-r border-sw-border">
+                                        <SwLabel as="h3" className="text-sw-info text-sm mb-6 flex items-center gap-2"><SwIcon name="datapad" size={22} /> Diplomatie</SwLabel>
                                         <div className="flex flex-wrap justify-center gap-4">
                                             {getDiplomats().map(m => (
-                                                <RoleSlot 
-                                                    key={m.id} 
-                                                    member={m} 
-                                                    roleName="Diplomate" 
+                                                <RoleSlot
+                                                    key={m.id}
+                                                    member={m}
+                                                    roleName="Diplomate"
                                                     // Affiche "Ambassadeur : [Nom]"
                                                     subTitle={m.diplomatic_assignment_name ? `Ambassadeur : ${m.diplomatic_assignment_name}` : "Non Assigné"}
-                                                    theme={theme} 
-                                                    onUpdateRole={handleUpdateRole} 
-                                                    isSmall={true} 
-                                                    isAdmin={isAdmin} 
+                                                    theme={theme}
+                                                    onUpdateRole={handleUpdateRole}
+                                                    isSmall={true}
+                                                    isAdmin={isAdmin}
                                                     userRole={userRole}
-                                                    colorOverride="border-blue-500 text-blue-300" 
+                                                    colorOverride="border-sw-info/70 text-sw-info"
                                                 />
                                             ))}
-                                            <AddSlot label="Nommer Diplomate" color="text-blue-600 border-blue-900" />
+                                            <AddSlot label="Nommer Diplomate" color="text-sw-info border-sw-info/50" />
                                         </div>
                                     </div>
 
                                     {/* GOUVERNANCE */}
                                     <div className="flex flex-col items-center">
-                                        <h3 className="text-yellow-500 font-bold uppercase tracking-widest text-sm mb-6 flex items-center gap-2">🏛️ Administration</h3>
+                                        <SwLabel as="h3" className="text-sw-gold text-sm mb-6 flex items-center gap-2"><SwIcon name="star_map" size={22} /> Administration</SwLabel>
                                         <div className="flex flex-wrap justify-center gap-4">
                                             {getGovernors().map(m => (
-                                                <RoleSlot key={m.id} member={m} roleName="Gouverneur" theme={theme} onUpdateRole={handleUpdateRole} isSmall={true} isAdmin={isAdmin} userRole={userRole} colorOverride="border-yellow-700 text-yellow-400" />
+                                                <RoleSlot key={m.id} member={m} roleName="Gouverneur" theme={theme} onUpdateRole={handleUpdateRole} isSmall={true} isAdmin={isAdmin} userRole={userRole} colorOverride="border-sw-gold-dim text-sw-gold" />
                                             ))}
-                                            <AddSlot label="Nommer Gouverneur" color="text-yellow-600 border-yellow-900" />
+                                            <AddSlot label="Nommer Gouverneur" color="text-sw-gold border-sw-gold-dim" />
                                         </div>
                                     </div>
 
-                                </div>
+                                </SwPanel>
 
                                 {/* 4. LISTE DU BAS : CITOYENS */}
-                                <div className="w-full mt-8 bg-black border border-gray-800 p-6 rounded-lg pb-32 shadow-xl">
-                                    <h4 className="text-gray-500 text-xs uppercase tracking-widest mb-4 border-b border-gray-800 pb-2">Citoyens & Officiers en attente d'affectation</h4>
+                                <SwPanel dark className="w-full mt-8 p-6 pb-32 shadow-xl">
+                                    <SwLabel as="h4" className="mb-2">Citoyens &amp; Officiers en attente d&apos;affectation</SwLabel>
+                                    <SwDivider className="mb-4" />
                                     <div className="grid grid-cols-6 gap-2">
                                         {getCitizens().map(m => {
                                             const isSelected = selectedMemberId === m.id;
                                             return (
-                                                <div 
-                                                    key={m.id} 
+                                                <div
+                                                    key={m.id}
                                                     onClick={(e) => { e.stopPropagation(); toggleSelection(m.id); }}
-                                                    className={`flex items-center gap-2 p-2 border rounded cursor-pointer transition-all relative
-                                                        ${isSelected ? 'bg-gray-800 border-white' : 'bg-gray-900/50 border-gray-800 hover:border-gray-500'}
-                                                    `}
+                                                    data-active={isSelected ? 'true' : undefined}
+                                                    className="sw-row flex items-center gap-2 p-2 cursor-pointer relative"
                                                 >
-                                                    <div className="w-6 h-6 bg-black rounded-full overflow-hidden flex items-center justify-center text-gray-500 border border-gray-700 text-[10px]">
-                                                        {m.avatar ? <img src={m.avatar} className="w-full h-full object-cover"/> : '👤'}
+                                                    <div className="w-6 h-6 bg-black rounded-full overflow-hidden flex items-center justify-center border border-sw-line shrink-0">
+                                                        {m.avatar ? <img src={m.avatar} alt="" className="w-full h-full object-cover"/> : <SwIcon name="companion" size={20} className="rounded-full" />}
                                                     </div>
-                                                    <span className="text-xs text-gray-300 truncate select-none">{m.pseudo}</span>
-                                                    
+                                                    <span className="text-xs text-sw-text truncate select-none">{m.pseudo}</span>
+
                                                     {/* MENU D'AFFECTATION */}
                                                     {isSelected && (
-                                                        <div className="absolute bottom-full left-0 w-48 bg-gray-950 border border-white z-50 shadow-[0_0_20px_black] rounded-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                                                            <div className="bg-white text-black text-[9px] p-1 text-center font-bold uppercase tracking-widest">Affecter {m.pseudo} à :</div>
-                                                            <button onClick={()=>handleUpdateRole(m.id, 'general', m.pseudo)} className="w-full text-[10px] text-green-400 p-2 hover:bg-green-900/30 text-left border-b border-gray-800 flex items-center gap-2">⚔️ Général</button>
+                                                        <div className="sw-tooltip absolute bottom-full left-0 w-52 mb-1 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                                            <div className="bg-sw-accent-dark text-sw-gold sw-label text-[9px] p-1.5 text-center">Affecter {m.pseudo} à :</div>
+                                                            <button onClick={()=>handleUpdateRole(m.id, 'general', m.pseudo)} className="w-full text-[10px] font-bold uppercase tracking-wider text-sw-success p-2 hover:bg-sw-success/10 text-left border-b border-sw-border flex items-center gap-2 cursor-pointer"><SwIcon name="assault" size={18} /> Général</button>
                                                             {/* ACTION SPÉCIALE DIPLOMATE : OUVRE LE MODAL */}
-                                                            <button onClick={()=>{ setAppointingDiplomatMember(m); setSelectedMemberId(null); }} className="w-full text-[10px] text-blue-400 p-2 hover:bg-blue-900/30 text-left border-b border-gray-800 flex items-center gap-2">📜 Diplomate</button>
-                                                            <button onClick={()=>handleUpdateRole(m.id, 'governor', m.pseudo)} className="w-full text-[10px] text-yellow-400 p-2 hover:bg-yellow-900/30 text-left border-b border-gray-800 flex items-center gap-2">🏛️ Gouverneur</button>
-                                                            <button onClick={()=>handleUpdateRole(m.id, 'conseil', m.pseudo)} className="w-full text-[10px] text-purple-400 p-2 hover:bg-purple-900/30 text-left border-b border-gray-800 flex items-center gap-2">⚡ {isMandalorian ? "Chef de Clan" : "Conseil"}</button>
-                                                            {isAdmin && <button onClick={()=>handleUpdateRole(m.id, 'emperor', m.pseudo)} className="w-full text-[10px] text-red-500 p-2 hover:bg-red-900/30 text-left font-bold border-t border-red-900">👑 {isRepublic ? "CHANCELIER" : (isMandalorian ? "MANDALORE" : "EMPEREUR")} (Admin)</button>}
+                                                            <button onClick={()=>{ setAppointingDiplomatMember(m); setSelectedMemberId(null); }} className="w-full text-[10px] font-bold uppercase tracking-wider text-sw-info p-2 hover:bg-sw-info/10 text-left border-b border-sw-border flex items-center gap-2 cursor-pointer"><SwIcon name="datapad" size={18} /> Diplomate</button>
+                                                            <button onClick={()=>handleUpdateRole(m.id, 'governor', m.pseudo)} className="w-full text-[10px] font-bold uppercase tracking-wider text-sw-gold p-2 hover:bg-sw-gold/10 text-left border-b border-sw-border flex items-center gap-2 cursor-pointer"><SwIcon name="star_map" size={18} /> Gouverneur</button>
+                                                            <button onClick={()=>handleUpdateRole(m.id, 'conseil', m.pseudo)} className="w-full text-[10px] font-bold uppercase tracking-wider text-purple-400 p-2 hover:bg-purple-900/30 text-left border-b border-sw-border flex items-center gap-2 cursor-pointer"><SwIcon name="force" size={18} /> {isMandalorian ? "Chef de Clan" : "Conseil"}</button>
+                                                            {isAdmin && <button onClick={()=>handleUpdateRole(m.id, 'emperor', m.pseudo)} className="w-full text-[10px] uppercase tracking-wider text-sw-error p-2 hover:bg-sw-error/10 text-left font-bold border-t border-sw-error/50 flex items-center gap-2 cursor-pointer"><SwIcon name="claninsignia" size={18} /> {isRepublic ? "CHANCELIER" : (isMandalorian ? "MANDALORE" : "EMPEREUR")} (Admin)</button>}
                                                         </div>
                                                     )}
                                                 </div>
                                             );
                                         })}
                                     </div>
-                                </div>
+                                </SwPanel>
 
                             </div>
                         )}
                     </div>
                 </div>
-            </div>
+            </SwWindow>
         </div>
     );
 }
 
 // --- COMPOSANT CARTE DE RÔLE ---
 function RoleSlot({ member, roleName, subTitle, theme, isUnique, isSmall, onUpdateRole, isAdmin, userRole, colorOverride }) {
-    
+
     const frameStyle = colorOverride || `${theme.border} ${theme.textMain}`;
     const sizeClasses = isSmall ? 'w-32 h-40' : 'w-48 h-64';
-    const avatarSize = isSmall ? 'w-16 h-16' : 'w-24 h-24';
-    
+    const avatarSize = isSmall ? 64 : 96;
+
     const isLeader = ['emperor', 'conseil'].includes(userRole);
     const targetIsTopLeader = ['Empereur', 'Chancelier Suprême', 'Mandalore'].includes(roleName);
     const canManage = isAdmin || (isLeader && !targetIsTopLeader);
@@ -276,31 +269,31 @@ function RoleSlot({ member, roleName, subTitle, theme, isUnique, isSmall, onUpda
         <div className={`relative group flex flex-col items-center transition-transform hover:-translate-y-1 ${isSmall ? 'w-32' : 'w-48'}`}>
             <div className={`
                 relative flex flex-col items-center justify-center ${sizeClasses}
-                border-2 bg-black/60 backdrop-blur-md overflow-hidden rounded-lg
-                ${member ? frameStyle : 'border-gray-800 text-gray-600 border-dashed'}
-                ${isUnique ? 'shadow-[0_0_50px_rgba(255,215,0,0.3)] border-yellow-600 text-yellow-500' : 'shadow-lg'}
+                border bg-sw-panel-dark/80 backdrop-blur-md overflow-hidden rounded-md
+                ${member ? frameStyle : 'border-sw-border text-sw-faint border-dashed'}
+                ${isUnique ? 'shadow-[0_0_40px_rgb(240_200_120/0.3)] border-sw-gold text-sw-gold' : 'shadow-[0_0_14px_rgb(70_150_220/0.15)]'}
             `}>
                 {member ? (
                     <>
                         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/90 z-10"></div>
                         {member.avatar && <div className="absolute inset-0 bg-cover bg-center opacity-60 z-0" style={{backgroundImage: `url(${member.avatar})`}}></div>}
-                        
-                        <div className={`relative z-20 ${avatarSize} rounded-full border-2 ${isUnique ? 'border-yellow-500' : 'border-current'} overflow-hidden bg-black shadow-lg mb-2`}>
-                            {member.avatar ? <img src={member.avatar} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-2xl">👤</div>}
-                        </div>
+
+                        <SwPortrait faction={theme.faction} src={member.avatar} size={avatarSize} className="relative z-20 mb-2">
+                            <SwIcon name="companion" size={Math.round(avatarSize * 0.55)} className="rounded-full" />
+                        </SwPortrait>
 
                         <div className="relative z-20 text-center w-full px-2">
-                            <div className="font-bold uppercase truncate text-xs text-white drop-shadow-md">{member.pseudo}</div>
+                            <div className="font-bold uppercase tracking-wide truncate text-xs text-sw-text drop-shadow-md">{member.pseudo}</div>
                             {/* Affiche l'assignation diplomatique si elle existe, sinon le rang */}
-                            <div className={`text-[9px] truncate ${subTitle ? 'text-blue-300 font-bold' : 'opacity-80'}`}>
+                            <div className={`text-[9px] truncate ${subTitle ? 'text-sw-info font-bold' : 'opacity-80'}`}>
                                 {subTitle || member.custom_rank || roleName}
                             </div>
                         </div>
 
                         {canManage && (
-                            <button 
+                            <button
                                 onClick={() => onUpdateRole(member.id, 'citizen', member.pseudo)}
-                                className="absolute top-2 right-2 z-30 text-[8px] bg-red-600 text-white px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition hover:bg-red-500"
+                                className="absolute top-2 right-2 z-30 text-[8px] bg-sw-error/80 text-white px-1.5 py-0.5 rounded-[3px] opacity-0 group-hover:opacity-100 transition hover:bg-sw-error cursor-pointer"
                                 title="Rétrograder Citoyen"
                             >
                                 ✕
@@ -314,8 +307,8 @@ function RoleSlot({ member, roleName, subTitle, theme, isUnique, isSmall, onUpda
                     </div>
                 )}
             </div>
-            
-            <div className={`mt-[-10px] relative z-30 px-3 py-0.5 bg-black border ${isUnique ? 'border-yellow-600 text-yellow-500' : 'border-gray-700 text-gray-400'} text-[8px] font-bold uppercase tracking-widest shadow-md rounded-full`}>
+
+            <div className={`mt-[-10px] relative z-30 px-3 py-0.5 bg-sw-panel-dark border ${isUnique ? 'border-sw-gold-dim text-sw-gold' : 'border-sw-border text-sw-dim'} text-[8px] font-bold uppercase tracking-widest shadow-md rounded-full`}>
                 {roleName}
             </div>
         </div>
@@ -324,8 +317,8 @@ function RoleSlot({ member, roleName, subTitle, theme, isUnique, isSmall, onUpda
 
 function AddSlot({ label, color }) {
     return (
-        <div className={`w-32 h-40 border-2 border-dashed ${color} flex flex-col items-center justify-center rounded-lg opacity-30 select-none`}>
-            <span className="text-[9px] uppercase text-center px-2">{label}<br/>(Voir liste en bas)</span>
+        <div className={`w-32 h-40 border border-dashed ${color} bg-sw-panel-dark/40 flex flex-col items-center justify-center rounded-md opacity-40 select-none`}>
+            <span className="text-[9px] uppercase tracking-wider text-center px-2">{label}<br/>(Voir liste en bas)</span>
         </div>
     );
 }

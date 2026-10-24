@@ -5,6 +5,7 @@ import { auth, db } from '../app/lib/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import SignUp from './SignUp';
+import { SwBackdrop, SwButton, SwCell, SwDivider, SwEmblem, SwIcon, SwInput, SwLabel, SwPanel, SwWindow } from './ui/Swtor';
 
 const DEFAULT_NEWS = {
     ticker: [],
@@ -67,200 +68,139 @@ export default function Auth() {
     }
   };
 
-  // --- RENDU LOGIN (AVEC LE DESIGN QUI ÉTAIT DANS PAGE.JS) ---
+  // --- RENDU LOGIN ---
   return (
-    <main 
+    <main
         onMouseMove={handleMouseMove}
-        className="flex min-h-screen flex-col items-center justify-center p-8 bg-black text-white relative overflow-hidden font-sans group"
+        className="flex min-h-screen flex-col items-center justify-center p-8 bg-sw-bg text-sw-text relative overflow-hidden"
     >
-      
-      {/* Fond d'ambiance (BASE SOMBRE) */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-900 via-black to-black opacity-90 pointer-events-none"></div>
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-40 pointer-events-none"></div>
+      <SwBackdrop dim={0.35}>
+        {/* Halo qui suit la souris */}
+        <div
+          className="absolute inset-0 mix-blend-screen opacity-60"
+          style={{ background: `radial-gradient(520px circle at ${mousePos.x}px ${mousePos.y}px, rgb(var(--sw-accent-rgb) / 0.22), transparent 65%)` }}
+        />
+      </SwBackdrop>
 
-      {/* --- FLASHLIGHT EFFECT (RÉVÉLATION DES ÉTOILES) --- */}
-      {/* On utilise mix-blend-screen pour rendre les étoiles bien blanches et lumineuses */}
-      <div 
-        className="absolute inset-0 pointer-events-none z-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-100 mix-blend-screen"
-        style={{
-            maskImage: `radial-gradient(500px circle at ${mousePos.x}px ${mousePos.y}px, black 0%, transparent 70%)`,
-            WebkitMaskImage: `radial-gradient(500px circle at ${mousePos.x}px ${mousePos.y}px, black 0%, transparent 70%)`
-        }}
-      ></div>
-      
-      {/* Glow plus prononcé pour l'effet "organique" */}
-      <div 
-        className="absolute inset-0 pointer-events-none z-0 mix-blend-color-dodge opacity-50 transition-opacity duration-75"
-        style={{
-             background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, rgba(130, 210, 255, 0.45), transparent 60%)`
-        }}
-      ></div>
-
-      {/* Header */}
-      <header className="mb-12 text-center z-10">
-        <h1 className="text-6xl font-bold text-yellow-500 tracking-wider uppercase drop-shadow-[0_0_15px_rgba(234,179,8,0.5)] mb-2 font-serif">
-            SWTOR
-        </h1>
-        <div className="text-sm text-gray-400 uppercase tracking-[0.8em] border-t border-gray-800 pt-2 mt-2">Galactic Conquest</div>
+      {/* Logo */}
+      <header className="mb-10 text-center z-10 flex flex-col items-center gap-3">
+        <SwEmblem size={88} />
+        <h1 className="sw-title text-6xl tracking-[0.12em] drop-shadow-[0_0_18px_rgb(var(--sw-accent-rgb)/0.45)]">SWTOR</h1>
+        <SwLabel className="tracking-[0.8em]">Galactic Conquest</SwLabel>
       </header>
 
       {/* Carte de Connexion */}
-      <div className="z-10 w-full max-w-md bg-gray-900/60 p-8 rounded-lg border border-gray-700 shadow-2xl backdrop-blur-md">
-        
-        <h2 className="text-2xl font-bold text-center mb-6 text-white uppercase tracking-widest border-b border-gray-700 pb-4">
-          Connexion
-        </h2>
-
+      <SwWindow title="Connexion" subtitle="Terminal d'accès Holonet" className="z-10 w-full max-w-md" bodyClassName="p-6 pt-6">
         {error && (
-          <div className="mb-4 p-2 bg-red-900/50 border border-red-500 text-red-200 text-xs text-center rounded font-mono">
+          <div className="mb-4 p-2 sw-panel-dark border-sw-error/70 text-sw-error text-xs text-center">
             {error}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1 font-mono">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-black/50 border border-gray-600 p-3 text-white focus:border-yellow-500 outline-none rounded-sm text-sm transition-colors"
-              required
-            />
+            <SwLabel as="label" className="block mb-1">Email</SwLabel>
+            <SwInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1 font-mono">Mot de passe</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-black/50 border border-gray-600 p-3 text-white focus:border-yellow-500 outline-none rounded-sm text-sm transition-colors"
-              required
-            />
+            <SwLabel as="label" className="block mb-1">Mot de passe</SwLabel>
+            <SwInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-3 mt-4 font-bold uppercase tracking-widest text-xs transition-all border border-yellow-600/50 hover:border-yellow-500 ${loading ? 'bg-gray-800 text-gray-500' : 'bg-yellow-900/40 hover:bg-yellow-800/60 text-yellow-100 shadow-[0_0_10px_rgba(234,179,8,0.2)]'}`}
-          >
-            {loading ? "AUTHENTIFICATION..." : "ACCÉDER AU TERMINAL"}
-          </button>
+          <SwButton type="submit" variant="accent" disabled={loading} className="w-full mt-4">
+            {loading ? "Authentification..." : "Accéder au terminal"}
+          </SwButton>
         </form>
 
-        <div className="mt-6 text-center border-t border-gray-800 pt-4">
-          <p className="text-gray-500 text-xs font-mono">
-            Nouvelle recrue ?{' '}
-            <button 
-              onClick={() => setIsLoginMode(false)} 
-              className="text-yellow-500 hover:text-white font-bold underline cursor-pointer ml-1 transition-colors"
-            >
-              S'ENRÔLER
-            </button>
-          </p>
-        </div>
-      </div>
+        <SwDivider className="mt-6 mb-4" />
+        <p className="text-center text-sw-dim text-xs">
+          Nouvelle recrue ?{' '}
+          <button onClick={() => setIsLoginMode(false)} className="text-sw-gold hover:text-white font-bold cursor-pointer ml-1 uppercase tracking-wider transition-colors">
+            S&apos;enrôler
+          </button>
+        </p>
+      </SwWindow>
 
        {/* --- NEWS TICKER (HOLONET) / BOUTON D'ACCÈS --- */}
-       <div 
-            className={`absolute top-0 left-0 w-full bg-black/80 border-b border-cyan-500/30 backdrop-blur-md flex flex-col items-center z-20 transition-all duration-500 ease-in-out ${showHolonet ? 'h-[60vh] md:h-[50vh]' : 'h-8'}`}
+       <div
+            className={`absolute top-0 left-0 w-full bg-sw-panel-dark border-b border-sw-line/60 backdrop-blur-md flex flex-col items-center z-20 transition-all duration-500 ease-in-out ${showHolonet ? 'h-[60vh] md:h-[50vh]' : 'h-9'}`}
        >
             {/* Header du Ticker (Toujours visible) */}
-            <div 
-                className="w-full h-8 flex items-center cursor-pointer hover:bg-cyan-900/10 transition-colors group/ticker"
+            <div
+                className="w-full h-9 shrink-0 flex items-center cursor-pointer hover:bg-sw-panel-light/50 transition-colors group/ticker"
                 onClick={() => setShowHolonet(!showHolonet)}
             >
-                <div className="bg-cyan-900/20 h-full px-4 flex items-center border-r border-cyan-500/50 z-30">
-                    <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse mr-2 box-shadow-[0_0_10px_#00d2ff]"></div>
-                    <span className="text-cyan-400 font-bold text-[10px] uppercase tracking-widest hidden md:inline group-hover/ticker:text-white transition-colors">Holonet News</span>
-                    <span className="text-cyan-400 font-bold text-[10px] uppercase tracking-widest md:hidden">NEWS</span>
+                <div className="h-full px-4 flex items-center gap-2 border-r border-sw-line/60 z-30 shadow-[inset_0_-2px_0_var(--sw-accent)]">
+                    <SwIcon name="datapad" size={20} />
+                    <span className="sw-label text-sw-gold group-hover/ticker:text-white transition-colors hidden md:inline">Holonet News</span>
+                    <span className="sw-label text-sw-gold md:hidden">News</span>
                 </div>
-                
+
                 {/* Contenu Déroulant (visible seulement si fermé) */}
                 <div className={`flex-1 overflow-hidden relative h-full flex items-center transition-opacity duration-300 ${showHolonet ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                     <div className="animate-marquee whitespace-nowrap flex absolute">
                         {newsData.ticker && [...newsData.ticker, ...newsData.ticker].map((item, index) => (
-                            <span key={index} className="mx-8 text-[10px] font-mono text-cyan-200/70 uppercase tracking-wide flex items-center">
-                                <span className="text-cyan-500 mr-2 text-sm">»</span> {item}
+                            <span key={index} className="mx-8 text-[11px] text-sw-dim uppercase tracking-wide flex items-center">
+                                <span className="text-sw-accent mr-2 text-sm">»</span> {item}
                             </span>
                         ))}
                     </div>
                 </div>
 
                 {/* Bouton Toggle (Flèche) */}
-                <div className="px-4 text-cyan-500">
+                <div className="px-4 text-sw-accent">
                     <svg className={`w-4 h-4 transition-transform duration-500 ${showHolonet ? 'rotate-0 text-white' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                     </svg>
                 </div>
             </div>
 
-            {/* PANNEAU HOLONET ÉTENDU (SWTOR UI STYLE) */}
-            <div className={`w-full flex-1 p-4 md:p-8 relative overflow-hidden flex flex-col items-center justify-center transition-opacity duration-500 delay-100 ${showHolonet ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                {/* Fond Grid Tech */}
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,210,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,210,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none"></div>
-
-                {/* Conteneur principal style "Fenêtre SWTOR" */}
-                <div className="w-full max-w-6xl h-full border-2 border-cyan-600/40 rounded-lg p-1 relative flex flex-col md:flex-row bg-[#000a12]/90 backdrop-blur-xl shadow-[0_0_50px_rgba(0,210,255,0.1)]">
-                    
-                     {/* Décorations de coins et bordures */}
-                     <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-cyan-400"></div>
-                     <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-cyan-400"></div>
-                     <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-cyan-400"></div>
-                     <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-cyan-400"></div>
-                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-[2px] bg-cyan-400 shadow-[0_0_10px_#00d2ff]"></div>
-                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 h-[2px] bg-cyan-400 shadow-[0_0_10px_#00d2ff]"></div>
-
-                    {/* COLONNE GAUCHE : LISTE DES CHAPITRES (MENU) */}
-                    <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-cyan-800/50 p-4 flex flex-col gap-2 overflow-y-auto">
-                        <div className="text-cyan-400 text-xs font-bold uppercase tracking-[0.2em] mb-4 pl-2 border-l-2 border-cyan-500">Mises à Jour</div>
-                        
-                        {/* Fake Items List */}
+            {/* PANNEAU HOLONET ÉTENDU */}
+            <div className={`w-full flex-1 min-h-0 p-4 md:p-6 relative flex flex-col items-center justify-center transition-opacity duration-500 delay-100 ${showHolonet ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                <SwWindow
+                    title={newsData.main?.title || 'Titre manquant'}
+                    subtitle={newsData.main?.subtitle || 'Résumé'}
+                    className="w-full max-w-6xl h-full"
+                    bodyClassName="flex flex-col md:flex-row gap-4 p-4"
+                    actions={
+                        <a
+                            href={newsData.main?.patchNoteUrl || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`sw-btn sw-btn-sm ${!newsData.main?.patchNoteUrl ? 'opacity-40 pointer-events-none' : ''}`}
+                        >
+                            Lire le patchnote
+                        </a>
+                    }
+                >
+                    {/* COLONNE GAUCHE : LISTE DES MISES À JOUR */}
+                    <div className="w-full md:w-1/3 flex flex-col gap-2 overflow-y-auto sw-scroll pr-1">
+                        <SwLabel className="mb-2 text-sw-gold">Mises à jour</SwLabel>
                         {newsData.updates && newsData.updates.length > 0 ? (
                             newsData.updates.map((item, i) => (
-                                <div key={i} className={`p-4 border border-cyan-900/50 bg-cyan-950/20 rounded cursor-pointer hover:bg-cyan-900/40 hover:border-cyan-500/50 transition-all group flex items-center gap-4 ${i===0 ? 'border-cyan-500 bg-cyan-900/30' : ''}`}>
-                                    <div className={`w-12 h-12 bg-black border border-cyan-800 rounded flex items-center justify-center overflow-hidden`}>
-                                         {/* Placeholder image */}
-                                         {item.image ? (
-                                            <div className="w-full h-full bg-cover bg-center" style={{backgroundImage: `url(${item.image})`}}></div>
-                                         ) : (
-                                            <div className="w-full h-full bg-gradient-to-br from-cyan-900 to-black opacity-50"></div>
-                                         )}
-                                    </div>
-                                    <div>
-                                        <div className={`text-[10px] font-bold uppercase tracking-wider ${i===0 ? 'text-white' : 'text-cyan-200 group-hover:text-white'}`}>{item.title}</div>
-                                        <div className="text-[8px] text-cyan-600 group-hover:text-cyan-400">{item.subtitle}</div>
+                                <div key={i} data-active={i === 0 ? 'true' : undefined} className="sw-row p-2 cursor-pointer flex items-center gap-3">
+                                    <SwCell size={48}>
+                                        {item.image ? (
+                                            <div className="w-full h-full bg-cover bg-center rounded-[3px]" style={{backgroundImage: `url(${item.image})`}}></div>
+                                        ) : (
+                                            <SwIcon name="holodisk1" size={36} />
+                                        )}
+                                    </SwCell>
+                                    <div className="min-w-0">
+                                        <div className="text-xs font-bold uppercase tracking-wider text-sw-text truncate">{item.title}</div>
+                                        <div className="text-[10px] text-sw-dim truncate">{item.subtitle}</div>
                                     </div>
                                 </div>
                             ))
                         ) : (
-                            <div className="text-cyan-700 text-xs italic p-4 text-center">Aucune mise à jour disponible.</div>
+                            <div className="text-sw-faint text-xs italic p-4 text-center">Aucune mise à jour disponible.</div>
                         )}
                     </div>
 
-                    {/* COLONNE DROITE : DÉTAILS (CONTENU) */}
-                    <div className="flex-1 p-6 flex flex-col relative">
-                         {/* Header Panneau */}
-                         <div className="flex justify-between items-start border-b border-cyan-900/50 pb-4 mb-4">
-                            <div>
-                                <h3 className="text-cyan-500 text-[10px] uppercase tracking-[0.3em] font-mono mb-1">{newsData.main?.subtitle || 'Résumé'}</h3>
-                                <h2 className="text-2xl text-white font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white to-cyan-400">
-                                    {newsData.main?.title || 'Titre manquant'}
-                                </h2>
-                            </div>
-                            <a 
-                                href={newsData.main?.patchNoteUrl || '#'} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className={`px-6 py-2 border border-cyan-500/50 text-cyan-400 text-[10px] uppercase tracking-widest hover:bg-cyan-500 hover:text-black transition-all shadow-[0_0_15px_rgba(0,210,255,0.2)] ${!newsData.main?.patchNoteUrl ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
-                            >
-                                Lire le Patchnote
-                            </a>
-                         </div>
-
-                         {/* Contenu Texte */}
-                         <div className="flex-1 overflow-y-auto text-cyan-100/80 text-xs leading-relaxed font-mono space-y-4 pr-2 scrollbar-thin scrollbar-thumb-cyan-700 scrollbar-track-transparent">
+                    {/* COLONNE DROITE : DÉTAILS */}
+                    <div className="flex-1 min-h-0 flex flex-col sw-panel-dark p-4">
+                         <div className="flex-1 overflow-y-auto sw-scroll text-sw-dim text-sm leading-relaxed space-y-4 pr-2">
                             {newsData.main && newsData.main.content && Array.isArray(newsData.main.content) ? (
                                 newsData.main.content.map((paragraph, i) => (
                                     <p key={i}>{paragraph}</p>
@@ -268,33 +208,31 @@ export default function Auth() {
                             ) : (
                                 <p>{newsData.main?.content || "Aucun contenu."}</p>
                             )}
-                            
-                            <div className="grid grid-cols-2 gap-4 mt-8">
-                                <div className="bg-cyan-950/30 p-3 border border-cyan-900/50 rounded">
-                                    <div className="text-[8px] uppercase text-cyan-600 mb-1">Statut Serveur</div>
-                                    <div className={`font-bold flex items-center gap-2 ${newsData.systemInfo?.serverStatus === 'OFFLINE' ? 'text-red-500' : 'text-green-400'}`}>
-                                        <span className={`w-2 h-2 rounded-full ${newsData.systemInfo?.serverStatus === 'OFFLINE' ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`}></span>
+
+                            <div className="grid grid-cols-2 gap-3 mt-6">
+                                <SwPanel className="p-3">
+                                    <SwLabel className="mb-1">Statut serveur</SwLabel>
+                                    <div className={`font-bold flex items-center gap-2 ${newsData.systemInfo?.serverStatus === 'OFFLINE' ? 'text-sw-error' : 'text-sw-success'}`}>
+                                        <span className={`w-2 h-2 rounded-full ${newsData.systemInfo?.serverStatus === 'OFFLINE' ? 'bg-sw-error' : 'bg-sw-success animate-pulse'}`}></span>
                                         {newsData.systemInfo?.serverStatus || "EN LIGNE"}
                                     </div>
-                                </div>
-                                <div className="bg-cyan-950/30 p-3 border border-cyan-900/50 rounded">
-                                    <div className="text-[8px] uppercase text-cyan-600 mb-1">Joueurs connectés</div>
-                                    <div className="text-cyan-300 font-bold">{newsData.systemInfo?.onlinePlayers || "0"}</div>
-                                </div>
+                                </SwPanel>
+                                <SwPanel className="p-3">
+                                    <SwLabel className="mb-1">Joueurs connectés</SwLabel>
+                                    <div className="text-sw-gold font-bold">{newsData.systemInfo?.onlinePlayers || "0"}</div>
+                                </SwPanel>
                             </div>
                          </div>
-                         
-                         {/* Footer Panneau */}
-                         <div className="mt-4 pt-4 border-t border-cyan-900/50 flex justify-between items-center text-[10px] text-cyan-700 font-mono uppercase">
+
+                         <div className="mt-3 pt-3 border-t border-sw-border flex justify-between items-center sw-label text-[10px] text-sw-faint">
                             <span>Requires Level 60</span>
-                            <div className="flex gap-2">
-                                <span>🔒 ERA LOCKED</span>
-                                <span>🔒 CONQUEST LOCKED</span>
+                            <div className="flex gap-3">
+                                <span>Era locked</span>
+                                <span>Conquest locked</span>
                             </div>
                          </div>
                     </div>
-
-                </div>
+                </SwWindow>
             </div>
        </div>
 

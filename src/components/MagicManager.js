@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../app/lib/firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { SwButton, SwCell, SwDivider, SwInput, SwLabel, SwPanel, SwWindow } from './ui/Swtor';
 
 const EFFECT_ARCHETYPES = [
     { id: 'projectile', label: 'Projectile (Tir)', params: ['damage', 'range', 'speed', 'color', 'sprite'] },
@@ -14,6 +15,24 @@ const EFFECT_ARCHETYPES = [
     { id: 'summon', label: 'Invocation', params: ['unitId', 'count', 'duration'] },
     { id: 'dash', label: 'Mouvement (Saut/Dash)', params: ['range', 'speed'] }
 ];
+
+// Icônes de pouvoirs de Force (pack SWTOR) : présentation uniquement
+const DOMAIN_ICONS = ['force', 'forcestorm', 'lightningstorm', 'darkmeditation', 'callontheforce', 'force_crush', 'forcepush', 'chain_lightning', 'forcebarriersage'];
+
+const ARCHETYPE_ICONS = {
+    projectile: 'telekineticblast',
+    explosion: 'fiery_explosion_6_0',
+    beam: 'lightningstrike',
+    heal: 'healing',
+    life_drain: 'drain_life',
+    push: 'forcepush',
+    lightning_storm: 'lightningstorm',
+    buff: 'forcefocus1',
+    summon: 'summon1',
+    dash: 'forcespeed'
+};
+
+const talentIcon = (t) => (t?.type === 'passive' ? 'callontheforce' : ARCHETYPE_ICONS[t?.archetype] || 'force');
 
 export default function MagicManager({ onClose }) {
     const [domains, setDomains] = useState([]);
@@ -79,66 +98,83 @@ export default function MagicManager({ onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm p-10">
-            <div className="bg-gray-900 border border-purple-500 w-full max-w-6xl h-[80vh] flex shadow-2xl rounded text-white overflow-hidden">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-10">
+            <SwWindow
+                title="Éditeur Magie"
+                icon="forcestorm"
+                onClose={onClose}
+                className="w-full max-w-6xl h-[80vh]"
+                bodyClassName="flex gap-4 overflow-hidden"
+            >
                 {/* LISTE DES DOMAINES */}
-                <div className="w-1/4 bg-black/50 border-r border-gray-800 p-4 flex flex-col gap-2">
-                    <h2 className="text-xl font-bold text-purple-400 uppercase tracking-widest mb-4">Domaines</h2>
-                    <div className="overflow-y-auto flex-grow space-y-2">
-                        {domains.map(d => (
-                            <div key={d.id} onClick={() => setSelectedDomain(d)} className={`p-3 border rounded cursor-pointer transition ${selectedDomain?.id === d.id ? 'bg-purple-900/30 border-purple-500' : 'bg-gray-800 border-gray-700 hover:border-gray-500'}`}>
-                                <div className="font-bold flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full" style={{backgroundColor: d.color}}></div>
-                                    {d.label}
+                <SwPanel dark className="w-1/4 p-3 flex flex-col gap-2 min-h-0">
+                    <SwLabel className="text-sw-gold mb-1">Domaines</SwLabel>
+                    <div className="overflow-y-auto sw-scroll flex-grow space-y-1 pr-1">
+                        {domains.map((d, i) => (
+                            <div
+                                key={d.id}
+                                onClick={() => setSelectedDomain(d)}
+                                data-active={selectedDomain?.id === d.id ? 'true' : undefined}
+                                className="sw-row p-1.5 pr-2 cursor-pointer flex items-center gap-2.5"
+                                style={{ boxShadow: `inset 2px 0 0 ${d.color}` }}
+                            >
+                                <SwCell icon={DOMAIN_ICONS[i % DOMAIN_ICONS.length]} size={40} active={selectedDomain?.id === d.id} />
+                                <div className="min-w-0">
+                                    <div className={`font-bold text-sm flex items-center gap-2 truncate ${selectedDomain?.id === d.id ? 'text-sw-gold' : 'text-sw-text'}`}>
+                                        <div className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/70" style={{backgroundColor: d.color}}></div>
+                                        {d.label}
+                                    </div>
+                                    <div className="sw-label text-[9px] text-sw-faint truncate">{d.talents?.length || 0} Pouvoirs</div>
                                 </div>
-                                <div className="text-[10px] text-gray-400 truncate">{d.talents?.length || 0} Pouvoirs</div>
                             </div>
                         ))}
                     </div>
-                    <button onClick={handleCreateDomain} className="w-full py-2 bg-purple-700 hover:bg-purple-600 font-bold uppercase text-xs rounded">+ Nouveau Domaine</button>
-                    <button onClick={onClose} className="mt-2 w-full py-2 border border-gray-600 hover:bg-gray-800 text-gray-400 font-bold uppercase text-xs rounded">Fermer</button>
-                </div>
+                    <SwButton variant="accent" onClick={handleCreateDomain} className="w-full">+ Nouveau Domaine</SwButton>
+                    <SwButton onClick={onClose} className="mt-2 w-full">Fermer</SwButton>
+                </SwPanel>
 
                 {/* ÉDITEUR PRINCIPAL */}
-                <div className="flex-grow p-6 flex flex-col bg-[#111] overflow-y-auto">
+                <SwPanel dark className="flex-grow p-6 flex flex-col overflow-y-auto sw-scroll min-h-0">
                     {selectedDomain ? (
                         <div className="space-y-6">
                             {/* Header Domain Config */}
-                            <div className="grid grid-cols-2 gap-4 border-b border-gray-800 pb-6">
+                            <div className="grid grid-cols-2 gap-4 pb-6 border-b border-sw-border">
                                 <div>
-                                    <label className="text-xs uppercase text-gray-500 block mb-1">Nom du Domaine</label>
-                                    <input value={selectedDomain.label} onChange={e => handleUpdateDomain(selectedDomain.id, { label: e.target.value })} className="w-full bg-black border border-gray-700 p-2 text-white" />
+                                    <SwLabel as="label" className="block mb-1">Nom du Domaine</SwLabel>
+                                    <SwInput value={selectedDomain.label} onChange={e => handleUpdateDomain(selectedDomain.id, { label: e.target.value })} />
                                 </div>
                                 <div>
-                                    <label className="text-xs uppercase text-gray-500 block mb-1">Couleur</label>
-                                    <input type="color" value={selectedDomain.color} onChange={e => handleUpdateDomain(selectedDomain.id, { color: e.target.value })} className="w-full h-10 bg-black border border-gray-700 cursor-pointer" />
+                                    <SwLabel as="label" className="block mb-1">Couleur</SwLabel>
+                                    <SwInput type="color" value={selectedDomain.color} onChange={e => handleUpdateDomain(selectedDomain.id, { color: e.target.value })} className="h-10 p-1 cursor-pointer" />
                                 </div>
                                 <div className="col-span-2">
-                                    <label className="text-xs uppercase text-gray-500 block mb-1">Description</label>
-                                    <textarea value={selectedDomain.desc} onChange={e => handleUpdateDomain(selectedDomain.id, { desc: e.target.value })} className="w-full h-16 bg-black border border-gray-700 p-2 text-white text-sm" />
+                                    <SwLabel as="label" className="block mb-1">Description</SwLabel>
+                                    <SwInput as="textarea" value={selectedDomain.desc} onChange={e => handleUpdateDomain(selectedDomain.id, { desc: e.target.value })} className="h-16 text-sm" />
                                 </div>
                                 <div className="col-span-2">
-                                    <button onClick={() => handleDeleteDomain(selectedDomain.id)} className="text-red-500 text-xs underline hover:text-red-400">Supprimer ce domaine définitivement</button>
+                                    <button onClick={() => handleDeleteDomain(selectedDomain.id)} className="text-sw-error text-xs underline hover:text-white cursor-pointer">Supprimer ce domaine définitivement</button>
                                 </div>
                             </div>
 
                             {/* Talents List */}
                             <div>
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-bold text-blue-400 uppercase">Pouvoirs & Passifs</h3>
-                                    <button onClick={() => setEditingTalent({ isNew: true, label: 'Nouveau Pouvoir', type: 'active', archetype: 'projectile', stats: { damage: 10, cost: 10 } })} className="px-3 py-1 bg-blue-900 hover:bg-blue-700 text-xs font-bold uppercase rounded border border-blue-500">+ Ajouter</button>
+                                <div className="flex justify-between items-center mb-2">
+                                    <h3 className="sw-title text-lg">Pouvoirs &amp; Passifs</h3>
+                                    <SwButton size="sm" variant="accent" onClick={() => setEditingTalent({ isNew: true, label: 'Nouveau Pouvoir', type: 'active', archetype: 'projectile', stats: { damage: 10, cost: 10 } })}>+ Ajouter</SwButton>
                                 </div>
-                                
-                                <div className="grid grid-cols-2 gap-3">
+                                <SwDivider className="mb-4" />
+
+                                <div className="grid grid-cols-2 gap-2">
                                     {selectedDomain.talents?.map(t => (
-                                        <div key={t.id} className="bg-[#1a1a1a] p-3 rounded border border-gray-800 flex justify-between items-center group">
-                                            <div>
-                                                <div className="font-bold text-sm text-gray-200">{t.label} <span className="text-[10px] text-gray-500 uppercase">({t.type})</span></div>
-                                                <div className="text-[10px] text-gray-400">{t.archetype} • {t.stats?.damage || 0} DMG • {t.stats?.cost || 0} Mana</div>
+                                        <div key={t.id} className="sw-row p-2 flex justify-between items-center gap-3 group">
+                                            <SwCell icon={talentIcon(t)} size={44} active={t.type === 'ultimate'} />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-bold text-sm text-sw-text truncate">{t.label} <span className={`text-[10px] uppercase ${t.type === 'ultimate' ? 'text-sw-gold' : t.type === 'passive' ? 'text-sw-faint' : 'text-sw-info'}`}>({t.type})</span></div>
+                                                <div className="text-[10px] text-sw-dim truncate">{t.archetype} · {t.stats?.damage || 0} DMG · {t.stats?.cost || 0} Mana</div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <button onClick={() => setEditingTalent({ ...t, isNew: false })} className="text-yellow-500 hover:text-white">✎</button>
-                                                <button onClick={() => handleDeleteTalent(t.id)} className="text-red-500 hover:text-white">✕</button>
+                                            <div className="flex gap-2 shrink-0">
+                                                <button onClick={() => setEditingTalent({ ...t, isNew: false })} className="text-sw-gold hover:text-white cursor-pointer" title="Éditer">✎</button>
+                                                <button onClick={() => handleDeleteTalent(t.id)} className="text-sw-error hover:text-white cursor-pointer" title="Supprimer">✕</button>
                                             </div>
                                         </div>
                                     ))}
@@ -146,75 +182,79 @@ export default function MagicManager({ onClose }) {
                             </div>
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-600">
-                             <span className="text-4xl text-gray-700 mb-2">⚡</span>
-                             <span className="uppercase tracking-widest font-bold">Sélectionnez ou créez un domaine</span>
+                        <div className="h-full flex flex-col items-center justify-center gap-3 select-none">
+                             <SwCell icon="force" size={88} className="opacity-60" />
+                             <span className="sw-label text-sw-faint tracking-widest">Sélectionnez ou créez un domaine</span>
                         </div>
                     )}
-                </div>
-            </div>
+                </SwPanel>
+            </SwWindow>
 
             {/* MODAL ÉDITION POUVOIR */}
             {editingTalent && (
-                <div className="absolute inset-0 z-[160] bg-black/80 flex items-center justify-center">
-                    <div className="bg-gray-900 border border-blue-500 p-6 rounded shadow-2xl w-[500px] space-y-4">
-                        <h3 className="text-blue-400 font-bold uppercase text-center border-b border-gray-800 pb-2">Éditer Pouvoir</h3>
-                        
+                <div className="absolute inset-0 z-[160] bg-black/70 backdrop-blur-sm flex items-center justify-center">
+                    <SwWindow
+                        title="Éditer Pouvoir"
+                        icon={talentIcon(editingTalent)}
+                        onClose={() => setEditingTalent(null)}
+                        className="w-[500px] max-h-[90vh]"
+                        bodyClassName="space-y-4 overflow-y-auto sw-scroll"
+                    >
                         <div className="grid grid-cols-2 gap-3">
                             <div className="col-span-2">
-                                <label className="text-[10px] text-gray-500 uppercase">Nom</label>
-                                <input value={editingTalent.label} onChange={e => setEditingTalent(p => ({...p, label: e.target.value}))} className="w-full bg-black border border-gray-700 p-2 text-white" />
+                                <SwLabel as="label" className="text-[10px]">Nom</SwLabel>
+                                <SwInput value={editingTalent.label} onChange={e => setEditingTalent(p => ({...p, label: e.target.value}))} />
                             </div>
                              <div>
-                                <label className="text-[10px] text-gray-500 uppercase">Type</label>
-                                <select value={editingTalent.type} onChange={e => setEditingTalent(p => ({...p, type: e.target.value}))} className="w-full bg-black border border-gray-700 p-2 text-white">
+                                <SwLabel as="label" className="text-[10px]">Type</SwLabel>
+                                <SwInput as="select" value={editingTalent.type} onChange={e => setEditingTalent(p => ({...p, type: e.target.value}))}>
                                     <option value="active">Actif</option>
                                     <option value="passive">Passif</option>
                                     <option value="ultimate">Ultime</option>
-                                </select>
+                                </SwInput>
                             </div>
                              <div>
-                                <label className="text-[10px] text-gray-500 uppercase">Rang Requis</label>
-                                <input type="number" value={editingTalent.rank || 1} onChange={e => setEditingTalent(p => ({...p, rank: parseInt(e.target.value)}))} className="w-full bg-black border border-gray-700 p-2 text-white" />
+                                <SwLabel as="label" className="text-[10px]">Rang Requis</SwLabel>
+                                <SwInput type="number" value={editingTalent.rank || 1} onChange={e => setEditingTalent(p => ({...p, rank: parseInt(e.target.value)}))} />
                             </div>
                             <div className="col-span-2">
-                                <label className="text-[10px] text-gray-500 uppercase">Description</label>
-                                <input value={editingTalent.desc} onChange={e => setEditingTalent(p => ({...p, desc: e.target.value}))} className="w-full bg-black border border-gray-700 p-2 text-white" />
+                                <SwLabel as="label" className="text-[10px]">Description</SwLabel>
+                                <SwInput value={editingTalent.desc} onChange={e => setEditingTalent(p => ({...p, desc: e.target.value}))} />
                             </div>
                         </div>
 
                         {editingTalent.type !== 'passive' && (
-                            <div className="space-y-3 border-t border-gray-800 pt-3">
+                            <div className="space-y-3 border-t border-sw-border pt-3">
                                 <div>
-                                    <label className="text-[10px] text-yellow-500 uppercase font-bold">Archetype d'Effet</label>
-                                    <select value={editingTalent.archetype} onChange={e => setEditingTalent(p => ({...p, archetype: e.target.value}))} className="w-full bg-black border border-yellow-800 text-yellow-500 p-2">
+                                    <SwLabel as="label" className="text-[10px] text-sw-gold">Archetype d&apos;Effet</SwLabel>
+                                    <SwInput as="select" value={editingTalent.archetype} onChange={e => setEditingTalent(p => ({...p, archetype: e.target.value}))} className="border-sw-gold-dim text-sw-gold">
                                         {EFFECT_ARCHETYPES.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
-                                    </select>
+                                    </SwInput>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2 bg-black/30 p-2 rounded">
-                                    <div><label className="text-[9px] text-gray-500 uppercase">Coût Mana</label><input type="number" value={editingTalent.stats?.cost || 0} onChange={e => setEditingTalent(p => ({...p, stats: {...p.stats, cost: parseInt(e.target.value)}}))} className="w-full bg-black border border-gray-700 p-1 text-white text-xs" /></div>
-                                    <div><label className="text-[9px] text-gray-500 uppercase">Cooldown (s)</label><input type="number" value={editingTalent.stats?.cooldown || 0} onChange={e => setEditingTalent(p => ({...p, stats: {...p.stats, cooldown: parseInt(e.target.value)}}))} className="w-full bg-black border border-gray-700 p-1 text-white text-xs" /></div>
-                                    
+                                <SwPanel className="grid grid-cols-2 gap-2 p-2">
+                                    <div><SwLabel as="label" className="text-[9px]">Coût Mana</SwLabel><SwInput type="number" value={editingTalent.stats?.cost || 0} onChange={e => setEditingTalent(p => ({...p, stats: {...p.stats, cost: parseInt(e.target.value)}}))} className="p-1 text-xs" /></div>
+                                    <div><SwLabel as="label" className="text-[9px]">Cooldown (s)</SwLabel><SwInput type="number" value={editingTalent.stats?.cooldown || 0} onChange={e => setEditingTalent(p => ({...p, stats: {...p.stats, cooldown: parseInt(e.target.value)}}))} className="p-1 text-xs" /></div>
+
                                     {EFFECT_ARCHETYPES.find(a => a.id === editingTalent.archetype)?.params.map(param => (
                                         <div key={param}>
-                                            <label className="text-[9px] text-blue-400 uppercase">{param}</label>
-                                            <input 
-                                                type={param === 'color' ? 'color' : 'text'} 
-                                                value={editingTalent.stats?.[param] || (param === 'color' ? '#ffffff' : '')} 
-                                                onChange={e => setEditingTalent(p => ({...p, stats: {...p.stats, [param]: e.target.value}}))} 
-                                                className={`w-full bg-black border border-gray-700 p-1 text-white text-xs ${param === 'color' ? 'h-6' : ''}`} 
+                                            <SwLabel as="label" className="text-[9px] text-sw-info">{param}</SwLabel>
+                                            <SwInput
+                                                type={param === 'color' ? 'color' : 'text'}
+                                                value={editingTalent.stats?.[param] || (param === 'color' ? '#ffffff' : '')}
+                                                onChange={e => setEditingTalent(p => ({...p, stats: {...p.stats, [param]: e.target.value}}))}
+                                                className={`p-1 text-xs ${param === 'color' ? 'h-7 cursor-pointer' : ''}`}
                                             />
                                         </div>
                                     ))}
-                                </div>
+                                </SwPanel>
                             </div>
                         )}
 
                         <div className="flex gap-2 pt-2">
-                             <button onClick={() => setEditingTalent(null)} className="flex-1 py-2 text-gray-400 text-xs font-bold uppercase border border-gray-700 hover:bg-gray-800">Annuler</button>
-                             <button onClick={() => handleSaveTalent(editingTalent)} className="flex-1 py-2 bg-blue-700 hover:bg-blue-600 text-white text-xs font-bold uppercase">Sauvegarder</button>
+                             <SwButton onClick={() => setEditingTalent(null)} className="flex-1">Annuler</SwButton>
+                             <SwButton variant="accent" onClick={() => handleSaveTalent(editingTalent)} className="flex-1">Sauvegarder</SwButton>
                         </div>
-                    </div>
+                    </SwWindow>
                 </div>
             )}
         </div>

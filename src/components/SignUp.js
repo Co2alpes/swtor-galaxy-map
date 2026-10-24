@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { auth, db } from '../app/lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { SwBackdrop, SwButton, SwDivider, SwEmblem, SwInput, SwLabel, SwPanel, SwWindow, factionKit } from './ui/Swtor';
 
 export default function SignUp({ onSucces, onSwitchMode }) {
   const [email, setEmail] = useState('');
@@ -70,188 +71,178 @@ export default function SignUp({ onSucces, onSwitchMode }) {
 
   // --- STYLES ---
   const inputContainerStyle = "relative group w-full";
-  const labelStyle = "block text-[10px] font-mono uppercase tracking-[0.2em] text-gray-500 mb-2 group-focus-within:text-yellow-500 transition-colors";
-  const inputStyle = "w-full bg-black/60 border border-gray-700 text-white p-4 rounded-sm focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500/50 outline-none transition-all duration-300 placeholder:text-gray-700 font-mono text-sm backdrop-blur-md";
-  
-  // Style des coins décoratifs du rectangle
-  const cornerStyle = "absolute w-3 h-3 border-yellow-600/60 pointer-events-none transition-all duration-500";
+  const labelStyle = "block mb-1 group-focus-within:text-sw-accent-light transition-colors";
 
   return (
-    <div className="min-h-screen w-full bg-black flex items-center justify-center p-4 md:p-8 font-sans select-none relative overflow-hidden">
-      
+    <main className="min-h-screen w-full bg-sw-bg text-sw-text flex flex-col items-center justify-center p-4 md:p-8 select-none relative overflow-hidden">
+
       {/* --- ARRIÈRE-PLAN GLOBAL --- */}
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] bg-repeat opacity-20 pointer-events-none"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1a1a1a_0%,_#000000_100%)] pointer-events-none"></div>
+      <SwBackdrop dim={0.35} />
+
+      {/* Logo */}
+      <header className="mb-8 text-center z-10 flex flex-col items-center gap-3">
+          <SwEmblem size={72} />
+          <h1 className="sw-title text-5xl tracking-[0.12em] drop-shadow-[0_0_18px_rgb(var(--sw-accent-rgb)/0.45)]">SWTOR</h1>
+          <SwLabel className="tracking-[0.8em]">Galactic Conquest</SwLabel>
+      </header>
 
       {/* --- CONTENEUR PRINCIPAL CENTRÉ --- */}
-      <div className="w-full max-w-6xl bg-gray-950/80 border border-gray-800 rounded-xl shadow-2xl flex flex-col lg:flex-row overflow-hidden backdrop-blur-xl relative z-10 animate-in zoom-in-95 duration-500">
-          
-          {/* --- COLONNE GAUCHE : VISUEL (40%) --- */}
-          <div className="hidden lg:flex w-[40%] bg-black/30 border-r border-gray-800 flex-col justify-between p-12 relative">
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none"></div>
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-600/50 to-transparent"></div>
+      <SwWindow
+          title="Recrutement"
+          subtitle="Initialisation du dossier"
+          className="z-10 w-full max-w-5xl"
+          bodyClassName="flex flex-col lg:flex-row gap-6 p-6"
+      >
 
-              <div className="relative mt-4">
-                  <div className="w-12 h-1 bg-yellow-600 mb-6"></div>
-                  <h1 className="text-4xl lg:text-5xl font-black uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-yellow-100 via-yellow-500 to-yellow-900 drop-shadow-lg font-serif leading-tight mb-6">
+          {/* --- COLONNE GAUCHE : VISUEL (40%) --- */}
+          <SwPanel dark className="hidden lg:flex w-[40%] flex-col justify-between p-8 relative overflow-hidden">
+              <div className="absolute inset-0 bg-cover bg-bottom opacity-40 mix-blend-screen pointer-events-none" style={{ backgroundImage: `url(${factionKit().background})` }}></div>
+
+              <div className="relative mt-2">
+                  <SwDivider className="w-16 mb-6" />
+                  <h2 className="sw-title text-4xl lg:text-5xl tracking-[0.1em] leading-tight mb-6 drop-shadow-[0_0_14px_rgb(var(--sw-accent-rgb)/0.4)]">
                       RECRUE
-                  </h1>
-                  <p className="text-gray-400 text-xs font-mono uppercase tracking-[0.2em] leading-relaxed max-w-xs border-l-2 border-yellow-600/30 pl-4 py-2">
+                  </h2>
+                  <p className="text-sw-dim text-xs uppercase tracking-[0.2em] leading-relaxed max-w-xs border-l-2 border-sw-accent/40 pl-4 py-2">
                       Rejoignez le conflit galactique. <br/>
                       Choisissez votre destin. <br/>
                       Dominez les étoiles.
                   </p>
               </div>
 
-              <div className="space-y-4 opacity-50 mt-12">
-                  <div className="text-[9px] font-mono text-gray-500 flex flex-col gap-1">
+              <div className="relative space-y-4 mt-12">
+                  <div className="sw-label text-[9px] text-sw-faint flex flex-col gap-1">
                       <span>:: PROTOCOL_V4.2 INITIALIZED</span>
                       <span>:: CONNECTION_SECURE</span>
                       <span>:: NODE_CORUSCANT_PRIME</span>
                   </div>
               </div>
-          </div>
+          </SwPanel>
 
           {/* --- COLONNE DROITE : FORMULAIRE (60%) --- */}
-          <div className="w-full lg:w-[60%] p-8 lg:p-16 flex flex-col justify-center bg-black/20">
-              
-              {/* --- LE RECTANGLE (CADRE) --- */}
-              <div className="w-full max-w-xl mx-auto relative group/panel">
-                  
-                  {/* Fond et Bordure du Rectangle */}
-                  <div className="absolute inset-0 bg-gray-900/40 border border-yellow-900/30 rounded-lg shadow-[0_0_30px_rgba(0,0,0,0.5)] backdrop-blur-sm -z-10"></div>
-                  
-                  {/* Coins décoratifs */}
-                  <div className={`${cornerStyle} top-0 left-0 border-t-2 border-l-2 rounded-tl-sm`}></div>
-                  <div className={`${cornerStyle} top-0 right-0 border-t-2 border-r-2 rounded-tr-sm`}></div>
-                  <div className={`${cornerStyle} bottom-0 left-0 border-b-2 border-l-2 rounded-bl-sm`}></div>
-                  <div className={`${cornerStyle} bottom-0 right-0 border-b-2 border-r-2 rounded-br-sm`}></div>
+          <div className="w-full lg:w-[60%] flex flex-col justify-center">
 
-                  {/* Contenu du formulaire avec Padding */}
-                  <div className="p-8 lg:p-10">
-                      
-                      {/* En-tête mobile */}
-                      <div className="lg:hidden mb-8 text-center">
-                          <h1 className="text-4xl font-bold text-yellow-500 uppercase tracking-widest font-serif">Recrutement</h1>
-                      </div>
-
-                      <div className="hidden lg:flex text-yellow-600 text-xs font-bold uppercase tracking-[0.3em] mb-8 items-center gap-2">
-                          <span className="w-4 h-4 border border-yellow-600 rounded-full block animate-pulse"></span>
-                          Initialisation du dossier
-                      </div>
-
-                      {error && (
-                          <div className="mb-8 p-4 bg-red-950/40 border-l-2 border-red-500 text-red-300 text-xs font-mono flex items-center gap-3 shadow-lg">
-                              <span className="text-lg">⚠️</span> {error}
-                          </div>
-                      )}
-
-                      <form onSubmit={handleRegister} className="space-y-6">
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className={inputContainerStyle}>
-                                  <label className={labelStyle}>Identifiant</label>
-                                  <input
-                                      type="text"
-                                      placeholder="Nom de Guerre"
-                                      value={pseudo}
-                                      onChange={(e) => setPseudo(e.target.value)}
-                                      className={inputStyle}
-                                      required
-                                      minLength={3}
-                                  />
-                              </div>
-
-                              <div className={inputContainerStyle}>
-                                  <label className={labelStyle}>Fréquence (Email)</label>
-                                  <input
-                                      type="email"
-                                      placeholder="contact@holonet.com"
-                                      value={email}
-                                      onChange={(e) => setEmail(e.target.value)}
-                                      className={inputStyle}
-                                      required
-                                  />
-                              </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className={inputContainerStyle}>
-                                <label className={labelStyle}>Style de Combat</label>
-                                <select 
-                                    value={combatStyle} 
-                                    onChange={(e) => setCombatStyle(e.target.value)}
-                                    className={`${inputStyle} appearance-none cursor-pointer`}
-                                >
-                                    <option value="melee">⚔️ Mêlée (Force/Sabre)</option>
-                                    <option value="shooter">🔫 Tireur (Blaster/Tech)</option>
-                                </select>
-                            </div>
-
-                            <div className={inputContainerStyle}>
-                                <label className={labelStyle}>Domaine de Pouvoir</label>
-                                <select 
-                                    value={magicDomain} 
-                                    onChange={(e) => setMagicDomain(e.target.value)}
-                                    className={`${inputStyle} appearance-none cursor-pointer`}
-                                >
-                                    <option value="dark">🟣 Obscurité (Corruption/Peur)</option>
-                                    <option value="light">🔵 Lumière (Soin/Protection)</option>
-                                    <option value="mandalorian">🟠 Mandalorien (Gadgets/Tech)</option>
-                                </select>
-                            </div>
-                          </div>
-
-                          <div className={inputContainerStyle}>
-                              <label className={labelStyle}>Mot de Passe</label>
-                              <input
-                                  type="password"
-                                  placeholder="••••••••••••"
-                                  value={password}
-                                  onChange={(e) => setPassword(e.target.value)}
-                                  className={`${inputStyle} tracking-widest`}
-                                  required
-                                  minLength={6}
-                              />
-                          </div>
-
-                          <div className={inputContainerStyle}>
-                              <label className={labelStyle}>Code d'Activation (Optionnel)</label>
-                              <input
-                                  type="text"
-                                  placeholder="Code admin..."
-                                  value={activationCode}
-                                  onChange={(e) => setActivationCode(e.target.value)}
-                                  className={inputStyle}
-                              />
-                          </div>
-
-                          <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-gray-800/50 mt-8">
-                              <div className="text-gray-500 text-[10px] font-mono uppercase tracking-wider order-2 md:order-1">
-                                  Déjà enregistré ?{' '}
-                                  <button 
-                                      type="button"
-                                      onClick={onSwitchMode} 
-                                      className="ml-2 text-yellow-600 hover:text-yellow-400 font-bold transition-colors underline decoration-yellow-800/50 hover:decoration-yellow-400 underline-offset-4"
-                                  >
-                                      Connexion
-                                  </button>
-                              </div>
-
-                              <button
-                                  type="submit"
-                                  disabled={loading}
-                                  className={`order-1 md:order-2 w-full md:w-auto px-10 py-4 bg-gradient-to-r from-yellow-700 to-yellow-600 hover:from-yellow-600 hover:to-yellow-500 text-white font-bold uppercase tracking-[0.25em] text-xs transition-all duration-300 shadow-[0_0_20px_rgba(202,138,4,0.1)] hover:shadow-[0_0_30px_rgba(202,138,4,0.3)] transform hover:-translate-y-1 ${loading ? 'opacity-50 cursor-wait' : ''}`}
-                                  style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
-                              >
-                                  {loading ? "TRAITEMENT..." : "INITIALISER"}
-                              </button>
-                          </div>
-                      </form>
-                  </div>
+              {/* En-tête mobile */}
+              <div className="lg:hidden mb-6 text-center">
+                  <h2 className="sw-title text-3xl tracking-widest">Recrutement</h2>
               </div>
+
+              <div className="hidden lg:flex sw-label text-sw-gold mb-6 items-center gap-2">
+                  <span className="w-3 h-3 border border-sw-accent rounded-full block animate-pulse shadow-[0_0_6px_rgb(var(--sw-accent-rgb)/0.6)]"></span>
+                  Initialisation du dossier
+              </div>
+
+              {error && (
+                  <div className="mb-6 p-3 sw-panel-dark border-sw-error/70 text-sw-error text-xs flex items-center gap-3">
+                      <span className="text-lg">⚠️</span> {error}
+                  </div>
+              )}
+
+              <form onSubmit={handleRegister} className="space-y-5">
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className={inputContainerStyle}>
+                          <SwLabel as="label" className={labelStyle}>Identifiant</SwLabel>
+                          <SwInput
+                              type="text"
+                              placeholder="Nom de Guerre"
+                              value={pseudo}
+                              onChange={(e) => setPseudo(e.target.value)}
+                              required
+                              minLength={3}
+                          />
+                      </div>
+
+                      <div className={inputContainerStyle}>
+                          <SwLabel as="label" className={labelStyle}>Fréquence (Email)</SwLabel>
+                          <SwInput
+                              type="email"
+                              placeholder="contact@holonet.com"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              required
+                          />
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className={inputContainerStyle}>
+                        <SwLabel as="label" className={labelStyle}>Style de Combat</SwLabel>
+                        <SwInput
+                            as="select"
+                            value={combatStyle}
+                            onChange={(e) => setCombatStyle(e.target.value)}
+                            className="cursor-pointer"
+                        >
+                            <option value="melee">⚔️ Mêlée (Force/Sabre)</option>
+                            <option value="shooter">🔫 Tireur (Blaster/Tech)</option>
+                        </SwInput>
+                    </div>
+
+                    <div className={inputContainerStyle}>
+                        <SwLabel as="label" className={labelStyle}>Domaine de Pouvoir</SwLabel>
+                        <SwInput
+                            as="select"
+                            value={magicDomain}
+                            onChange={(e) => setMagicDomain(e.target.value)}
+                            className="cursor-pointer"
+                        >
+                            <option value="dark">🟣 Obscurité (Corruption/Peur)</option>
+                            <option value="light">🔵 Lumière (Soin/Protection)</option>
+                            <option value="mandalorian">🟠 Mandalorien (Gadgets/Tech)</option>
+                        </SwInput>
+                    </div>
+                  </div>
+
+                  <div className={inputContainerStyle}>
+                      <SwLabel as="label" className={labelStyle}>Mot de Passe</SwLabel>
+                      <SwInput
+                          type="password"
+                          placeholder="••••••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="tracking-widest"
+                          required
+                          minLength={6}
+                      />
+                  </div>
+
+                  <div className={inputContainerStyle}>
+                      <SwLabel as="label" className={labelStyle}>Code d&apos;Activation (Optionnel)</SwLabel>
+                      <SwInput
+                          type="text"
+                          placeholder="Code admin..."
+                          value={activationCode}
+                          onChange={(e) => setActivationCode(e.target.value)}
+                      />
+                  </div>
+
+                  <SwDivider className="mt-6" />
+
+                  <div className="pt-2 flex flex-col md:flex-row items-center justify-between gap-5">
+                      <div className="text-sw-dim text-xs order-2 md:order-1">
+                          Déjà enregistré ?{' '}
+                          <button
+                              type="button"
+                              onClick={onSwitchMode}
+                              className="ml-1 text-sw-gold hover:text-white font-bold cursor-pointer uppercase tracking-wider transition-colors"
+                          >
+                              Connexion
+                          </button>
+                      </div>
+
+                      <SwButton
+                          type="submit"
+                          variant="accent"
+                          disabled={loading}
+                          className={`order-1 md:order-2 w-full md:w-auto px-10 ${loading ? 'cursor-wait' : ''}`}
+                      >
+                          {loading ? "TRAITEMENT..." : "INITIALISER"}
+                      </SwButton>
+                  </div>
+              </form>
           </div>
-      </div>
-    </div>
+      </SwWindow>
+    </main>
   );
 }

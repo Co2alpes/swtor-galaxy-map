@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../app/lib/firebase';
 import { collection, getDocs, doc, updateDoc, increment, setDoc, onSnapshot, addDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { SwButton, SwCell, SwIcon, SwWindow } from './ui/Swtor';
 
 // --- CONFIGURATION ---
 const COLORS = {
@@ -48,10 +49,17 @@ const getFlavorText = (score, status, isMe, faction) => {
 
 // COULEUR DU TEXTE SELON L'HUMEUR
 const getFlavorColor = (score, status) => {
-    if (status === 'war' || score < -20) return 'text-red-400';
-    if (status === 'alliance' || score >= 50) return 'text-green-400';
-    if (score >= 20) return 'text-[#cba660]'; // Or
-    return 'text-gray-400';
+    if (status === 'war' || score < -20) return 'text-sw-error';
+    if (status === 'alliance' || score >= 50) return 'text-sw-success';
+    if (score >= 20) return 'text-sw-gold'; // Or
+    return 'text-sw-dim';
+};
+
+// Icônes de statut diplomatique (pack SWTOR) ; neutre = emoji de getStatusIcon
+const STATUS_ICONS = {
+    war: 'clashing_lightsabers_6_0',
+    alliance: 'energyshield',
+    trade: 'galactictradekioskunlock',
 };
 
 export default function DiplomacyScreen({ userFaction, onClose }) {
@@ -190,7 +198,7 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
     };
 
     // --- UI HELPERS ---
-    const getAttitudeColor = (score) => score >= 50 ? 'text-green-400' : (score >= 0 ? 'text-yellow-400' : 'text-red-500');
+    const getAttitudeColor = (score) => score >= 50 ? 'text-sw-success' : (score >= 0 ? 'text-sw-warn' : 'text-sw-error');
     const getStatusIcon = (status) => {
         switch(status) { case 'war': return '⚔️'; case 'alliance': return '🛡️'; case 'trade': return '📜'; default: return '😐'; }
     };
@@ -198,11 +206,11 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
     // --- 2. PORTRAIT PANEL MIS À JOUR ---
     const PortraitPanel = ({ faction, isMe }) => {
         if (!faction) return <div className="w-80 opacity-0"></div>;
-        
+
         const score = !isMe ? getRelationScore(faction.id) : 0;
         const status = !isMe ? getRelationStatus(faction.id) : 'neutral';
-        const borderColor = faction.color || '#cba660';
-        
+        const borderColor = faction.color || 'var(--sw-gold)';
+
         // Calcul des phrases
         const flavorText = getFlavorText(score, status, isMe, faction);
         const flavorColor = getFlavorColor(score, status);
@@ -210,13 +218,16 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
         return (
             <div className={`w-80 flex flex-col ${isMe ? 'items-start' : 'items-end'} pointer-events-auto transition-all`}>
                 <div className="relative z-10 mb-[-20px] mx-4">
+                    {/* ANNEAU SCANNER */}
+                    <SwIcon name="/ui/swtor/scanner.png" size={208} className="absolute -inset-6 max-w-none opacity-60 animate-sw-spin pointer-events-none" style={{ animationDuration: '18s' }} />
+
                     {/* CERCLE DU PORTRAIT */}
-                    <div 
-                        className="w-40 h-40 rounded-full border-4 bg-gray-900 shadow-[0_0_20px_black] flex items-center justify-center relative overflow-hidden group"
-                        style={{ borderColor: borderColor }}
+                    <div
+                        className="w-40 h-40 rounded-full border-4 bg-sw-panel-dark shadow-[0_0_24px_black] flex items-center justify-center relative overflow-hidden group"
+                        style={{ borderColor: borderColor, boxShadow: `0 0 18px ${borderColor}, 0 0 24px black` }}
                     >
                         <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent pointer-events-none z-20"></div>
-                        
+
                         {/* AFFICHE L'IMAGE SI ELLE EXISTE */}
                         {faction.image ? (
                             <img src={faction.image} alt={faction.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
@@ -225,26 +236,23 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
                         )}
                     </div>
 
-                    <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-black/90 border border-[#cba660] px-4 py-1 whitespace-nowrap min-w-[120px] text-center shadow-lg z-30">
-                        <div className="text-[#cba660] font-serif font-bold uppercase text-sm tracking-widest">{faction.name}</div>
+                    <div className="sw-panel-dark absolute -bottom-4 left-1/2 -translate-x-1/2 border-sw-gold-dim px-4 py-1 whitespace-nowrap min-w-[120px] text-center shadow-lg z-30">
+                        <div className="sw-title text-sm tracking-widest">{faction.name}</div>
                     </div>
                 </div>
 
                 {/* PANNEAU DE STATS */}
-                <div className="w-full bg-[#0f1115] border-2 border-[#cba660] pt-10 pb-4 px-4 shadow-2xl relative mt-4">
-                    <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-[#cba660]"></div>
-                    <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-[#cba660]"></div>
-                    
-                    <div className="space-y-3 font-serif text-gray-300">
-                        <div className="flex justify-between border-b border-gray-700 pb-1">
-                            <span className="text-xs uppercase text-[#8a6d3b]">Rang de force</span>
-                            <span className="font-bold text-white">{faction.rank}</span>
+                <div className="sw-window w-full pt-10 pb-4 px-4 relative mt-4">
+                    <div className="space-y-3 text-sw-text">
+                        <div className="flex justify-between items-baseline border-b border-sw-border pb-1">
+                            <span className="sw-label">Rang de force</span>
+                            <span className="font-bold text-sw-gold">{faction.rank}</span>
                         </div>
-                        {isMe && <div className="flex justify-between border-b border-gray-700 pb-1"><span className="text-xs uppercase text-[#8a6d3b]">Trésorerie</span><span className="font-bold text-yellow-500">{faction.credits?.toLocaleString()} CR</span></div>}
-                        
+                        {isMe && <div className="flex justify-between items-baseline border-b border-sw-border pb-1"><span className="sw-label">Trésorerie</span><span className="font-bold text-sw-gold">{faction.credits?.toLocaleString()} CR</span></div>}
+
                         {/* ICI : AFFICHAGE DE LA PHRASE D'AMBIANCE */}
-                        <div className="pt-2 text-center border-t border-gray-800 mt-2 min-h-[30px] flex items-center justify-center">
-                            <p className={`text-[11px] italic font-serif leading-tight ${isMe ? 'text-gray-500' : flavorColor}`}>
+                        <div className="pt-2 text-center mt-2 min-h-[30px] flex items-center justify-center">
+                            <p className={`text-[11px] italic leading-tight ${isMe ? 'text-sw-faint' : flavorColor}`}>
                                 {flavorText}
                             </p>
                         </div>
@@ -255,17 +263,18 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex flex-col justify-between p-6 pointer-events-none font-sans">
-            
+        <div className="fixed inset-0 z-[100] flex flex-col justify-between p-6 pointer-events-none">
+
             {/* TOP BAR */}
-            <div className="pointer-events-auto self-center bg-[#0f1115] border-x-2 border-b-2 border-[#cba660] px-12 py-2 shadow-lg relative flex gap-4">
-                <button onClick={() => setView('list')} className={`text-[#cba660] font-serif text-xl font-bold uppercase tracking-[0.1em] hover:text-white ${view === 'list' ? 'underline decoration-2 underline-offset-4' : 'opacity-70'}`}>Diplomatie</button>
-                <div className="w-px bg-[#cba660]/50 h-6 self-center"></div>
-                <button onClick={() => setView('requests')} className={`text-[#cba660] font-serif text-xl font-bold uppercase tracking-[0.1em] hover:text-white relative ${view === 'requests' ? 'underline decoration-2 underline-offset-4' : 'opacity-70'}`}>
-                    Requêtes
-                    {requests.length > 0 && <span className="absolute -top-2 -right-3 bg-red-600 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full animate-pulse">{requests.length}</span>}
+            <div className="sw-window pointer-events-auto self-center px-6 pt-2 pb-1.5 relative flex items-end gap-1">
+                <button onClick={() => setView('list')} data-active={view === 'list' ? 'true' : undefined} className="sw-tab min-w-[10rem] text-sm">
+                    <SwIcon name="datapad" size={20} className="mr-2 -ml-1" />Diplomatie
                 </button>
-                <button onClick={onClose} className="absolute right-[-40px] top-0 bg-red-900 text-white w-8 h-8 flex items-center justify-center border border-red-500 hover:bg-red-700 font-sans">X</button>
+                <button onClick={() => setView('requests')} data-active={view === 'requests' ? 'true' : undefined} className="sw-tab min-w-[10rem] text-sm relative">
+                    <SwIcon name="holodisk1" size={20} className="mr-2 -ml-1" />Requêtes
+                    {requests.length > 0 && <span className="absolute -top-2 -right-2 bg-sw-error text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-[0_0_8px_var(--sw-error)]">{requests.length}</span>}
+                </button>
+                <button onClick={onClose} aria-label="Fermer" className="sw-close absolute right-[-36px] top-1"></button>
             </div>
 
             {/* MAIN AREA */}
@@ -277,65 +286,69 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
                         <PortraitPanel faction={selectedFaction} isMe={false} />
                     </>
                 ) : (
-                    <div className="w-full max-w-2xl mx-auto h-[60vh] bg-[#0f1115] border-2 border-[#cba660] p-6 pointer-events-auto overflow-y-auto relative shadow-2xl">
-                        <h2 className="text-[#cba660] font-serif text-2xl font-bold uppercase text-center mb-6 border-b border-[#cba660]/30 pb-4">Missives Diplomatiques</h2>
+                    <SwWindow
+                        title="Missives Diplomatiques"
+                        icon="holodisk1"
+                        className="w-full max-w-2xl mx-auto h-[60vh] pointer-events-auto"
+                        bodyClassName="overflow-y-auto sw-scroll"
+                    >
                         {requests.length === 0 ? (
-                            <div className="text-center text-gray-500 italic">Aucune requête en attente.</div>
+                            <div className="text-center text-sw-faint italic mt-6">Aucune requête en attente.</div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-2">
                                 {requests.map(req => (
-                                    <div key={req.id} className="bg-[#1a1d23] border border-gray-600 p-4 flex justify-between items-center hover:border-[#cba660] transition">
+                                    <div key={req.id} className="sw-row p-3 flex justify-between items-center">
                                         <div className="flex items-center gap-4">
-                                            <div className="text-3xl">{req.type === 'war' ? '⚔️' : (req.type === 'peace' ? '🕊️' : '📜')}</div>
+                                            <SwCell size={48} icon={req.type === 'war' ? 'clashing_lightsabers_6_0' : (req.type === 'peace' ? 'sage_open_palm_6_0' : (req.type === 'alliance' ? 'energyshield' : (req.type === 'trade' ? 'galactictradekioskunlock' : 'datapad')))} />
                                             <div>
-                                                <div className="text-[#cba660] font-bold uppercase text-sm">
+                                                <div className="text-sw-gold font-bold uppercase tracking-wide text-sm">
                                                     {req.type === 'trade' ? 'Accord Commercial' : (req.type === 'alliance' ? 'Alliance Militaire' : (req.type === 'peace' ? 'Traité de Paix' : 'Proposition'))}
                                                 </div>
-                                                <div className="text-gray-400 text-xs">Émissaire : <span className="text-white font-bold">{req.senderName}</span></div>
+                                                <div className="text-sw-dim text-xs">Émissaire : <span className="text-sw-text font-bold">{req.senderName}</span></div>
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
-                                            <button onClick={() => handleRequestResponse(req, true)} className="bg-green-900/50 border border-green-600 hover:bg-green-800 text-green-100 px-4 py-1 text-xs uppercase font-bold rounded">Accepter</button>
-                                            <button onClick={() => handleRequestResponse(req, false)} className="bg-red-900/50 border border-red-600 hover:bg-red-800 text-red-100 px-4 py-1 text-xs uppercase font-bold rounded">Refuser</button>
+                                            <SwButton size="sm" onClick={() => handleRequestResponse(req, true)} className="text-sw-success">Accepter</SwButton>
+                                            <SwButton size="sm" variant="danger" onClick={() => handleRequestResponse(req, false)}>Refuser</SwButton>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         )}
-                    </div>
+                    </SwWindow>
                 )}
             </div>
 
             {/* BOTTOM BAR */}
             {view === 'list' && (
-                <div className="pointer-events-auto self-center w-3/4 h-1/3 bg-[#0f1115] border-2 border-[#cba660] flex shadow-[0_-10px_40px_black] relative mt-4">
+                <div className="sw-window pointer-events-auto self-center w-3/4 h-1/3 flex overflow-hidden relative mt-4">
                     {/* GAUCHE : LISTE */}
-                    <div className={`${selectedFaction ? 'w-1/2' : 'w-full'} flex flex-col border-r border-[#cba660]/30 transition-all duration-300`}>
-                        <div className="flex items-center bg-[#1a1d23] border-b border-[#cba660] px-4 py-2 text-[#cba660] text-[10px] font-bold uppercase tracking-widest">
+                    <div className={`${selectedFaction ? 'w-1/2' : 'w-full'} flex flex-col border-r border-sw-border transition-all duration-300 min-h-0`}>
+                        <div className="flex items-center bg-sw-panel-dark px-4 py-2 sw-label text-[10px] text-sw-gold" style={{ boxShadow: '0 2px 0 var(--sw-accent), 0 3px 0 var(--sw-gold-dim)' }}>
                             <div className="w-12 text-center">Rang</div>
                             <div className="flex-grow pl-4">Faction</div>
                             <div className="w-24 text-center">Attitude</div>
                             <div className="w-16 text-center">Statut</div>
                         </div>
-                        <div className="overflow-y-auto custom-scrollbar flex-grow p-1">
+                        <div className="overflow-y-auto sw-scroll flex-grow p-1.5 pt-2 space-y-1">
                             {factions.map(f => {
                                 const score = getRelationScore(f.id);
                                 const status = getRelationStatus(f.id);
                                 const isSelected = selectedFaction?.id === f.id;
                                 return (
-                                    <div key={f.id} onClick={() => setSelectedFaction(f)} className={`flex items-center p-2 border-b border-gray-800 cursor-pointer transition-colors hover:bg-white/5 ${isSelected ? 'bg-[#cba660]/20 border-[#cba660]' : ''}`}>
-                                        <div className="w-12 text-center font-mono text-gray-500 text-xs">{f.rank}</div>
-                                        <div className="flex-grow pl-4 flex items-center gap-3">
+                                    <div key={f.id} onClick={() => setSelectedFaction(f)} data-active={isSelected ? 'true' : undefined} className="sw-row flex items-center p-2 cursor-pointer">
+                                        <div className="w-12 text-center font-mono text-sw-faint text-xs">{f.rank}</div>
+                                        <div className="flex-grow pl-4 flex items-center gap-3 min-w-0">
                                             {/* IMAGE LISTE */}
                                             {f.image ? (
-                                                <img src={f.image} alt={f.name} className="w-6 h-6 rounded-full border border-gray-500 object-cover bg-black" />
+                                                <img src={f.image} alt={f.name} className="w-6 h-6 rounded-full border border-sw-line object-cover bg-black" />
                                             ) : (
-                                                <div className="w-6 h-6 rounded-full border border-gray-500" style={{backgroundColor: f.color}}></div>
+                                                <div className="w-6 h-6 rounded-full border border-sw-line" style={{backgroundColor: f.color}}></div>
                                             )}
-                                            <span className={`text-sm font-serif font-bold ${isSelected ? 'text-[#cba660]' : 'text-gray-300'}`}>{f.name}</span>
+                                            <span className={`text-sm font-bold tracking-wide truncate ${isSelected ? 'text-sw-gold' : 'text-sw-text'}`}>{f.name}</span>
                                         </div>
-                                        <div className={`w-24 text-center text-xs font-bold ${getAttitudeColor(score)}`}>{score}</div>
-                                        <div className="w-16 text-center text-lg">{getStatusIcon(status)}</div>
+                                        <div className={`w-24 text-center text-xs font-bold font-mono ${getAttitudeColor(score)}`}>{score}</div>
+                                        <div className="w-16 flex justify-center text-lg">{STATUS_ICONS[status] ? <SwIcon name={STATUS_ICONS[status]} size={24} title={status} /> : getStatusIcon(status)}</div>
                                     </div>
                                 );
                             })}
@@ -344,23 +357,23 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
 
                     {/* DROITE : ACTIONS */}
                     {selectedFaction && (
-                        <div className="w-1/2 flex flex-col bg-[#15171c] animate-in fade-in slide-in-from-right-10 duration-300">
-                            <div className="bg-[#1f2229] p-2 border-b border-[#cba660] flex items-center justify-between px-4">
-                                <span className="text-[#cba660] text-xs uppercase font-bold tracking-widest">Négociations avec {selectedFaction.name}</span>
-                                <div className="text-xs text-gray-400">Relation: <span className={getAttitudeColor(getRelationScore(selectedFaction.id))}>{getRelationScore(selectedFaction.id)}</span></div>
+                        <div className="w-1/2 flex flex-col bg-sw-panel-dark/60 animate-in fade-in slide-in-from-right-10 duration-300 min-h-0">
+                            <div className="bg-sw-panel-dark p-2 flex items-center justify-between px-4" style={{ boxShadow: '0 2px 0 var(--sw-accent), 0 3px 0 var(--sw-gold-dim)' }}>
+                                <span className="sw-label text-sw-gold truncate">Négociations avec {selectedFaction.name}</span>
+                                <div className="text-xs text-sw-dim shrink-0 ml-2">Relation: <span className={`font-bold font-mono ${getAttitudeColor(getRelationScore(selectedFaction.id))}`}>{getRelationScore(selectedFaction.id)}</span></div>
                             </div>
-                            <div className="flex-grow p-4 grid grid-cols-2 gap-3 overflow-y-auto content-start">
-                                
+                            <div className="flex-grow p-4 pt-5 grid grid-cols-2 gap-3 overflow-y-auto sw-scroll content-start">
+
                                 {/* 1. COMMERCE */}
                                 {getRelationStatus(selectedFaction.id) === 'trade' ? (
-                                    <ActionButton 
-                                        label="Rompre Commerce" sub="Pénalité relation" icon="📜"
+                                    <ActionButton
+                                        label="Rompre Commerce" sub="Pénalité relation" icon="galactictradekioskunlock"
                                         onClick={() => handleUnilateralAction('break_treaty')}
                                         isDestructive={true} disabled={loading}
                                     />
                                 ) : (
-                                    <ActionButton 
-                                        label="Accord Commercial" sub="Proposition" icon="📜"
+                                    <ActionButton
+                                        label="Accord Commercial" sub="Proposition" icon="galactictradekioskunlock"
                                         onClick={() => handleSendRequest('trade')}
                                         disabled={loading || getRelationStatus(selectedFaction.id) === 'war' || getRelationScore(selectedFaction.id) < 20 || sentRequests.some(r => r.targetId === selectedFaction.id && r.type === 'trade')}
                                         pending={sentRequests.some(r => r.targetId === selectedFaction.id && r.type === 'trade')}
@@ -369,14 +382,14 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
 
                                 {/* 2. ALLIANCE */}
                                 {getRelationStatus(selectedFaction.id) === 'alliance' ? (
-                                    <ActionButton 
-                                        label="Rompre Alliance" sub="Grosse pénalité" icon="🛡️"
+                                    <ActionButton
+                                        label="Rompre Alliance" sub="Grosse pénalité" icon="energyshield"
                                         onClick={() => handleUnilateralAction('break_treaty')}
                                         isDestructive={true} disabled={loading}
                                     />
                                 ) : (
-                                    <ActionButton 
-                                        label="Alliance Militaire" sub="Proposition" icon="🛡️"
+                                    <ActionButton
+                                        label="Alliance Militaire" sub="Proposition" icon="energyshield"
                                         onClick={() => handleSendRequest('alliance')}
                                         disabled={loading || getRelationStatus(selectedFaction.id) === 'war' || getRelationScore(selectedFaction.id) < 80 || sentRequests.some(r => r.targetId === selectedFaction.id && r.type === 'alliance')}
                                         pending={sentRequests.some(r => r.targetId === selectedFaction.id && r.type === 'alliance')}
@@ -384,19 +397,19 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
                                 )}
 
                                 {/* 3. CADEAU */}
-                                <ActionButton label="Cadeau d'État" sub="500 Crédits (+15)" icon="💰" onClick={() => handleUnilateralAction('gift')} disabled={loading || getRelationStatus(selectedFaction.id) === 'war'} />
-                                
+                                <ActionButton label="Cadeau d'État" sub="500 Crédits (+15)" icon="mtx_toy_supply_pack" onClick={() => handleUnilateralAction('gift')} disabled={loading || getRelationStatus(selectedFaction.id) === 'war'} />
+
                                 {/* 4. GUERRE / PAIX */}
                                 {getRelationStatus(selectedFaction.id) === 'war' ? (
-                                    <ActionButton 
-                                        label="Négocier Paix" sub="Proposition d'arrêt" icon="🕊️"
+                                    <ActionButton
+                                        label="Négocier Paix" sub="Proposition d'arrêt" icon="sage_open_palm_6_0"
                                         onClick={() => handleSendRequest('peace')}
                                         disabled={loading || sentRequests.some(r => r.targetId === selectedFaction.id && r.type === 'peace')}
                                         pending={sentRequests.some(r => r.targetId === selectedFaction.id && r.type === 'peace')}
                                     />
                                 ) : (
-                                    <ActionButton 
-                                        label="Déclarer Guerre" sub="Romp tout accord" icon="⚔️" isDestructive={true}
+                                    <ActionButton
+                                        label="Déclarer Guerre" sub="Romp tout accord" icon="clashing_lightsabers_6_0" isDestructive={true}
                                         onClick={() => handleUnilateralAction('war')}
                                         disabled={loading}
                                     />
@@ -413,25 +426,25 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
 // Bouton réutilisable
 function ActionButton({ label, sub, icon, onClick, active, disabled, isDestructive, pending }) {
     return (
-        <button 
+        <button
             onClick={onClick}
             disabled={disabled}
-            className={`flex flex-col justify-center p-3 border border-l-4 transition-all h-20 text-left relative overflow-hidden group
-                ${isDestructive 
-                    ? 'border-red-900 bg-red-950/20 border-l-red-600 hover:bg-red-900/40' 
-                    : pending 
-                        ? 'border-yellow-600 bg-yellow-900/10 border-l-yellow-600 opacity-80 cursor-wait'
-                        : 'border-gray-700 bg-[#1f2229] border-l-gray-500 hover:border-[#cba660] hover:border-l-[#cba660] hover:bg-[#2a2d35]'
+            className={`sw-row flex flex-col justify-center p-3 transition-all h-20 text-left relative overflow-hidden group
+                ${isDestructive
+                    ? 'bg-sw-error/10 border-sw-error/40 shadow-[inset_3px_0_0_var(--sw-error)] hover:bg-sw-error/20 cursor-pointer'
+                    : pending
+                        ? 'bg-sw-warn/10 border-sw-warn/50 shadow-[inset_3px_0_0_var(--sw-warn)] opacity-80 cursor-wait'
+                        : 'border-sw-border shadow-[inset_3px_0_0_var(--sw-line)] hover:border-sw-gold-dim hover:shadow-[inset_3px_0_0_var(--sw-gold)] cursor-pointer'
                 }
                 ${disabled && !pending ? 'opacity-40 cursor-not-allowed grayscale' : ''}
             `}
         >
             <div className="flex items-center gap-2 mb-1">
-                <span className="text-xl">{icon}</span>
-                <span className={`font-bold uppercase text-xs ${isDestructive ? 'text-red-400' : 'text-gray-200 group-hover:text-white'}`}>{label}</span>
+                <SwIcon name={icon} size={28} />
+                <span className={`font-bold uppercase tracking-wide text-xs ${isDestructive ? 'text-sw-error' : 'text-sw-text group-hover:text-sw-gold'}`}>{label}</span>
             </div>
-            <div className="text-[9px] text-gray-500 pl-7">{sub}</div>
-            {pending && <div className="absolute top-1 right-2 text-[8px] text-yellow-500 font-bold uppercase tracking-wider animate-pulse">EN ATTENTE...</div>}
+            <div className="text-[9px] text-sw-faint pl-9">{sub}</div>
+            {pending && <div className="absolute top-1 right-2 text-[8px] text-sw-warn font-bold uppercase tracking-wider animate-pulse">EN ATTENTE...</div>}
         </button>
     );
 }

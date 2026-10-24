@@ -21,6 +21,22 @@ import MagicManager from './MagicManager';
 import HolonetEditor from './HolonetEditor';
 import IntroPopup from './IntroPopup';
 import { MapDefs, BackgroundLayer, RouteLayer, FleetLayer, PlanetLayer } from './MapLayers';
+import { SwButton, SwCell, SwDivider, SwGlass, SwIcon, SwInput, SwLabel, SwPanel, SwTabs, SwWindow } from './ui/Swtor';
+
+// Icônes SWTOR des ressources (public/ui/icons)
+const RESOURCE_ICONS = { credits: 'claninsignia', materials: 'durasteelbar', manpower: 'unassembled_helm', science: 'datapad' };
+const ResIcon = ({ res, size = 14, className }) => <SwIcon name={RESOURCE_ICONS[res]} size={size} className={className} />;
+
+// Icônes SWTOR des catégories de bâtiments (les emojis restent dans les <option>)
+const CATEGORY_ICONS = { economic: 'galactictradekioskunlock', military: 'assault', orbital: 'orbitalbombardment', force: 'force', unique: 'datacron_blue' };
+
+// Icônes SWTOR des unités de garnison
+const garrisonIcon = (type) => (type === 'turret' ? 'mtx_toy_turret' : (type === 'vehicle' ? 'armorplating' : 'unassembled_helm'));
+
+// Bouton d'icône du HUD (case SWTOR + icône du pack)
+const HudCell = ({ icon, title, onClick, size = 44, active, className }) => (
+    <SwCell icon={icon} size={size} title={title} onClick={onClick} active={active} className={className} />
+);
 
 // --- 1. CONFIGURATION GLOBALE ---
 const ARCHITECT_ROLES = ['admin', 'gamemaster'];
@@ -264,7 +280,7 @@ const Icons = {
     Logout: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
     Construction: () => <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
     Upgrade: () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>,
-    ArrowUp: () => <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>,
+    ArrowUp: () => <svg className="w-4 h-4 text-sw-faint"fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>,
     User: () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
 };
 
@@ -273,53 +289,41 @@ const GarrisonManager = ({ planet, factionData, onClose, onRecruit, onDisband, p
     const garrison = planet.garrison || {};
     
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
-            <div className="bg-gray-950/95 border border-gray-700 w-full max-w-2xl shadow-[0_0_50px_rgba(255,0,0,0.1)] rounded-2xl overflow-hidden flex flex-col max-h-[85vh] ring-1 ring-white/10" onClick={e => e.stopPropagation()}>
-                {/* Header */}
-                <div className="p-6 bg-gradient-to-r from-red-950/40 via-gray-900 to-gray-900 border-b border-red-900/30 flex justify-between items-center relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"></div>
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center justify-center text-2xl shadow-[0_0_15px_rgba(220,38,38,0.2)]">🛡️</div>
-                        <div>
-                            <h2 className="text-xl font-bold uppercase text-white tracking-widest font-sans">Commandement de Garnison</h2>
-                            <p className="text-red-400 text-xs font-mono uppercase tracking-wider">Secteur {planet.name}</p>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="w-8 h-8 rounded-full border border-gray-700 hover:border-red-500 hover:bg-red-900/20 text-gray-400 hover:text-red-400 flex items-center justify-center transition-all">✕</button>
-                </div>
-                
-                <div className="flex-grow p-8 overflow-y-auto custom-scrollbar bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] relative">
-                     <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
-
-                    <div className="grid grid-cols-1 gap-6 mb-8 relative z-10">
-                        <div className="flex items-center gap-2 mb-2">
-                             <div className="h-px bg-gray-700 flex-grow"></div>
-                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Forces Déployées</h3>
-                             <div className="h-px bg-gray-700 flex-grow"></div>
-                        </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+            <SwWindow
+                title="Commandement de Garnison"
+                subtitle={`Secteur ${planet.name}`}
+                icon="shieldgenerator"
+                onClose={onClose}
+                className="w-full max-w-2xl max-h-[85vh]"
+                bodyClassName="flex flex-col min-h-0"
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="flex-grow min-h-0 overflow-y-auto sw-scroll pr-1">
+                    <div className="grid grid-cols-1 gap-2 mb-6">
+                        <SwLabel className="text-sw-gold mb-1">Forces Déployées</SwLabel>
 
                         {Object.keys(GARRISON_STATS).map(type => {
                             const count = garrison[type] || 0;
                             const stats = GARRISON_STATS[type];
                             const maint = GARRISON_MAINTENANCE_VALUES[type];
                             return (
-                                <div key={type} className="flex items-center justify-between bg-gray-900/50 p-4 rounded-xl border border-gray-800 hover:border-gray-600 transition-colors group">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center border border-gray-800 text-2xl shadow-inner group-hover:shadow-[0_0_10px_rgba(255,255,255,0.1)] transition-shadow">
-                                            {type === 'turret' ? '🏯' : (type === 'vehicle' ? '🚜' : '👮')}
-                                        </div>
+                                <div key={type} className="sw-row flex items-center justify-between p-2 group">
+                                    <div className="flex items-center gap-3">
+                                        <SwCell icon={garrisonIcon(type)} size={44} />
                                         <div>
-                                            <div className="font-bold text-gray-200 text-sm uppercase tracking-wide group-hover:text-white transition-colors">{stats.label}</div>
-                                            <div className="text-[10px] text-gray-500 flex gap-3 font-mono mt-1">
-                                                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></span>Puissance: {maint.power}</span>
-                                                <span className="text-red-400 flex items-center gap-1"><span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>-{maint.cr}Cr/t</span>
+                                            <div className="font-bold text-sw-text text-sm uppercase tracking-wide group-hover:text-sw-gold transition-colors">{stats.label}</div>
+                                            <div className="text-[10px] text-sw-dim flex gap-1 mt-0.5">
+                                                <span>Puissance <span className="text-sw-gold font-bold">{maint.power}</span></span>
+                                                <span className="text-sw-faint">·</span>
+                                                <span className="text-sw-error">-{maint.cr}Cr/t</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="bg-black/40 px-3 py-1 rounded border border-gray-800 font-mono text-xl text-white">{String(count).padStart(2, '0')}</div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="sw-panel-dark px-3 py-1 font-mono text-lg text-sw-text">{String(count).padStart(2, '0')}</div>
                                         {count > 0 && (
-                                            <button onClick={() => onDisband(type)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-950/30 text-red-400 hover:bg-red-900 hover:text-white border border-red-900/50 hover:border-red-500 transition-all" title="Démanteler">-</button>
+                                            <SwButton size="sm" variant="danger" onClick={() => onDisband(type)} title="Démanteler">-</SwButton>
                                         )}
                                     </div>
                                 </div>
@@ -327,14 +331,12 @@ const GarrisonManager = ({ planet, factionData, onClose, onRecruit, onDisband, p
                         })}
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6 relative z-10">
-                        <div className="flex items-center gap-2 mb-2">
-                             <div className="h-px bg-gray-700 flex-grow"></div>
-                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Protocoles de Recrutement</h3>
-                             <div className="h-px bg-gray-700 flex-grow"></div>
-                        </div>
+                    <SwDivider className="mb-4" />
 
-                        <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-2">
+                        <SwLabel className="text-sw-gold mb-1">Protocoles de Recrutement</SwLabel>
+
+                        <div className="grid grid-cols-2 gap-3">
                             {Object.entries(GARRISON_STATS).map(([type, info]) => {
                                 const cost = info.cost;
 
@@ -349,28 +351,32 @@ const GarrisonManager = ({ planet, factionData, onClose, onRecruit, onDisband, p
 
                                 const canAfford = factionData.credits >= cost.cr && factionData.manpower >= cost.mp;
                                 const isRecruitable = canAfford && isUnlocked;
-                                
+
                                 return (
-                                    <button 
+                                    <button
                                         key={type}
                                         onClick={() => isRecruitable && onRecruit(type)}
                                         disabled={!isRecruitable}
-                                        className={`p-4 border rounded-xl flex flex-col gap-3 transition-all text-left relative overflow-hidden group 
+                                        className={`p-3 border rounded-md flex flex-col gap-2 transition-all text-left relative overflow-hidden group
                                         ${isRecruitable
-                                            ? 'bg-gray-900/80 border-gray-700 hover:border-red-500/50 hover:bg-gray-800 hover:shadow-[0_0_20px_rgba(220,38,38,0.1)]' 
-                                            : 'bg-black/60 border-gray-800/50 opacity-40 cursor-not-allowed grayscale'}`}
+                                            ? 'bg-sw-panel border-sw-border hover:border-sw-gold-dim hover:bg-sw-panel-light hover:shadow-[0_0_14px_rgb(var(--sw-accent-rgb)/0.25)]'
+                                            : 'bg-sw-panel-dark border-sw-border/50 opacity-40 cursor-not-allowed grayscale'}`}
                                     >
-                                        {isRecruitable && <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>}
-                                        {!isUnlocked && <div className="absolute top-2 right-2 text-xl">🔒</div>}
-                                        
-                                        <div className="flex justify-between items-start z-10">
-                                            <span className={`font-bold text-sm uppercase tracking-wider ${canAfford ? 'text-gray-200 group-hover:text-red-400' : 'text-gray-600'}`}>{info.label}</span>
-                                            <span className="text-[9px] bg-black/80 border border-gray-800 px-1.5 py-0.5 rounded text-yellow-500 font-mono shadow-sm">{GARRISON_MAINTENANCE_VALUES[type].power} POW</span>
+
+                                        <div className="flex justify-between items-start gap-2 z-10">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <SwIcon name={garrisonIcon(type)} size={24} />
+                                                <span className={`font-bold text-sm uppercase tracking-wider truncate ${canAfford ? 'text-sw-text group-hover:text-sw-gold' : 'text-sw-faint'}`}>{info.label}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                {!isUnlocked && <SwIcon name="key" size={18} title="Verrouillé" />}
+                                                <span className="text-[9px] sw-panel-dark px-1.5 py-0.5 text-sw-gold font-mono">{GARRISON_MAINTENANCE_VALUES[type].power} POW</span>
+                                            </div>
                                         </div>
-                                        
-                                        <div className="flex items-center gap-4 text-xs z-10 mt-auto bg-black/20 p-2 rounded -mx-1">
-                                            <span className={`flex items-center gap-1.5 font-mono ${canAfford ? 'text-yellow-500' : 'text-red-700'}`}>{cost.cr}<Icons.Credits className="w-3 h-3"/></span>
-                                            <span className={`flex items-center gap-1.5 font-mono ${canAfford ? 'text-green-500' : 'text-red-700'}`}>{cost.mp}<Icons.Manpower className="w-3 h-3"/></span>
+
+                                        <div className="flex items-center gap-4 text-xs z-10 mt-auto">
+                                            <span className={`flex items-center gap-1.5 font-mono ${canAfford ? 'text-sw-gold' : 'text-sw-error'}`}>{cost.cr}<ResIcon res="credits" /></span>
+                                            <span className={`flex items-center gap-1.5 font-mono ${canAfford ? 'text-sw-success' : 'text-sw-error'}`}>{cost.mp}<ResIcon res="manpower" /></span>
                                         </div>
                                     </button>
                                 );
@@ -378,13 +384,13 @@ const GarrisonManager = ({ planet, factionData, onClose, onRecruit, onDisband, p
                         </div>
                     </div>
                 </div>
-                
+
                 {/* Footer */}
-                <div className="p-3 bg-black/80 border-t border-gray-800 flex justify-between items-center text-[10px] text-gray-500 font-mono uppercase px-6">
+                <div className="mt-3 pt-3 border-t border-sw-border flex justify-between items-center sw-label text-[10px] text-sw-faint">
                     <span>État: Opérationnel</span>
                     <span>Capacité Max: Illimitée</span>
                 </div>
-            </div>
+            </SwWindow>
         </div>
     );
 };
@@ -394,44 +400,49 @@ const TopHud = ({ userFaction, factionData, projectedIncome, currentTurn, isAdmi
     <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2 pointer-events-none">
         <div className="flex items-start gap-2 pointer-events-auto">
             <NotificationPanel userID={userFaction} />
-            <div className="flex items-stretch gap-2 bg-gray-950/90 border border-gray-700 rounded-lg shadow-2xl backdrop-blur-md overflow-hidden p-1">
-                <div className="px-4 py-2 flex flex-col justify-center border-r border-gray-700 bg-black/20 min-w-[100px] text-center">
-                    <span className="text-[9px] text-gray-500 uppercase tracking-widest leading-none mb-1">Calendrier</span>
+            <SwGlass className="flex items-stretch gap-2 shadow-2xl overflow-hidden p-1 pl-2">
+                <div className="px-3 py-1.5 flex flex-col justify-center border-r border-sw-border min-w-[100px] text-center">
+                    <SwLabel as="span" className="text-[9px] leading-none mb-1">Calendrier</SwLabel>
                     <div className="flex flex-col items-center">
-                        <span className="text-lg font-bold text-white font-mono leading-none">TOUR {currentTurn}</span>
-                        {isAdmin && (<button onClick={handleNextTurn} disabled={isProcessingTurn} className={`text-[9px] mt-1 px-2 py-0.5 rounded font-bold uppercase tracking-wide transition-colors w-full ${isProcessingTurn ? 'bg-gray-800 text-gray-500' : 'bg-yellow-600 text-white hover:bg-yellow-500'}`}>{isProcessingTurn ? "..." : "SUIVANT >>"}</button>)}
+                        <span className="sw-title text-lg leading-none">TOUR {currentTurn}</span>
+                        {isAdmin && (<SwButton size="sm" variant="accent" onClick={handleNextTurn} disabled={isProcessingTurn} className="mt-1.5 w-full text-[9px]">{isProcessingTurn ? "..." : "SUIVANT >>"}</SwButton>)}
                     </div>
                 </div>
                 <div className="flex items-center gap-4 px-2">
-                    <ResourceDisplay icon={<Icons.Credits />} label="Crédits" value={factionData?.credits} income={projectedIncome.credits} color="text-yellow-500" />
-                    <ResourceDisplay icon={<Icons.Materials />} label="Matériaux" value={factionData?.materials} income={projectedIncome.materials} color="text-blue-400" />
-                    <ResourceDisplay icon={<Icons.Manpower />} label="Effectifs" value={factionData?.manpower} income={projectedIncome.manpower} color="text-green-500" />
-                    <ResourceDisplay icon={<Icons.Science />} label="Données" value={factionData?.science || 0} income={projectedIncome.science} color="text-purple-400" />
+                    <ResourceDisplay icon={<ResIcon res="credits" size={28} />} label="Crédits" value={factionData?.credits} income={projectedIncome.credits} />
+                    <ResourceDisplay icon={<ResIcon res="materials" size={28} />} label="Matériaux" value={factionData?.materials} income={projectedIncome.materials} />
+                    <ResourceDisplay icon={<ResIcon res="manpower" size={28} />} label="Effectifs" value={factionData?.manpower} income={projectedIncome.manpower} />
+                    <ResourceDisplay icon={<ResIcon res="science" size={28} />} label="Données" value={factionData?.science || 0} income={projectedIncome.science} />
                 </div>
-                <div className="w-px bg-gray-700 my-1"></div>
-                {isAdmin && (
-                    <>
-                        <button onClick={onOpenAdminUsers} className="px-3 hover:bg-gray-800 group flex flex-col items-center justify-center transition-colors rounded" title="Admin Utilisateurs">
-                         <div className="text-gray-500 group-hover:text-red-500 font-bold">👤!</div>
-                        </button>
-                        <button onClick={onOpenMapEditor} className="px-3 hover:bg-gray-800 group flex flex-col items-center justify-center transition-colors rounded" title="Éditeur de Carte">
-                            <div className="text-gray-500 group-hover:text-blue-400">🗺️</div>
-                        </button>
-                    </>
-                )}
-                <button onClick={onOpenProfile} className="px-3 hover:bg-gray-800 group flex flex-col items-center justify-center transition-colors rounded" title="Profil">
-                    <div className="text-gray-500 group-hover:text-[#cba660]"><Icons.User /></div>
-                </button>
-                <button onClick={handleLogout} className="px-3 hover:bg-red-900/30 group flex flex-col items-center justify-center transition-colors rounded" title="Déconnexion">
-                    <div className="text-gray-500 group-hover:text-red-400"><Icons.Logout /></div>
-                </button>
-            </div>
+                <div className="w-px bg-sw-border my-1"></div>
+                <div className="flex items-center gap-1 pr-1">
+                    {isAdmin && (
+                        <>
+                            <HudCell icon="key" size={36} onClick={onOpenAdminUsers} title="Admin Utilisateurs" />
+                            <HudCell icon="cnq_warzones_ranked" size={36} onClick={onOpenMapEditor} title="Éditeur de Carte" />
+                        </>
+                    )}
+                    <HudCell icon="energyshield" size={36} onClick={onOpenProfile} title="Profil" />
+                    <button onClick={handleLogout} className="w-9 h-9 flex items-center justify-center rounded text-sw-dim hover:text-sw-error hover:bg-sw-error/10 transition-colors" title="Déconnexion">
+                        <Icons.Logout />
+                    </button>
+                </div>
+            </SwGlass>
         </div>
     </div>
 );
 
-const ResourceDisplay = ({ icon, label, value, income, color }) => (
-    <div className="flex items-center gap-2"><div className={`${color} bg-gray-900 p-1.5 rounded border border-gray-800`}>{icon}</div><div className="flex flex-col"><span className="text-[9px] text-gray-500 uppercase font-bold">{label}</span><div className="flex items-baseline gap-1"><span className="text-sm font-bold text-white font-mono">{value?.toLocaleString() ?? 0}</span><span className={`text-[10px] font-mono font-bold ${income >= 0 ? 'text-green-500' : 'text-red-500'}`}>{income >= 0 ? '+' : ''}{income}</span></div></div></div>
+const ResourceDisplay = ({ icon, label, value, income }) => (
+    <div className="flex items-center gap-2">
+        <SwCell size={34}>{icon}</SwCell>
+        <div className="flex flex-col">
+            <SwLabel as="span" className="text-[9px] leading-tight">{label}</SwLabel>
+            <div className="flex items-baseline gap-1">
+                <span className="text-sm font-bold text-sw-text font-mono">{value?.toLocaleString() ?? 0}</span>
+                <span className={`text-[10px] font-mono font-bold ${income >= 0 ? 'text-sw-success' : 'text-sw-error'}`}>{income >= 0 ? '+' : ''}{income}</span>
+            </div>
+        </div>
+    </div>
 );
 
 const PlanetDock = ({ selectedPlanet, isTerritoryOwned, canBuild, slots, buildingsTemplates, currentTurn, setShowBuildMenu, handleUpgrade, handleDemolish, handleCancel, showAssignMenu, setShowAssignMenu, factionMembers, handleAssignGovernor, isHighCommand, setShowGarrisonMenu }) => {
@@ -439,105 +450,101 @@ const PlanetDock = ({ selectedPlanet, isTerritoryOwned, canBuild, slots, buildin
     return (
         <div className="h-64 fixed bottom-0 left-0 w-full flex z-40 animate-in slide-in-from-bottom-20 duration-500">
             {/* Main Dock Container */}
-            <div className="bg-black/95 backdrop-blur-xl border-t border-gray-700 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex overflow-hidden relative w-full">
+            <div className="bg-sw-panel-dark backdrop-blur-xl border-t border-sw-line shadow-[0_-10px_40px_rgb(0_0_0/0.8)] flex overflow-hidden relative w-full">
                  {/* Decorative Line */}
-                 <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#e5c07b] to-transparent opacity-50"></div>
-                 
+                 <SwDivider className="absolute top-0 left-0 w-full" />
+
                  {/* Left Panel: Planetary Data */}
-                 <div className="w-64 p-5 border-r border-gray-800 bg-gray-900/50 flex flex-col justify-between shrink-0 relative">
+                 <div className="w-64 p-5 border-r border-sw-border bg-sw-panel/60 flex flex-col justify-between shrink-0 relative">
                      <div>
-                        <div className="text-[10px] text-gray-500 font-mono mb-1 uppercase tracking-widest">Système</div>
-                        <h2 className="text-2xl font-bold text-white uppercase tracking-wider font-sans truncate drop-shadow-lg">{selectedPlanet.name}</h2>
-                        
+                        <SwLabel className="text-[10px] mb-1">Système</SwLabel>
+                        <h2 className="sw-title text-2xl truncate drop-shadow-lg">{selectedPlanet.name}</h2>
+
                         <div className="flex gap-2 mt-3">
-                            <div className={`text-[9px] px-2 py-1 rounded bg-gray-800 border ${isTerritoryOwned ? 'border-green-600 text-green-400' : 'border-red-600 text-red-400'} uppercase font-bold tracking-wider`}>
+                            <div className={`text-[9px] px-2 py-1 rounded-sm bg-sw-panel-dark border ${isTerritoryOwned ? 'border-sw-success/70 text-sw-success' : 'border-sw-error/70 text-sw-error'} uppercase font-bold tracking-wider`}>
                                 {isTerritoryOwned ? "CONTRÔLÉ" : "HOSTILE"}
                             </div>
-                            <div className="text-[9px] px-2 py-1 rounded bg-gray-800 border border-blue-600 text-blue-400 uppercase font-bold tracking-wider">
+                            <div className="text-[9px] px-2 py-1 rounded-sm bg-sw-panel-dark border border-sw-info/60 text-sw-info uppercase font-bold tracking-wider">
                                 {selectedPlanet.planet_type || 'Standard'}
                             </div>
                         </div>
                      </div>
-                     
+
                      {/* Governor Card */}
-                     <div className="mt-4 bg-black/40 p-3 rounded border border-gray-700 relative group">
-                        <div className="text-[9px] text-[#cba660] uppercase tracking-widest mb-2 font-bold flex justify-between">
+                     <SwPanel className="mt-4 p-3 relative group">
+                        <div className="sw-label text-[9px] text-sw-gold mb-2 flex justify-between">
                             <span>Gouverneur</span>
                             {isTerritoryOwned && isHighCommand && (
-                                <button onClick={() => setShowAssignMenu(!showAssignMenu)} className="hover:text-white transition-colors cursor-pointer">⚙️</button>
+                                <button onClick={() => setShowAssignMenu(!showAssignMenu)} className="hover:brightness-150 transition cursor-pointer" title="Nommer"><SwIcon name="amp_icon_craft" size={16} /></button>
                             )}
                         </div>
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center text-lg overflow-hidden">
-                                {selectedPlanet.governor_name ? '👤' : '?'}
-                            </div>
+                            <SwCell size={40}>
+                                {selectedPlanet.governor_name ? <SwIcon name="energyshield" size={30} /> : <span className="text-sw-faint font-bold">?</span>}
+                            </SwCell>
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-bold text-gray-200 truncate">{selectedPlanet.governor_name || <span className="text-gray-600 italic">Poste Vacant</span>}</div>
-                                <div className="text-[9px] text-gray-500">Administration Civile</div>
+                                <div className="text-sm font-bold text-sw-text truncate">{selectedPlanet.governor_name || <span className="text-sw-faint italic">Poste Vacant</span>}</div>
+                                <div className="text-[9px] text-sw-dim">Administration Civile</div>
                             </div>
                         </div>
-                     </div>
+                     </SwPanel>
 
                      {/* Actions */}
                      {isTerritoryOwned && (
-                         <div className="grid grid-cols-2 gap-2 mt-2">
-                             <button onClick={() => setShowGarrisonMenu(true)} className="bg-gradient-to-br from-red-900 to-red-950 hover:from-red-800 hover:to-red-900 border border-red-500/50 hover:border-red-400 text-white text-[10px] py-2 uppercase font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-[0_0_10px_rgba(220,38,38,0.2)] hover:shadow-[0_0_15px_rgba(220,38,38,0.4)] relative overflow-hidden group">
-                                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
-                                 <span className="relative z-10 text-lg">🛡️</span> 
-                                 <span className="relative z-10 tracking-wider">Garnison</span>
-                             </button>
-                             <button className="bg-gradient-to-br from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 border border-gray-600 hover:border-gray-400 text-gray-200 hover:text-white text-[10px] py-2 uppercase font-bold rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg">
-                                 <span className="text-lg">📊</span>
-                                 <span className="tracking-wider">Détails</span>
-                             </button>
+                         <div className="grid grid-cols-2 gap-2 mt-3">
+                             <SwButton size="sm" variant="accent" onClick={() => setShowGarrisonMenu(true)} className="text-[10px] px-1.5">
+                                 <SwIcon name="shieldgenerator" size={16} />
+                                 <span>Garnison</span>
+                             </SwButton>
+                             <SwButton size="sm" className="text-[10px] px-1.5">
+                                 <SwIcon name="datapad" size={16} />
+                                 <span>Détails</span>
+                             </SwButton>
                          </div>
                      )}
 
-                     {showAssignMenu && ( 
-                        <div className="absolute bottom-full left-0 w-64 bg-gray-900 border border-gray-700 p-2 overflow-y-auto max-h-60 rounded-t-lg shadow-2xl custom-scrollbar z-50 mb-[-1px]">
-                            <div className="text-[10px] text-gray-500 uppercase font-bold p-2 border-b border-gray-800 mb-1">Candidats Disponibles</div>
+                     {showAssignMenu && (
+                        <div className="absolute bottom-full left-0 w-64 sw-tooltip p-2 overflow-y-auto max-h-60 sw-scroll z-50 mb-[-1px]">
+                            <SwLabel className="text-[10px] p-2 border-b border-sw-border mb-1">Candidats Disponibles</SwLabel>
                             {factionMembers.map(m => (
-                                <button key={m.id} onClick={() => handleAssignGovernor(m)} className="w-full text-left p-2 hover:bg-blue-900/20 text-xs text-gray-300 flex items-center gap-2 rounded transition-colors">
-                                    <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-[10px]">👤</div>
+                                <button key={m.id} onClick={() => handleAssignGovernor(m)} className="sw-row w-full text-left p-2 mb-0.5 text-xs text-sw-text flex items-center gap-2">
+                                    <SwIcon name="energyshield" size={22} />
                                     <span className="font-bold truncate">{m.pseudo}</span>
                                 </button>
                             ))}
-                        </div> 
+                        </div>
                      )}
                  </div>
 
                  {/* Building Slots Scroll Area */}
-                 <div className="flex-grow p-6 overflow-x-auto flex items-center gap-4 relative custom-scrollbar">
-                    {/* Background Grid Effect */}
-                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none"></div>
-                    
-                    {isTerritoryOwned ? ( slots.map((building, index) => { 
-                        const isFinished = building && currentTurn >= building.finish_turn; 
-                        const template = buildingsTemplates.find(t => t.id === building?.template_id); 
-                        const hasUpgrade = template && template.upgrades && template.upgrades.find(u => u.level === (building.level || 1) + 1); 
-                        
-                        return ( 
+                 <div className="flex-grow p-6 overflow-x-auto flex items-center gap-4 relative sw-scroll">
+                    {isTerritoryOwned ? ( slots.map((building, index) => {
+                        const isFinished = building && currentTurn >= building.finish_turn;
+                        const template = buildingsTemplates.find(t => t.id === building?.template_id);
+                        const hasUpgrade = template && template.upgrades && template.upgrades.find(u => u.level === (building.level || 1) + 1);
+
+                        return (
                             <div key={index} className="flex flex-col gap-2 group relative shrink-0 w-32">
-                                <div className="text-[9px] text-gray-600 font-mono uppercase tracking-widest text-center">Slot 0{index + 1}</div>
-                                <div 
-                                    className={`h-36 border flex flex-col justify-between p-3 relative shadow-lg transition-all rounded-xl overflow-hidden cursor-pointer
-                                    ${building 
-                                        ? (isFinished ? 'bg-gray-900 border-gray-600' : 'bg-gray-900 border-yellow-600/50 border-dashed') 
-                                        : (canBuild ? 'bg-black/40 border-gray-800 hover:border-[#cba660] hover:bg-gray-900 hover:shadow-[0_0_15px_rgba(203,166,96,0.2)]' : 'bg-black/20 border-gray-800 opacity-50 cursor-not-allowed')}`} 
+                                <SwLabel className="text-[9px] text-sw-faint text-center">Slot 0{index + 1}</SwLabel>
+                                <div
+                                    className={`h-36 border flex flex-col justify-between p-3 relative shadow-lg transition-all rounded-md overflow-hidden cursor-pointer
+                                    ${building
+                                        ? (isFinished ? 'bg-sw-panel border-sw-line' : 'bg-sw-panel border-sw-warn/50 border-dashed')
+                                        : (canBuild ? 'bg-sw-panel-dark/70 border-sw-border hover:border-sw-gold-dim hover:bg-sw-panel hover:shadow-[0_0_15px_rgb(var(--sw-accent-rgb)/0.25)]' : 'bg-sw-panel-dark/40 border-sw-border opacity-50 cursor-not-allowed')}`}
                                     onClick={() => !building && canBuild && setShowBuildMenu(true)}
                                 >
                                     {building ? (
                                         <>
-                                            <div className="relative z-10 flex flex-col h-full"> 
+                                            <div className="relative z-10 flex flex-col h-full">
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-xl">{isFinished ? '🏭' : '🏗️'}</span>
-                                                    <span className="text-[9px] font-bold bg-black px-1.5 rounded text-gray-400 border border-gray-800">Nv.{building.level}</span>
+                                                    <SwIcon name={isFinished ? 'galactictradekioskunlock' : 'structuralbracing'} size={28} />
+                                                    <span className="text-[9px] font-bold bg-sw-panel-dark px-1.5 rounded-sm text-sw-gold border border-sw-border">Nv.{building.level}</span>
                                                 </div>
-                                                
-                                                <div className="font-bold text-xs text-gray-200 leading-tight uppercase mb-auto">{building.name}</div>
-                                                
+
+                                                <div className="font-bold text-xs text-sw-text leading-tight uppercase mb-auto">{building.name}</div>
+
                                                 {!isFinished && (
-                                                    <div className="mt-2 text-[9px] text-yellow-500 bg-yellow-900/20 border border-yellow-900/50 rounded px-2 py-1 flex items-center justify-center gap-1">
+                                                    <div className="mt-2 text-[9px] text-sw-warn bg-sw-warn/10 border border-sw-warn/40 rounded-sm px-2 py-1 flex items-center justify-center gap-1">
                                                         <span className="animate-spin-slow">⏳</span> {building.finish_turn - currentTurn} trs
                                                     </div>
                                                 )}
@@ -545,8 +552,8 @@ const PlanetDock = ({ selectedPlanet, isTerritoryOwned, canBuild, slots, buildin
                                                 {isFinished && building.production && (
                                                      <div className="mt-1 flex flex-wrap gap-1">
                                                          {Object.entries(building.production).map(([k,v]) => v > 0 && (
-                                                             <span key={k} className={`text-[8px] px-1 rounded flex items-center gap-0.5 border bg-black/50 ${k==='credits'?'text-yellow-400 border-yellow-900':k==='science'?'text-purple-400 border-purple-900':'text-blue-400 border-blue-900'}`}>
-                                                                 +{v} {k.substr(0,1).toUpperCase()}
+                                                             <span key={k} className="text-[9px] px-1 rounded-sm flex items-center gap-0.5 border border-sw-border bg-sw-panel-dark text-sw-text">
+                                                                 +{v} {RESOURCE_ICONS[k] ? <ResIcon res={k} size={12} /> : k.substr(0,1).toUpperCase()}
                                                              </span>
                                                          ))}
                                                      </div>
@@ -557,9 +564,9 @@ const PlanetDock = ({ selectedPlanet, isTerritoryOwned, canBuild, slots, buildin
                                             {canBuild && (
                                                 <div className="absolute inset-0 bg-black/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 z-20">
                                                     {isFinished && hasUpgrade && (
-                                                        <button onClick={(e) => { e.stopPropagation(); handleUpgrade(building); }} className="w-8 h-8 rounded-full bg-green-900 text-green-400 border border-green-600 flex items-center justify-center hover:scale-110 transition-transform" title="Améliorer"><Icons.Upgrade/></button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleUpgrade(building); }} className="w-8 h-8 rounded-full bg-sw-success/15 text-sw-success border border-sw-success/70 flex items-center justify-center hover:scale-110 transition-transform" title="Améliorer"><Icons.Upgrade/></button>
                                                     )}
-                                                    <button onClick={(e) => { e.stopPropagation(); isFinished ? handleDemolish(building) : handleCancel(building); }} className={`w-8 h-8 rounded-full border flex items-center justify-center hover:scale-110 transition-transform ${isFinished ? 'bg-red-900 text-red-400 border-red-600' : 'bg-orange-900 text-orange-400 border-orange-600'}`} title={isFinished ? "Démolir" : "Annuler"}>
+                                                    <button onClick={(e) => { e.stopPropagation(); isFinished ? handleDemolish(building) : handleCancel(building); }} className={`w-8 h-8 rounded-full border flex items-center justify-center hover:scale-110 transition-transform ${isFinished ? 'bg-sw-error/15 text-sw-error border-sw-error/70' : 'bg-sw-warn/15 text-sw-warn border-sw-warn/70'}`} title={isFinished ? "Démolir" : "Annuler"}>
                                                         {isFinished ? '🗑️' : '✕'}
                                                     </button>
                                                 </div>
@@ -568,25 +575,25 @@ const PlanetDock = ({ selectedPlanet, isTerritoryOwned, canBuild, slots, buildin
                                     ) : (
                                         canBuild ? (
                                             <div className="flex flex-col items-center justify-center h-full gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                                                <span className="text-3xl text-[#cba660] font-thin">+</span>
-                                                <span className="text-[9px] uppercase tracking-widest text-[#cba660]">Construire</span>
+                                                <span className="text-3xl text-sw-gold font-thin">+</span>
+                                                <span className="sw-label text-[9px] text-sw-gold">Construire</span>
                                             </div>
                                         ) : (
-                                            <div className="flex items-center justify-center h-full"><span className="text-2xl text-gray-700">🔒</span></div>
+                                            <div className="flex items-center justify-center h-full"><SwIcon name="key" size={28} className="opacity-40 grayscale" /></div>
                                         )
                                     )}
                                 </div>
-                            </div> 
-                        ); 
+                            </div>
+                        );
                     }) ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                            <div className="p-6 border border-red-900/30 bg-red-950/20 rounded-lg flex items-center gap-4">
+                            <SwGlass accent="var(--sw-error)" className="p-5 pl-6 flex items-center gap-4">
                                 <span className="text-4xl opacity-50">⛔</span>
-                                <div className="text-red-300">
-                                    <h3 className="font-bold uppercase tracking-widest text-sm">Accès Refusé</h3>
-                                    <p className="text-xs text-red-400/70">Territoire hostile ou contesté.</p>
+                                <div>
+                                    <h3 className="sw-title text-sm text-sw-error">Accès Refusé</h3>
+                                    <p className="text-xs text-sw-dim">Territoire hostile ou contesté.</p>
                                 </div>
-                            </div>
+                            </SwGlass>
                         </div>
                     )}
                  </div>
@@ -597,46 +604,30 @@ const PlanetDock = ({ selectedPlanet, isTerritoryOwned, canBuild, slots, buildin
 
 const BuildMenuOverlay = ({ buildingsTemplates, factionData, selectedPlanet, handleConstruct, onClose, userFaction }) => (
     <div className="fixed inset-x-0 bottom-60 top-0 z-[90] flex flex-col justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 pointer-events-none">
-        <div className="bg-gray-950/95 border-t border-gray-700 w-full h-full flex flex-col shadow-[0_-10px_50px_rgba(0,0,0,0.8)] relative animate-in slide-in-from-bottom-10 duration-500 pointer-events-auto overflow-hidden">
-            {/* Holographic Top Line */}
-            <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#cba660] to-transparent shadow-[0_0_15px_rgba(203,166,96,0.6)] z-20"></div>
-
-            <div className="flex justify-between items-center px-10 py-5 border-b border-gray-800 bg-black/40 shrink-0 relative z-10 backdrop-blur-md">
-                <div className="flex items-center gap-6">
-                     <div className="w-14 h-14 rounded-xl bg-[#cba660]/10 border border-[#cba660]/30 flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(203,166,96,0.1)]">
-                        🏗️
-                     </div>
-                    <div>
-                        <h4 className="text-white font-sans font-bold uppercase tracking-[0.2em] text-3xl flex items-center gap-3">
-                            Arbre de Construction
-                            <span className="text-xs bg-[#cba660] text-black px-2 py-0.5 rounded font-bold tracking-widest">INITIATIVE</span>
-                        </h4>
-                        <p className="text-gray-500 text-xs uppercase tracking-widest font-mono mt-1">Secteur: {selectedPlanet.name} // <span className="text-[#cba660]">Développement Infrastructurel</span></p>
-                    </div>
-                </div>
-                <button onClick={onClose} className="group flex items-center gap-2 text-gray-400 hover:text-white border border-gray-700 px-6 py-3 rounded hover:bg-red-950/30 hover:border-red-500/50 transition-all text-xs uppercase font-bold tracking-widest">
-                    <span>Fermer le protocole</span>
-                    <span className="group-hover:text-red-500 transition-colors">[X]</span>
-                </button>
-            </div>
-
-            <div className="flex-grow overflow-y-auto p-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] custom-scrollbar space-y-16 relative">
-                 <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-gray-900/50 pointer-events-none"></div>
-                
+        <SwWindow
+            title="Arbre de Construction"
+            subtitle={`Secteur: ${selectedPlanet.name} // Développement Infrastructurel`}
+            icon="structuralbracing"
+            className="w-full h-full pointer-events-auto rounded-b-none"
+            bodyClassName="flex flex-col min-h-0"
+            actions={<>
+                <span className="sw-label text-[10px] text-sw-bg bg-sw-gold px-2 py-0.5 rounded-sm">INITIATIVE</span>
+                <SwButton size="sm" onClick={onClose}>Fermer le protocole</SwButton>
+            </>}
+        >
+            <div className="flex-grow min-h-0 overflow-y-auto sw-scroll space-y-10 px-2 pb-2">
                 {BUILDING_CATEGORIES.map(category => {
                     const categoryBuildings = buildingsTemplates.filter(b => (b.category || 'economic') === category.id);
                     if (categoryBuildings.length === 0) return null;
                     return (
-                        <div key={category.id} className="relative z-10">
-                            <div className="flex items-center gap-4 mb-6 pb-2 border-b border-gray-800">
-                                <div className={`p-2 rounded bg-gray-900/50 border border-gray-700 ${category.color} shadow-lg`}>
-                                     <span className="text-xl">{category.icon}</span>
-                                </div>
-                                <h3 className="text-2xl font-bold uppercase tracking-[0.15em] text-gray-200 font-sans">{category.label}</h3>
-                                <div className="flex-grow h-px bg-gray-800/50"></div>
+                        <div key={category.id} className="relative">
+                            <div className="flex items-center gap-3 mb-4">
+                                <SwCell icon={CATEGORY_ICONS[category.id]} size={40} />
+                                <h3 className={`sw-title text-xl ${category.color}`}>{category.label}</h3>
+                                <div className="flex-grow"><SwDivider /></div>
                             </div>
 
-                            <div className="flex gap-8 overflow-x-auto pb-8 pt-2 pl-2 custom-scrollbar">
+                            <div className="flex gap-6 overflow-x-auto pb-6 pt-2 pl-1 sw-scroll">
                                 {categoryBuildings.map(template => {
                                     const levels = [template, ...(template.upgrades || [])];
                                     return (
@@ -649,79 +640,79 @@ const BuildMenuOverlay = ({ buildingsTemplates, factionData, selectedPlanet, han
                                                 const canAfford = isBase && factionData.credits >= costCr && factionData.materials >= costMat;
                                                 const isTypeAllowed = (!template.allowed_types || template.allowed_types.includes('any') || template.allowed_types.includes(selectedPlanet.planet_type));
                                                 const isFactionAllowed = (!template.allowed_factions || template.allowed_factions.length === 0 || template.allowed_factions.includes(userFaction));
-                                                
+
                                                 return (
                                                     <div key={idx} className="flex flex-col items-center relative w-full">
-                                                        {idx > 0 && <div className="h-4 w-0.5 bg-gray-700/50 mb-2"></div>}
-                                                        
-                                                        <button 
-                                                            onClick={() => isBase && handleConstruct(template)} 
-                                                            disabled={!isBase || !canAfford || !isTypeAllowed || !isFactionAllowed} 
+                                                        {idx > 0 && <div className="h-4 w-0.5 bg-sw-line/50 mb-2"></div>}
+
+                                                        <button
+                                                            onClick={() => isBase && handleConstruct(template)}
+                                                            disabled={!isBase || !canAfford || !isTypeAllowed || !isFactionAllowed}
                                                             className={`relative w-full group overflow-hidden transition-all duration-300 border
-                                                                ${isBase 
-                                                                    ? (canAfford && isTypeAllowed && isFactionAllowed 
-                                                                        ? 'bg-gray-900/80 border-gray-600 hover:border-[#cba660] hover:shadow-[0_0_25px_rgba(203,166,96,0.15)] hover:-translate-y-1' 
-                                                                        : 'bg-black/60 border-red-900/30 grayscale opacity-60 cursor-not-allowed hover:border-red-800') 
-                                                                    : 'bg-black/40 border-gray-800 border-dashed cursor-default opacity-70'}
-                                                                rounded-xl`}
+                                                                ${isBase
+                                                                    ? (canAfford && isTypeAllowed && isFactionAllowed
+                                                                        ? 'bg-sw-panel border-sw-line hover:border-sw-gold-dim hover:shadow-[0_0_20px_rgb(var(--sw-accent-rgb)/0.25)] hover:-translate-y-1'
+                                                                        : 'bg-sw-panel-dark border-sw-error/30 grayscale opacity-60 cursor-not-allowed hover:border-sw-error/60')
+                                                                    : 'bg-sw-panel-dark/60 border-sw-border border-dashed cursor-default opacity-70'}
+                                                                rounded-md`}
                                                         >
                                                             {/* Card Header (Image/Icon) */}
-                                                            <div className={`h-24 w-full relative flex items-center justify-center border-b border-gray-800 ${isBase ? 'bg-gray-800/50' : 'bg-black/20'}`}>
-                                                                
+                                                            <div className={`h-24 w-full relative flex items-center justify-center border-b border-sw-border ${isBase ? 'bg-sw-panel-light/40' : 'bg-black/20'}`}>
+
                                                                 {/* TIER Badge */}
                                                                 <div className="absolute top-2 left-2 flex flex-col gap-1 z-20">
-                                                                     <div className="bg-black/80 text-[#cba660] text-[9px] font-bold px-1.5 py-0.5 border border-[#cba660]/30 rounded shadow-sm backdrop-blur-sm">TIER {tier}</div>
+                                                                     <div className="bg-sw-panel-dark text-sw-gold text-[9px] font-bold px-1.5 py-0.5 border border-sw-gold-dim/50 rounded-sm">TIER {tier}</div>
                                                                 </div>
 
-                                                                {!isBase && <div className="absolute top-2 right-2 bg-blue-900/40 text-blue-200 text-[8px] px-1.5 py-0.5 rounded border border-blue-500/30 uppercase tracking-widest z-20">Upgrade</div>}
-                                                                
-                                                                <span className={`text-4xl transition-transform duration-500 group-hover:scale-110 ${isBase ? 'text-gray-400 group-hover:text-[#cba660]' : 'text-gray-600'}`}>
-                                                                    <Icons.Construction />
+                                                                {!isBase && <div className="absolute top-2 right-2 bg-sw-info/10 text-sw-info text-[8px] px-1.5 py-0.5 rounded-sm border border-sw-info/40 uppercase tracking-widest z-20">Upgrade</div>}
+
+                                                                <span className={`transition-transform duration-500 group-hover:scale-110 ${isBase ? '' : 'grayscale opacity-60'}`}>
+                                                                    <SwCell icon={CATEGORY_ICONS[category.id] || 'structuralbracing'} size={60} />
                                                                 </span>
                                                             </div>
 
                                                             {/* Card Content */}
                                                             <div className="p-4 text-left">
-                                                                <div className="text-sm font-bold text-gray-100 uppercase leading-none mb-3 group-hover:text-[#cba660] transition-colors truncate">
-                                                                    {template.series_name || levelData.name} 
-                                                                    {template.series_name && <span className="text-[9px] text-gray-500 block normal-case mt-0.5">{levelData.name}</span>}
+                                                                <div className="text-sm font-bold text-sw-text uppercase leading-none mb-3 group-hover:text-sw-gold transition-colors truncate">
+                                                                    {template.series_name || levelData.name}
+                                                                    {template.series_name && <span className="text-[9px] text-sw-dim block normal-case mt-0.5">{levelData.name}</span>}
                                                                 </div>
-                                                                
+
                                                                 {/* Production Stats */}
                                                                 {(levelData.production?.credits > 0 || levelData.production?.materials > 0 || levelData.production?.manpower > 0 || levelData.production?.science > 0) ? (
                                                                     <div className="grid grid-cols-2 gap-2 mb-3">
-                                                                        {levelData.production.credits > 0 && <span className="text-[10px] bg-black/40 px-1 py-0.5 rounded text-green-400 flex items-center gap-1 border border-gray-800">+{levelData.production.credits} <Icons.Credits className="w-2.5 h-2.5"/></span>}
-                                                                        {levelData.production.materials > 0 && <span className="text-[10px] bg-black/40 px-1 py-0.5 rounded text-blue-400 flex items-center gap-1 border border-gray-800">+{levelData.production.materials} <Icons.Materials className="w-2.5 h-2.5"/></span>}
-                                                                        {levelData.production.manpower > 0 && <span className="text-[10px] bg-black/40 px-1 py-0.5 rounded text-green-600 flex items-center gap-1 border border-gray-800">+{levelData.production.manpower} <Icons.Manpower className="w-2.5 h-2.5"/></span>}
-                                                                        {levelData.production.science > 0 && <span className="text-[10px] bg-black/40 px-1 py-0.5 rounded text-purple-400 flex items-center gap-1 border border-gray-800">+{levelData.production.science} <Icons.Science className="w-2.5 h-2.5"/></span>}
+                                                                        {levelData.production.credits > 0 && <span className="text-[10px] bg-sw-panel-dark px-1 py-0.5 rounded-sm text-sw-success flex items-center gap-1 border border-sw-border">+{levelData.production.credits} <ResIcon res="credits" size={14} /></span>}
+                                                                        {levelData.production.materials > 0 && <span className="text-[10px] bg-sw-panel-dark px-1 py-0.5 rounded-sm text-sw-success flex items-center gap-1 border border-sw-border">+{levelData.production.materials} <ResIcon res="materials" size={14} /></span>}
+                                                                        {levelData.production.manpower > 0 && <span className="text-[10px] bg-sw-panel-dark px-1 py-0.5 rounded-sm text-sw-success flex items-center gap-1 border border-sw-border">+{levelData.production.manpower} <ResIcon res="manpower" size={14} /></span>}
+                                                                        {levelData.production.science > 0 && <span className="text-[10px] bg-sw-panel-dark px-1 py-0.5 rounded-sm text-sw-success flex items-center gap-1 border border-sw-border">+{levelData.production.science} <ResIcon res="science" size={14} /></span>}
                                                                     </div>
                                                                 ) : (
-                                                                    <div className="h-6 mb-3"></div> 
+                                                                    <div className="h-6 mb-3"></div>
                                                                 )}
 
                                                                 {/* Unlocks Stats */}
                                                                 {levelData.unlocks_units && levelData.unlocks_units.length > 0 && (
                                                                     <div className="mb-3 flex flex-wrap gap-1">
                                                                         {levelData.unlocks_units.map(uid => (
-                                                                             <span key={uid} className="text-[9px] bg-orange-900/30 text-orange-400 border border-orange-700/50 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                                                                                <span className="text-[8px]">🔓</span> {GARRISON_STATS[uid]?.label || uid}
+                                                                             <span key={uid} className="text-[9px] bg-sw-warn/10 text-sw-warn border border-sw-warn/40 px-1.5 py-0.5 rounded-sm uppercase tracking-wider flex items-center gap-1">
+                                                                                <SwIcon name={garrisonIcon(uid)} size={12} /> {GARRISON_STATS[uid]?.label || uid}
                                                                              </span>
                                                                         ))}
                                                                     </div>
                                                                 )}
 
                                                                 {/* Footer: Cost & Time */}
-                                                                <div className="flex justify-between items-center pt-3 border-t border-gray-800/50">
+                                                                <div className="flex justify-between items-center pt-3 border-t border-sw-border/60">
                                                                     {isBase ? (
                                                                          <div className="flex flex-col gap-0.5">
-                                                                             {costCr > 0 && <span className={`text-[10px] font-mono flex items-center gap-1 ${canAfford ? 'text-yellow-600' : 'text-red-500'}`}>{costCr} <Icons.Credits className="w-2.5 h-2.5"/></span>}
-                                                                             {costMat > 0 && <span className={`text-[10px] font-mono flex items-center gap-1 ${factionData.materials >= costMat ? 'text-orange-500' : 'text-red-500'}`}>{costMat} <Icons.Materials className="w-2.5 h-2.5"/></span>}
+                                                                             {costCr > 0 && <span className={`text-[10px] font-mono flex items-center gap-1 ${canAfford ? 'text-sw-gold' : 'text-sw-error'}`}>{costCr} <ResIcon res="credits" size={14} /></span>}
+                                                                             {costMat > 0 && <span className={`text-[10px] font-mono flex items-center gap-1 ${factionData.materials >= costMat ? 'text-sw-gold' : 'text-sw-error'}`}>{costMat} <ResIcon res="materials" size={14} /></span>}
                                                                          </div>
                                                                     ) : (
-                                                                        <span className="text-[10px] text-gray-500 font-mono">Requis: T{idx}</span>
-                                                                    )} 
-                                                                    
-                                                                    <div className="text-[10px] text-blue-400 font-mono flex items-center gap-1">
+                                                                        <span className="text-[10px] text-sw-faint font-mono">Requis: T{idx}</span>
+                                                                    )}
+
+                                                                    <div className="text-[10px] text-sw-info font-mono flex items-center gap-1">
                                                                         ⏱️ {levelData.turns_required || 2}t
                                                                     </div>
                                                                 </div>
@@ -729,7 +720,7 @@ const BuildMenuOverlay = ({ buildingsTemplates, factionData, selectedPlanet, han
                                                                 {/* Status Overlay for Invalid */}
                                                                 {isBase && (!isTypeAllowed || !isFactionAllowed) && (
                                                                     <div className="absolute inset-0 bg-black/80 backdrop-blur-[1px] flex items-center justify-center z-30">
-                                                                        <span className="text-red-500 text-xs font-bold uppercase border border-red-500/50 px-2 py-1 rounded bg-red-950/50">
+                                                                        <span className="text-sw-error text-xs font-bold uppercase border border-sw-error/50 px-2 py-1 rounded-sm bg-sw-error/10">
                                                                             {!isTypeAllowed ? "Climat Incompatible" : "Faction Non Autorisée"}
                                                                         </span>
                                                                     </div>
@@ -747,7 +738,7 @@ const BuildMenuOverlay = ({ buildingsTemplates, factionData, selectedPlanet, han
                     );
                 })}
             </div>
-        </div>
+        </SwWindow>
     </div>
 );
 
@@ -786,90 +777,94 @@ const BattleSimulator = ({ onClose, onStart, customUnits = [] }) => {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className="bg-gray-900 border-2 border-red-900 w-[600px] p-6 shadow-2xl rounded text-white overflow-y-auto max-h-[90vh]">
-                <div className="flex justify-between items-center mb-4 border-b border-red-800 pb-2">
-                    <h2 className="text-xl font-bold text-red-500">Simulateur de Combat</h2>
-                    <div className="flex gap-2">
-                        <button onClick={() => setMode('space')} className={`px-3 py-1 rounded text-xs font-bold uppercase ${mode === 'space' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-500'}`}>Espace</button>
-                        <button onClick={() => setMode('ground')} className={`px-3 py-1 rounded text-xs font-bold uppercase ${mode === 'ground' ? 'bg-orange-600 text-white' : 'bg-gray-800 text-gray-500'}`}>Sol</button>
-                    </div>
-                </div>
+            <SwWindow
+                title="Simulateur de Combat"
+                icon="clashing_lightsabers_6_0"
+                onClose={onClose}
+                className="w-[600px] max-h-[90vh]"
+                bodyClassName="overflow-y-auto sw-scroll"
+                actions={<>
+                    <SwButton size="sm" active={mode === 'space'} onClick={() => setMode('space')}>Espace</SwButton>
+                    <SwButton size="sm" active={mode === 'ground'} onClick={() => setMode('ground')}>Sol</SwButton>
+                </>}
+            >
                 
                 {mode === 'space' ? (
                     <div className="grid grid-cols-2 gap-6">
                         <div>
-                            <h3 className="text-blue-400 font-bold mb-2">Attaquant (République)</h3>
+                            <h3 className="text-blue-400 font-bold uppercase tracking-wider text-sm mb-2">Attaquant (République)</h3>
                             {Object.keys(SHIP_STATS).filter(k=>k!=='turret').map(type => (
                                 <div key={type} className="flex justify-between items-center mb-1 bg-blue-900/20 p-1 rounded">
                                     <span className="text-xs uppercase">{type}</span>
-                                    <input type="number" min="0" value={attackerComp[type]||0} onChange={e=>setAttackerComp({...attackerComp, [type]: parseInt(e.target.value)})} className="w-16 bg-black border border-blue-800 text-xs p-1" />
+                                    <SwInput type="number" min="0" value={attackerComp[type]||0} onChange={e=>setAttackerComp({...attackerComp, [type]: parseInt(e.target.value)})} className="w-16 text-xs p-1 border-blue-800/70" />
                                 </div>
                             ))}
                             {customSpaceUnits.map(u => (
                                 <div key={u.id} className="flex justify-between items-center mb-1 bg-purple-900/20 p-1 rounded border border-purple-500/30">
                                     <span className="text-xs uppercase text-purple-300">{u.label}</span>
-                                    <input type="number" min="0" value={attackerComp[u.id]||0} onChange={e=>setAttackerComp({...attackerComp, [u.id]: parseInt(e.target.value)})} className="w-16 bg-black border border-purple-800 text-xs p-1" />
+                                    <SwInput type="number" min="0" value={attackerComp[u.id]||0} onChange={e=>setAttackerComp({...attackerComp, [u.id]: parseInt(e.target.value)})} className="w-16 text-xs p-1 border-purple-800/70" />
                                 </div>
                             ))}
                         </div>
                          <div>
-                            <h3 className="text-red-400 font-bold mb-2">Défenseur (Empire)</h3>
+                            <h3 className="text-red-400 font-bold uppercase tracking-wider text-sm mb-2">Défenseur (Empire)</h3>
                              {Object.keys(SHIP_STATS).filter(k=>k!=='turret').map(type => (
                                 <div key={type} className="flex justify-between items-center mb-1 bg-red-900/20 p-1 rounded">
                                     <span className="text-xs uppercase">{type}</span>
-                                    <input type="number" min="0" value={defenderComp[type]||0} onChange={e=>setDefenderComp({...defenderComp, [type]: parseInt(e.target.value)})} className="w-16 bg-black border border-red-800 text-xs p-1" />
+                                    <SwInput type="number" min="0" value={defenderComp[type]||0} onChange={e=>setDefenderComp({...defenderComp, [type]: parseInt(e.target.value)})} className="w-16 text-xs p-1 border-red-800/70" />
                                 </div>
                             ))}
                             {customSpaceUnits.map(u => (
                                 <div key={u.id} className="flex justify-between items-center mb-1 bg-purple-900/20 p-1 rounded border border-purple-500/30">
                                     <span className="text-xs uppercase text-purple-300">{u.label}</span>
-                                    <input type="number" min="0" value={defenderComp[u.id]||0} onChange={e=>setDefenderComp({...defenderComp, [u.id]: parseInt(e.target.value)})} className="w-16 bg-black border border-purple-800 text-xs p-1" />
+                                    <SwInput type="number" min="0" value={defenderComp[u.id]||0} onChange={e=>setDefenderComp({...defenderComp, [u.id]: parseInt(e.target.value)})} className="w-16 text-xs p-1 border-purple-800/70" />
                                 </div>
                             ))}
-                            <h4 className="text-xs text-yellow-500 mt-2 mb-1 uppercase font-bold">Garnison Spatiale</h4>
-                            <div className="flex justify-between items-center mb-1 bg-yellow-900/20 p-1 rounded">
+                            <SwLabel as="h4" className="text-sw-gold mt-2 mb-1">Garnison Spatiale</SwLabel>
+                            <div className="flex justify-between items-center mb-1 bg-sw-gold/10 p-1 rounded">
                                 <span className="text-xs uppercase">Turret</span>
-                                <input type="number" min="0" value={defenderSpaceGarrison['turret']||0} onChange={e=>setDefenderSpaceGarrison({...defenderSpaceGarrison, turret: parseInt(e.target.value)})} className="w-16 bg-black border border-yellow-800 text-xs p-1" />
+                                <SwInput type="number" min="0" value={defenderSpaceGarrison['turret']||0} onChange={e=>setDefenderSpaceGarrison({...defenderSpaceGarrison, turret: parseInt(e.target.value)})} className="w-16 text-xs p-1 border-sw-gold-dim" />
                             </div>
                         </div>
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 gap-6">
                         <div>
-                            <h3 className="text-orange-400 font-bold mb-2">Armée d'Invasion (Rép.)</h3>
+                            <h3 className="text-orange-400 font-bold uppercase tracking-wider text-sm mb-2">Armée d&apos;Invasion (Rép.)</h3>
                             {Object.keys(GROUND_UNIT_STATS).filter(k=>k!=='turret').map(type => (
                                 <div key={type} className="flex justify-between items-center mb-1 bg-orange-900/20 p-1 rounded">
                                     <span className="text-xs uppercase">{GROUND_UNIT_STATS[type].label}</span>
-                                    <input type="number" min="0" value={attackerArmy[type]||0} onChange={e=>setAttackerArmy({...attackerArmy, [type]: parseInt(e.target.value)})} className="w-16 bg-black border border-orange-800 text-xs p-1" />
+                                    <SwInput type="number" min="0" value={attackerArmy[type]||0} onChange={e=>setAttackerArmy({...attackerArmy, [type]: parseInt(e.target.value)})} className="w-16 text-xs p-1 border-orange-800/70" />
                                 </div>
                             ))}
                             {customGroundUnits.map(u => (
                                 <div key={u.id} className="flex justify-between items-center mb-1 bg-purple-900/20 p-1 rounded border border-purple-500/30">
                                     <span className="text-xs uppercase text-purple-300">{u.label}</span>
-                                    <input type="number" min="0" value={attackerArmy[u.id]||0} onChange={e=>setAttackerArmy({...attackerArmy, [u.id]: parseInt(e.target.value)})} className="w-16 bg-black border border-purple-800 text-xs p-1" />
+                                    <SwInput type="number" min="0" value={attackerArmy[u.id]||0} onChange={e=>setAttackerArmy({...attackerArmy, [u.id]: parseInt(e.target.value)})} className="w-16 text-xs p-1 border-purple-800/70" />
                                 </div>
                             ))}
                         </div>
                         <div>
-                            <h3 className="text-green-400 font-bold mb-2">Garnison Planétaire (Emp.)</h3>
+                            <h3 className="text-green-400 font-bold uppercase tracking-wider text-sm mb-2">Garnison Planétaire (Emp.)</h3>
                             {Object.keys(GROUND_UNIT_STATS).map(type => (
                                 <div key={type} className="flex justify-between items-center mb-1 bg-green-900/20 p-1 rounded">
                                     <span className="text-xs uppercase">{GROUND_UNIT_STATS[type].label}</span>
-                                    <input type="number" min="0" value={defenderArmy[type]||0} onChange={e=>setDefenderArmy({...defenderArmy, [type]: parseInt(e.target.value)})} className="w-16 bg-black border border-green-800 text-xs p-1" />
+                                    <SwInput type="number" min="0" value={defenderArmy[type]||0} onChange={e=>setDefenderArmy({...defenderArmy, [type]: parseInt(e.target.value)})} className="w-16 text-xs p-1 border-green-800/70" />
                                 </div>
                             ))}
                             {customGroundUnits.map(u => (
                                 <div key={u.id} className="flex justify-between items-center mb-1 bg-purple-900/20 p-1 rounded border border-purple-500/30">
                                     <span className="text-xs uppercase text-purple-300">{u.label}</span>
-                                    <input type="number" min="0" value={defenderArmy[u.id]||0} onChange={e=>setDefenderArmy({...defenderArmy, [u.id]: parseInt(e.target.value)})} className="w-16 bg-black border border-purple-800 text-xs p-1" />
+                                    <SwInput type="number" min="0" value={defenderArmy[u.id]||0} onChange={e=>setDefenderArmy({...defenderArmy, [u.id]: parseInt(e.target.value)})} className="w-16 text-xs p-1 border-purple-800/70" />
                                 </div>
                             ))}
-                            <div className="mt-4 pt-2 border-t border-gray-700">
-                                <label className="text-xs uppercase text-gray-400 block mb-1">Type de Terrain</label>
-                                <select 
+                            <div className="mt-4 pt-2 border-t border-sw-border">
+                                <SwLabel as="label" className="block mb-1">Type de Terrain</SwLabel>
+                                <SwInput
+                                    as="select"
                                     value={selectedTerrain} 
                                     onChange={(e) => setSelectedTerrain(e.target.value)} 
-                                    className="w-full bg-black border border-gray-600 rounded p-1 text-xs text-white"
+                                    className="p-1 text-xs"
                                 >
                                     <option value="plains">Plaines (Standard)</option>
                                     <option value="desert">Désert (Lent, Portée+)</option>
@@ -879,17 +874,17 @@ const BattleSimulator = ({ onClose, onStart, customUnits = [] }) => {
                                     <option value="forest">Forêt (Couvert, Précision+)</option>
                                     <option value="force_nexus">Nexus de Force</option>
                                     <option value="industrial">Industriel</option>
-                                </select>
+                                </SwInput>
                             </div>
                         </div>
                     </div>
                 )}
 
                 <div className="flex gap-3 mt-6">
-                     <button onClick={onClose} className="px-4 py-2 border border-gray-600 hover:bg-gray-800 rounded">Annuler</button>
-                     <button onClick={handleSimStart} className="flex-grow px-4 py-2 bg-red-700 hover:bg-red-600 font-bold rounded shadow-lg uppercase tracking-widest">Lancer Simulation</button>
+                     <SwButton onClick={onClose}>Annuler</SwButton>
+                     <SwButton variant="danger" onClick={handleSimStart} className="flex-grow">Lancer Simulation</SwButton>
                 </div>
-            </div>
+            </SwWindow>
         </div>
     );
 };
@@ -1640,60 +1635,69 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
   const stationedFleets = useMemo(() => fleets.filter(f => visibleFactions.includes(f.owner) && f.status === 'stationed'), [fleets, visibleFactions]);
 
   return (
-    <div className={`flex flex-col h-screen w-screen fixed inset-0 overflow-hidden bg-black select-none font-sans ${movingFleet ? 'cursor-crosshair' : ''}`}>
-      <div className="flex-grow flex relative overflow-hidden z-0 bg-black">
+    <div className={`flex flex-col h-screen w-screen fixed inset-0 overflow-hidden bg-sw-bg select-none font-swtor ${movingFleet ? 'cursor-crosshair' : ''}`}>
+      <div className="flex-grow flex relative overflow-hidden z-0 bg-sw-bg">
          {isEditorMode && (
-          <div className="absolute top-0 left-0 bottom-0 w-64 bg-gray-900 border-r border-gray-700 flex flex-col z-[60] shadow-2xl opacity-95">
-              <div className="p-3 border-b border-gray-800 bg-gray-900 space-y-2">
-                  <div className="flex justify-between items-center"><h3 className="text-yellow-500 font-bold uppercase text-xs tracking-widest">Architecture</h3><button onClick={() => { setIsEditorMode(false); setIsRouteMode(false); }} className="text-[10px] text-red-400 border border-red-900 px-1 rounded hover:bg-red-900">Fermer</button></div>
-                  <button onClick={() => { setIsRouteMode(!isRouteMode); setEditorLinkSource(null); }} className={`w-full text-[10px] py-1 rounded font-bold uppercase border ${isRouteMode ? 'bg-blue-600 text-white border-blue-400' : 'bg-gray-800 text-gray-400 border-gray-700 hover:bg-gray-700'}`}>🔗 Mode Routes {isRouteMode ? '(ON)' : ''}</button>
+          <div className="absolute top-0 left-0 bottom-0 w-64 flex flex-col z-[60] p-1">
+            <SwWindow
+              title="Architecture"
+              icon="structuralbracing"
+              onClose={() => { setIsEditorMode(false); setIsRouteMode(false); }}
+              className="h-full"
+              bodyClassName="flex flex-col min-h-0 px-1 pb-1"
+            >
+              <div className="px-2 pb-3 border-b border-sw-border space-y-1.5">
+                  <SwButton size="sm" active={isRouteMode} onClick={() => { setIsRouteMode(!isRouteMode); setEditorLinkSource(null); }} className="w-full text-[10px]"><SwIcon name="electronics" size={14} /> Mode Routes {isRouteMode ? '(ON)' : ''}</SwButton>
 
-                  <button onClick={() => setShowFactionManager(true)} className="w-full bg-purple-900/30 border border-purple-800 text-purple-300 text-[10px] py-1 rounded font-bold uppercase">⚡ Gérer Factions</button>
-                  <button onClick={() => setShowRegionManager(true)} className="w-full bg-orange-900/30 border border-orange-800 text-orange-300 text-[10px] py-1 rounded font-bold uppercase">🌍 Gérer Régions</button>
-                  <button onClick={() => setShowBuildingManager(true)} className="w-full bg-blue-900/30 border border-blue-800 text-blue-300 text-[10px] py-1 rounded font-bold uppercase">🏗️ Gérer Bâtiments</button>
-                  <button onClick={() => setShowUnitManager(true)} className="w-full bg-green-900/30 border border-green-800 text-green-300 text-[10px] py-1 rounded font-bold uppercase">🪖 Gérer Unités</button>
-                  <button onClick={() => setShowHolonetEditor(true)} className="w-full bg-cyan-900/30 border border-cyan-800 text-cyan-300 text-[10px] py-1 rounded font-bold uppercase">📰 Gérer Holonet</button>
-                  
-                  <div className="space-y-2 pt-2 border-t border-gray-800">
-                      <input type="text" placeholder="Rechercher une planète..." className="w-full bg-black border border-gray-700 text-white text-[10px] p-2 rounded outline-none focus:border-yellow-500 transition-colors" onChange={(e) => setSearchTerm(e.target.value)}/>
-                      
-                      <select 
-                            value={filterFaction} 
+                  <SwButton size="sm" onClick={() => setShowFactionManager(true)} className="w-full text-[10px]"><SwIcon name="claninsignia" size={14} /> Gérer Factions</SwButton>
+                  <SwButton size="sm" onClick={() => setShowRegionManager(true)} className="w-full text-[10px]"><SwIcon name="star_map" size={14} /> Gérer Régions</SwButton>
+                  <SwButton size="sm" onClick={() => setShowBuildingManager(true)} className="w-full text-[10px]"><SwIcon name="structuralbracing" size={14} /> Gérer Bâtiments</SwButton>
+                  <SwButton size="sm" onClick={() => setShowUnitManager(true)} className="w-full text-[10px]"><SwIcon name="unassembled_helm" size={14} /> Gérer Unités</SwButton>
+                  <SwButton size="sm" onClick={() => setShowHolonetEditor(true)} className="w-full text-[10px]"><SwIcon name="datapad" size={14} /> Gérer Holonet</SwButton>
+
+                  <div className="space-y-2 pt-3 mt-1 border-t border-sw-border">
+                      <SwInput type="text" placeholder="Rechercher une planète..." className="text-[10px] p-2" onChange={(e) => setSearchTerm(e.target.value)}/>
+
+                      <SwInput
+                            as="select"
+                            value={filterFaction}
                             onChange={(e) => setFilterFaction(e.target.value)}
-                            className="w-full bg-black border border-gray-700 text-white text-[10px] p-1 rounded outline-none focus:border-yellow-500"
+                            className="text-[10px] p-1"
                         >
                             <option value="all">Toutes Factions</option>
                             {factions.map(f => (
                                 <option key={f.id} value={f.id}>{f.name}</option>
                             ))}
-                      </select>
+                      </SwInput>
 
                       <div className="flex gap-2">
-                        <select 
-                            value={filterType} 
+                        <SwInput
+                            as="select"
+                            value={filterType}
                             onChange={(e) => setFilterType(e.target.value)}
-                            className="w-1/2 bg-black border border-gray-700 text-white text-[10px] p-1 rounded outline-none focus:border-yellow-500"
+                            className="w-1/2 text-[10px] p-1"
                         >
                             <option value="all">Tous Types</option>
                             {Object.keys(PLANET_SLOTS_CONFIG).map(type => (
                                 <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}</option>
                             ))}
-                        </select>
+                        </SwInput>
 
-                        <select 
-                            value={filterRegion} 
+                        <SwInput
+                            as="select"
+                            value={filterRegion}
                             onChange={(e) => setFilterRegion(e.target.value)}
-                            className="w-1/2 bg-black border border-gray-700 text-white text-[10px] p-1 rounded outline-none focus:border-yellow-500"
+                            className="w-1/2 text-[10px] p-1"
                         >
                             <option value="all">Toutes Régions</option>
                             {[...new Set(planets.map(p => p.region).filter(Boolean))].sort().map(r => (
                                 <option key={r} value={r}>{r}</option>
                             ))}
-                        </select>
+                        </SwInput>
                       </div>
                   </div>
               </div>
-              <div className="flex-grow overflow-y-auto custom-scrollbar">
+              <div className="flex-grow min-h-0 overflow-y-auto sw-scroll p-1.5 space-y-0.5">
                   {planets.filter(p => {
                       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
                       const matchesFaction = filterFaction === "all" || p.owner === filterFaction;
@@ -1701,12 +1705,13 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                       const matchesRegion = filterRegion === "all" || p.region === filterRegion;
                       return matchesSearch && matchesFaction && matchesType && matchesRegion;
                   }).map(p => (
-                      <div key={p.id} className="p-2 border-b border-gray-800 hover:bg-gray-800 flex justify-between items-center group cursor-pointer" onClick={() => jumpToPlanet(p)}>
-                          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color || '#fff' }}></div><div className="text-xs text-gray-300">{p.name}</div></div>
-                          <button onClick={(e) => { e.stopPropagation(); setEditingPlanet(p); setShowEditModal(true); }} className="text-gray-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">✎</button>
+                      <div key={p.id} className="sw-row p-2 flex justify-between items-center group cursor-pointer" onClick={() => jumpToPlanet(p)}>
+                          <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.color || '#fff' }}></div><div className="text-xs text-sw-text">{p.name}</div></div>
+                          <button onClick={(e) => { e.stopPropagation(); setEditingPlanet(p); setShowEditModal(true); }} className="text-sw-dim hover:text-sw-gold opacity-0 group-hover:opacity-100 transition-opacity">✎</button>
                       </div>
                   ))}
               </div>
+            </SwWindow>
           </div>
          )}
 
@@ -1714,36 +1719,36 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
              <div className="flex items-end gap-2">
                  {/* Main Management Dock */}
                  {!isEditorMode && !activePlanet && !isAnyModalOpen && (
-                     <div className="flex items-center gap-2 px-3 py-2 bg-gray-900/95 border border-gray-700 rounded-xl shadow-2xl backdrop-blur-md">
-                        {(isHighCommand || userFaction === 'mandalorians') && (<button onClick={() => setShowCouncil(true)} className={`group relative w-12 h-12 bg-gray-800 rounded-lg border transition-all flex items-center justify-center text-2xl shadow-lg ${userFaction === 'mandalorians' ? 'border-orange-600/50 hover:bg-orange-900/50 hover:border-orange-400' : (userFaction === 'republic' ? 'border-blue-600/50 hover:bg-blue-900/50 hover:border-blue-400' : 'border-yellow-600/50 hover:bg-yellow-900/50 hover:border-yellow-400')}`} title={userFaction === 'republic' ? "Sénat Galactique" : (userFaction === 'mandalorians' ? "Gestion de Clan" : "Conseil Noir")}><span className="group-hover:scale-110 transition-transform">{userFaction === 'mandalorians' ? '🛡️' : (userFaction === 'republic' ? '⚜️' : '👑')}</span></button>)}
-                        {isDiplomat && (<button onClick={() => setShowDiplomacy(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-orange-600/50 hover:bg-orange-900/50 hover:border-orange-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Diplomatie"><span className="group-hover:scale-110 transition-transform">⚖️</span></button>)}
-                        {canAccessFleets && (<button onClick={() => setShowFleetManager(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-green-600/50 hover:bg-green-900/50 hover:border-green-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Gestion de Flotte"><span className="group-hover:scale-110 transition-transform">⚓</span></button>)}
-                        {isHighCommand && (<button onClick={() => setShowResearch(true)} className="group relative w-12 h-12 bg-gray-800 rounded-lg border border-blue-600/50 hover:bg-blue-900/50 hover:border-blue-400 transition-all flex items-center justify-center text-2xl shadow-lg" title="Recherche & Technologie"><span className="group-hover:scale-110 transition-transform">🧬</span></button>)}
-                        <div className="w-px h-8 bg-gray-700 mx-1"></div>
-                        <button onClick={() => setShowEncyclopedia(true)} className="group relative w-10 h-10 bg-gray-800 rounded-lg border border-cyan-600/50 hover:bg-cyan-900/50 hover:border-cyan-400 transition-all flex items-center justify-center text-xl shadow-lg" title="Encyclopédie"><span className="group-hover:scale-110 transition-transform">📘</span></button>
-                        <button onClick={() => setShowFactionFilter(true)} className="group relative w-10 h-10 bg-gray-800 rounded-lg border border-white/30 hover:bg-white/10 hover:border-white/60 transition-all flex items-center justify-center text-xl shadow-lg" title="Filtres de Carte"><span className="group-hover:scale-110 transition-transform">👁️</span></button>
-                        <button onClick={() => setShowSettingsModal(true)} className="group relative w-10 h-10 bg-gray-800 rounded-lg border border-gray-600/50 hover:bg-gray-700/50 hover:border-gray-400 transition-all flex items-center justify-center text-lg shadow-lg" title="Paramètres"><span className="group-hover:scale-110 transition-transform">⚙️</span></button>
-                     </div>
+                     <SwGlass className="flex items-center gap-1.5 pl-3 pr-2 py-1.5 shadow-2xl">
+                        {(isHighCommand || userFaction === 'mandalorians') && (<HudCell icon={userFaction === 'mandalorians' ? 'mtx_flair_mandalorian' : (userFaction === 'republic' ? 'republic' : 'empire')} size={52} onClick={() => setShowCouncil(true)} title={userFaction === 'republic' ? "Sénat Galactique" : (userFaction === 'mandalorians' ? "Gestion de Clan" : "Conseil Noir")} />)}
+                        {isDiplomat && (<HudCell icon="beacon" size={52} onClick={() => setShowDiplomacy(true)} title="Diplomatie" />)}
+                        {canAccessFleets && (<HudCell icon="remotecontrolstarship" size={52} onClick={() => setShowFleetManager(true)} title="Gestion de Flotte" />)}
+                        {isHighCommand && (<HudCell icon="jediholocron" size={52} onClick={() => setShowResearch(true)} title="Recherche & Technologie" />)}
+                        <div className="w-px h-8 bg-sw-border mx-1"></div>
+                        <HudCell icon="book" size={42} onClick={() => setShowEncyclopedia(true)} title="Encyclopédie" />
+                        <HudCell icon="star_map" size={42} onClick={() => setShowFactionFilter(true)} title="Filtres de Carte" />
+                        <HudCell icon="amp_icon_craft" size={42} onClick={() => setShowSettingsModal(true)} title="Paramètres" />
+                     </SwGlass>
                  )}
 
                  {/* Admin / Architect Tools */}
                  {!isEditorMode && (isArchitect || userRole === 'admin') && !isAnyModalOpen && (
-                     <div className="flex items-center gap-2 px-3 py-2 bg-black/80 border border-gray-800 rounded-xl shadow-2xl backdrop-blur-md">
-                         {isArchitect && (<button onClick={() => setIsEditorMode(true)} className="w-8 h-8 rounded border border-purple-500/50 text-purple-400 hover:bg-purple-900/50 hover:text-white transition flex items-center justify-center text-sm" title="Mode Éditeur">✎</button>)}
-                         <button onClick={() => { setIsRouteMode(!isRouteMode); setEditorLinkSource(null); }} className={`w-8 h-8 rounded border transition flex items-center justify-center text-sm ${isRouteMode ? 'border-blue-500 bg-blue-900/50 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)]' : 'border-blue-500/50 text-blue-400 hover:bg-blue-900/50 hover:text-white'}`} title="Mode Routes">🔗</button>
-                         {isArchitect && (<button onClick={() => setShowMagicManager(true)} className="w-8 h-8 rounded border border-fuchsia-500/50 text-fuchsia-400 hover:bg-fuchsia-900/50 hover:text-white transition flex items-center justify-center text-sm" title="Éditeur Magie">⚡</button>)}
-                         {userRole === 'admin' && (<button onClick={() => setShowBattleSimulator(true)} className="w-8 h-8 rounded border border-red-500/50 text-red-500 hover:bg-red-900/50 hover:text-white transition flex items-center justify-center text-sm" title="Simulateur Combat">⚔️</button>)}
-                     </div>
+                     <SwGlass accent="var(--sw-gold-dim)" className="flex items-center gap-1 pl-2.5 pr-1.5 py-1.5 shadow-2xl">
+                         {isArchitect && (<HudCell icon="structuralbracing" size={34} onClick={() => setIsEditorMode(true)} title="Mode Éditeur" />)}
+                         <HudCell icon="electronics" size={34} active={isRouteMode} onClick={() => { setIsRouteMode(!isRouteMode); setEditorLinkSource(null); }} title="Mode Routes" className={isRouteMode ? 'ring-1 ring-sw-accent shadow-[0_0_10px_rgb(var(--sw-accent-rgb)/0.6)] rounded' : ''} />
+                         {isArchitect && (<HudCell icon="lightningstorm" size={34} onClick={() => setShowMagicManager(true)} title="Éditeur Magie" />)}
+                         {userRole === 'admin' && (<HudCell icon="clashing_lightsabers_6_0" size={34} onClick={() => setShowBattleSimulator(true)} title="Simulateur Combat" />)}
+                     </SwGlass>
                  )}
              </div>
          </div>
 
          {movingFleet && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-yellow-900/90 text-white px-6 py-2 rounded-full border border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.5)] animate-pulse flex items-center gap-3 pointer-events-none">
-                <span className="text-xl">⚓</span>
-                <div><div className="text-[10px] font-bold uppercase text-yellow-200">Ordre en cours pour</div><div className="font-bold font-mono text-sm">{movingFleet.name}</div></div>
-                <div className="text-[10px] text-gray-300 ml-2">➜ Sélectionnez une destination</div>
-            </div>
+            <SwGlass accent="var(--sw-warn)" className="absolute top-4 left-1/2 -translate-x-1/2 z-50 pl-4 pr-6 py-2 shadow-[0_0_20px_rgb(0_0_0/0.6)] animate-pulse flex items-center gap-3 pointer-events-none">
+                <SwIcon name="remotecontrolstarship" size={28} />
+                <div><SwLabel className="text-[10px] text-sw-warn">Ordre en cours pour</SwLabel><div className="font-bold text-sm text-sw-text">{movingFleet.name}</div></div>
+                <div className="text-[10px] text-sw-dim ml-2">➜ Sélectionnez une destination</div>
+            </SwGlass>
          )}
 
          {!isEditorMode && !showDiplomacy && (
@@ -1773,33 +1778,30 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
       </div>
 
       {showFactionFilter && (
-          <div className="absolute bottom-20 left-4 bg-gray-900 border border-gray-700 p-4 rounded-xl shadow-2xl w-64 z-50 animate-in slide-in-from-bottom-5">
-              <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-800">
-                  <h3 className="text-white font-bold uppercase text-xs tracking-wider">Calques Factions</h3>
-                  <button onClick={() => setShowFactionFilter(false)} className="text-gray-400 hover:text-white">✕</button>
-              </div>
-              
-              <div className="flex flex-col gap-2 max-h-60 overflow-y-auto custom-scrollbar">
+          <div className="absolute bottom-20 left-4 w-64 z-50">
+            <SwWindow title="Calques Factions" icon="star_map" onClose={() => setShowFactionFilter(false)} className="w-full">
+              <div className="flex flex-col gap-1 max-h-60 overflow-y-auto sw-scroll">
                   <div className="flex gap-2 mb-2">
-                      <button onClick={() => setVisibleFactions(factions.map(f => f.id))} className="flex-1 bg-gray-800 hover:bg-gray-700 text-[9px] text-gray-300 py-1 rounded">Tout Afficher</button>
-                      <button onClick={() => setVisibleFactions([])} className="flex-1 bg-gray-800 hover:bg-gray-700 text-[9px] text-gray-300 py-1 rounded">Tout Masquer</button>
+                      <SwButton size="sm" onClick={() => setVisibleFactions(factions.map(f => f.id))} className="flex-1 text-[9px] px-1">Tout Afficher</SwButton>
+                      <SwButton size="sm" onClick={() => setVisibleFactions([])} className="flex-1 text-[9px] px-1">Tout Masquer</SwButton>
                   </div>
                   {factions.map(f => (
-                      <label key={f.id} className="flex items-center gap-2 cursor-pointer hover:bg-white/5 p-1 rounded transition-colors group">
-                          <input 
-                              type="checkbox" 
-                              checked={visibleFactions.includes(f.id)} 
+                      <label key={f.id} data-active={visibleFactions.includes(f.id) ? 'true' : undefined} className="sw-row flex items-center gap-2 cursor-pointer p-1.5 group">
+                          <input
+                              type="checkbox"
+                              checked={visibleFactions.includes(f.id)}
                               onChange={(e) => {
                                   if (e.target.checked) setVisibleFactions(prev => [...prev, f.id]);
                                   else setVisibleFactions(prev => prev.filter(id => id !== f.id));
                               }}
-                              className="accent-white bg-transparent border-gray-600 rounded-sm"
+                              className="accent-[var(--sw-accent)] bg-transparent rounded-sm"
                           />
                           <span className="w-2 h-2 rounded-full shadow-[0_0_5px]" style={{backgroundColor: f.color, boxShadow: `0 0 5px ${f.color}`}}></span>
-                          <span className={`${visibleFactions.includes(f.id) ? 'text-gray-200' : 'text-gray-500'} text-xs font-bold transition-colors`}>{f.name}</span>
+                          <span className={`${visibleFactions.includes(f.id) ? 'text-sw-text' : 'text-sw-faint'} text-xs font-bold transition-colors`}>{f.name}</span>
                       </label>
                   ))}
               </div>
+            </SwWindow>
           </div>
       )}
 
@@ -1822,66 +1824,57 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
       {/* MODALE CONFIRMATION FLOTTE */}
       {fleetMovePreview && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-              <div className="bg-gray-900 border-2 border-yellow-600 rounded-xl p-6 shadow-[0_0_50px_rgba(234,179,8,0.2)] max-w-md w-full relative overflow-hidden">
-                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20 pointer-events-none"></div>
-                  
-                  <h3 className="text-2xl font-bold text-yellow-500 uppercase tracking-widest mb-4 flex items-center gap-3 border-b border-yellow-900/50 pb-4">
-                      <span className="text-3xl">🚀</span> Ordre de Navigation
-                  </h3>
-                  
-                  <div className="space-y-6 relative z-10 px-2">
-                      <div className="flex justify-between items-center bg-black/40 p-3 rounded border border-gray-800">
-                          <span className="text-gray-400 text-xs uppercase flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+              <SwWindow title="Ordre de Navigation" icon="remotecontrolstarship" className="max-w-md w-full">
+                  <div className="space-y-5 px-1">
+                      <SwPanel dark className="flex justify-between items-center p-3">
+                          <SwLabel as="span" className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full bg-sw-accent animate-pulse"></span>
                               Flotte
-                          </span>
-                          <span className="text-white font-bold">{fleetMovePreview.fleet.name}</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-sm px-4">
+                          </SwLabel>
+                          <span className="text-sw-text font-bold">{fleetMovePreview.fleet.name}</span>
+                      </SwPanel>
+
+                      <div className="flex items-center justify-between text-sm px-2">
                           <div className="flex flex-col items-center gap-1 group">
-                              <span className="text-gray-500 text-[10px] uppercase tracking-wider">Origine</span>
-                              <div className="w-12 h-12 rounded-full bg-gray-800 border-2 border-gray-600 flex items-center justify-center text-lg shadow-lg group-hover:border-white transition-colors">
-                                🏙️
-                              </div>
-                              <span className="text-white font-bold text-center mt-1 text-xs">{fleetMovePreview.source.name}</span>
+                              <SwLabel as="span" className="text-[10px]">Origine</SwLabel>
+                              <SwCell icon="star_map" size={52} />
+                              <span className="text-sw-text font-bold text-center mt-1 text-xs">{fleetMovePreview.source.name}</span>
                           </div>
-                          
+
                           <div className="flex-grow flex flex-col items-center px-4">
-                              <div className="w-full h-px bg-yellow-600/50 relative">
-                                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 px-2 text-yellow-500 text-xs">➜</div>
+                              <div className="w-full h-px bg-sw-gold-dim/60 relative">
+                                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-sw-bg px-2 text-sw-gold text-xs">➜</div>
                               </div>
-                              <span className="text-[10px] text-gray-500 mt-2 font-mono">{fleetMovePreview.turns} Tours</span>
+                              <span className="text-[10px] text-sw-dim mt-2 font-mono">{fleetMovePreview.turns} Tours</span>
                           </div>
-                          
+
                           <div className="flex flex-col items-center gap-1 group">
-                              <span className="text-gray-500 text-[10px] uppercase tracking-wider">Destination</span>
-                              <div className="w-12 h-12 rounded-full bg-gray-800 border-2 border-yellow-500 flex items-center justify-center text-lg shadow-[0_0_15px_rgba(234,179,8,0.3)] animate-pulse">
-                                🎯
-                              </div>
-                              <span className="text-yellow-400 font-bold text-center mt-1 text-xs">{fleetMovePreview.target.name}</span>
+                              <SwLabel as="span" className="text-[10px]">Destination</SwLabel>
+                              <SwCell icon="spvp_targettracker" size={52} active className="animate-pulse" />
+                              <span className="text-sw-gold font-bold text-center mt-1 text-xs">{fleetMovePreview.target.name}</span>
                           </div>
                       </div>
 
-                      <div className="bg-yellow-900/10 border border-yellow-600/30 p-4 rounded flex justify-between items-center">
-                          <span className="text-xs uppercase text-yellow-200 tracking-widest">Durée estimée</span>
+                      <SwPanel className="p-3 flex justify-between items-center">
+                          <SwLabel as="span">Durée estimée</SwLabel>
                           <div className="flex items-baseline gap-1">
-                             <span className="text-2xl font-mono font-bold text-yellow-400">{fleetMovePreview.turns}</span>
-                             <span className="text-xs text-yellow-600 font-bold uppercase">Tours</span>
+                             <span className="text-2xl font-mono font-bold text-sw-gold">{fleetMovePreview.turns}</span>
+                             <span className="sw-label text-sw-gold-dim">Tours</span>
                           </div>
-                      </div>
+                      </SwPanel>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 mt-8 relative z-10 border-t border-gray-800 pt-4">
-                      <button onClick={handleCancelFleetMove} className="py-3 rounded border border-gray-600 text-gray-400 hover:bg-gray-800 hover:text-white uppercase font-bold text-xs transition-all hover:border-gray-400">
+                  <SwDivider className="mt-6 mb-4" />
+                  <div className="grid grid-cols-2 gap-3">
+                      <SwButton onClick={handleCancelFleetMove}>
                           Changer Cible
-                      </button>
-                      <button onClick={handleConfirmFleetMove} className="py-3 rounded bg-gradient-to-r from-yellow-800 to-yellow-600 hover:from-yellow-700 hover:to-yellow-500 text-white border border-yellow-500 uppercase font-bold text-xs shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:shadow-[0_0_30px_rgba(234,179,8,0.5)] transition-all flex items-center justify-center gap-2 transform hover:scale-[1.02]">
+                      </SwButton>
+                      <SwButton variant="accent" onClick={handleConfirmFleetMove}>
                           <span>Lancer FTL</span>
-                          <span>🚀</span>
-                      </button>
+                          <SwIcon name="remotecontrolstarship" size={18} />
+                      </SwButton>
                   </div>
-              </div>
+              </SwWindow>
           </div>
       )}
       {showResearch && (<ResearchTree userFaction={userFaction} factionData={factionData} onClose={()=>setShowResearch(false)} />)}
@@ -1891,41 +1884,31 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
       
       {/* REGION INFO MODAL */}
       {selectedRegion && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900/95 border-2 border-orange-500 p-6 z-[100] w-[500px] max-h-[80vh] flex flex-col shadow-[0_0_50px_rgba(249,115,22,0.3)] rounded-xl backdrop-blur-sm animate-in fade-in zoom-in duration-200">
-              <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-                  <div className="flex items-center gap-3">
-                      <span className="text-3xl">🌍</span>
-                      <div>
-                        <h3 className="text-orange-400 font-bold uppercase text-xl font-sans tracking-wide">{selectedRegion.name}</h3>
-                        <p className="text-xs text-orange-200/70 font-mono">SECTEUR GALACTIQUE</p>
-                      </div>
-                  </div>
-                  <button onClick={() => setSelectedRegion(null)} className="w-8 h-8 rounded-full border border-gray-600 hover:border-orange-500 hover:bg-orange-900/30 text-gray-400 hover:text-white transition-all flex items-center justify-center">✕</button>
-              </div>
-              
-              <div className="flex-grow overflow-y-auto custom-scrollbar space-y-4">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[500px] flex flex-col">
+            <SwWindow title={selectedRegion.name} subtitle="SECTEUR GALACTIQUE" icon="star_map" onClose={() => setSelectedRegion(null)} className="w-full max-h-[80vh]" bodyClassName="flex flex-col min-h-0">
+              <div className="flex-grow min-h-0 overflow-y-auto sw-scroll space-y-4 pr-1">
                   {selectedRegion.description && (
-                      <div className="bg-black/40 p-4 rounded-lg border border-orange-900/30">
-                          <p className="text-sm text-gray-300 italic font-serif leading-relaxed">"{selectedRegion.description}"</p>
-                      </div>
+                      <SwPanel dark className="p-4">
+                          <p className="text-sm text-sw-dim italic leading-relaxed">&ldquo;{selectedRegion.description}&rdquo;</p>
+                      </SwPanel>
                   )}
 
                   <div>
-                      <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-2">
-                          <span className="w-1 h-1 bg-orange-500 rounded-full"></span>
+                      <SwLabel as="h4" className="text-sw-gold mb-2 flex items-center gap-2">
+                          <span className="w-1 h-1 bg-sw-accent rounded-full"></span>
                           Systèmes Planétaires ({selectedRegion.planets.length})
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2">
+                      </SwLabel>
+                      <div className="grid grid-cols-2 gap-1.5">
                           {selectedRegion.planets.map(p => {
                               const ownerFaction = factions.find(f => f.id === p.owner);
                               return (
-                                  <div key={p.id} className="bg-black/60 p-2 rounded border border-gray-800 flex items-center justify-between group hover:border-orange-700/50 transition-colors cursor-pointer" onClick={() => { jumpToPlanet(p); setSelectedRegion(null); }}>
+                                  <div key={p.id} className="sw-row p-2 flex items-center justify-between group cursor-pointer" onClick={() => { jumpToPlanet(p); setSelectedRegion(null); }}>
                                       <div className="flex items-center gap-2">
                                           <div className="w-2 h-2 rounded-full shadow-[0_0_5px]" style={{ backgroundColor: p.color, boxShadow: `0 0 5px ${p.color}` }}></div>
-                                          <span className="text-xs font-bold text-gray-200">{p.name}</span>
+                                          <span className="text-xs font-bold text-sw-text group-hover:text-sw-gold transition-colors">{p.name}</span>
                                       </div>
                                       {ownerFaction && (
-                                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-900 border border-gray-700 text-gray-400 max-w-[80px] truncate">
+                                          <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-sw-panel-dark border border-sw-border text-sw-dim max-w-[80px] truncate">
                                               {ownerFaction.name}
                                           </span>
                                       )}
@@ -1934,20 +1917,20 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                           })}
                       </div>
                   </div>
-                  
+
                   {/* Stats de la région */}
-                  <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-800">
+                  <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-sw-border">
                        <div className="text-center">
-                           <div className="text-[10px] text-gray-500 uppercase">Population</div>
-                           <div className="text-lg font-mono text-blue-400">{selectedRegion.planets.reduce((sum, p) => sum + (p.population||0), 0).toLocaleString()}</div>
+                           <SwLabel className="text-[10px]">Population</SwLabel>
+                           <div className="text-lg font-mono text-sw-info">{selectedRegion.planets.reduce((sum, p) => sum + (p.population||0), 0).toLocaleString()}</div>
                        </div>
                        <div className="text-center">
-                           <div className="text-[10px] text-gray-500 uppercase">Économie</div>
-                           <div className="text-lg font-mono text-yellow-500">{selectedRegion.planets.reduce((sum, p) => sum + (p.base_production?.credits||0), 0)} <span className="text-xs">Cr</span></div>
+                           <SwLabel className="text-[10px]">Économie</SwLabel>
+                           <div className="text-lg font-mono text-sw-gold flex items-center justify-center gap-1">{selectedRegion.planets.reduce((sum, p) => sum + (p.base_production?.credits||0), 0)} <span className="text-xs">Cr</span></div>
                        </div>
                        <div className="text-center">
-                           <div className="text-[10px] text-gray-500 uppercase">Contrôle</div>
-                           <div className="text-xs text-gray-300 mt-1">
+                           <SwLabel className="text-[10px]">Contrôle</SwLabel>
+                           <div className="text-xs text-sw-text mt-1">
                                {(() => {
                                    const counts = {};
                                    selectedRegion.planets.forEach(p => counts[p.owner] = (counts[p.owner]||0)+1);
@@ -1960,59 +1943,56 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                        </div>
                   </div>
               </div>
+            </SwWindow>
           </div>
       )}
 
-      {showSettingsModal && ( 
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-white p-6 z-[100] w-80 shadow-2xl rounded">
-            <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-                <h3 className="text-white font-bold uppercase">Paramètres</h3>
-                <button onClick={()=>setShowSettingsModal(false)} className="text-gray-400 hover:text-white">✕</button>
-            </div>
+      {showSettingsModal && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-80">
+            <SwWindow title="Paramètres" icon="amp_icon_craft" onClose={()=>setShowSettingsModal(false)} className="w-full">
             <div className="flex flex-col gap-4">
                 {userRole === 'admin' && (
                     <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-300 uppercase">Système de Flotte</span>
-                        <button onClick={toggleFleetSystem} className={`px-3 py-1 rounded text-xs font-bold uppercase ${isFleetSystemEnabled ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{isFleetSystemEnabled ? 'ACTIF' : 'INACTIF'}</button>
+                        <SwLabel as="span" className="text-xs text-sw-text">Système de Flotte</SwLabel>
+                        <SwButton size="sm" onClick={toggleFleetSystem} className={isFleetSystemEnabled ? 'text-sw-success' : 'text-sw-error'}>{isFleetSystemEnabled ? 'ACTIF' : 'INACTIF'}</SwButton>
                     </div>
                 )}
                 <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-300 uppercase">Infos Régions</span>
-                    <button onClick={() => setIsRegionClickEnabled(!isRegionClickEnabled)} className={`px-3 py-1 rounded text-xs font-bold uppercase ${isRegionClickEnabled ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{isRegionClickEnabled ? 'ACTIF' : 'INACTIF'}</button>
+                    <SwLabel as="span" className="text-xs text-sw-text">Infos Régions</SwLabel>
+                    <SwButton size="sm" onClick={() => setIsRegionClickEnabled(!isRegionClickEnabled)} className={isRegionClickEnabled ? 'text-sw-success' : 'text-sw-error'}>{isRegionClickEnabled ? 'ACTIF' : 'INACTIF'}</SwButton>
                 </div>
             </div>
-        </div> 
+            </SwWindow>
+        </div>
       )}
       {showFactionManager && isEditorMode && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-purple-600 p-6 z-[100] w-[500px] max-h-[85vh] flex flex-col shadow-2xl">
-              <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2"><h3 className="text-purple-400 font-bold uppercase">{editingFaction ? 'Modifier Faction' : 'Gérer Factions'}</h3><button onClick={() => { setShowFactionManager(false); setEditingFaction(null); }} className="text-white hover:text-red-500">X</button></div>
-              <form key={editingFaction ? editingFaction.id : 'new'} onSubmit={editingFaction ? handleUpdateFaction : handleCreateFaction} className="flex flex-col gap-3 mb-4 p-4 bg-black/40 rounded border border-gray-800 overflow-y-auto custom-scrollbar flex-grow">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold">{editingFaction ? `Modifier ${editingFaction.name}` : 'Nouvelle Faction'}</span>
-                  <input name="name" defaultValue={editingFaction?.name || ''} placeholder="Nom" className="bg-black border border-gray-700 p-1 text-xs text-white" required />
-                  <input name="image" defaultValue={editingFaction?.image || ''} placeholder="URL Image" className="bg-black border border-gray-700 p-1 text-xs text-white" />
-                  <div className="space-y-2 border-t border-gray-800 pt-2"><span className="text-[10px] text-[#e5c07b] uppercase font-bold">Phrases Diplomatiques</span><div className="grid grid-cols-1 gap-3"><div><label className="text-[9px] text-red-400 uppercase">Guerre</label><textarea name="phrase_war" defaultValue={editingFaction?.diplomatic_phrases?.war || ''} className="w-full h-10 bg-black border border-gray-700 p-1 text-[10px] text-white" /></div><div><label className="text-[9px] text-green-400 uppercase">Alliance</label><textarea name="phrase_alliance" defaultValue={editingFaction?.diplomatic_phrases?.alliance || ''} className="w-full h-10 bg-black border border-gray-700 p-1 text-[10px] text-white" /></div></div></div>
-                  <div className="flex gap-2 mt-2"><input name="color" type="color" className="h-8 w-10 cursor-pointer bg-transparent" defaultValue={editingFaction?.color || "#00ff00"} /><button type="submit" className="flex-grow bg-green-900 hover:bg-green-700 text-white text-[10px] font-bold uppercase rounded">{editingFaction ? "Sauvegarder" : "Créer"}</button></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[500px] flex flex-col">
+            <SwWindow title={editingFaction ? 'Modifier Faction' : 'Gérer Factions'} icon="claninsignia" onClose={() => { setShowFactionManager(false); setEditingFaction(null); }} className="w-full max-h-[85vh]" bodyClassName="flex flex-col min-h-0">
+              <form key={editingFaction ? editingFaction.id : 'new'} onSubmit={editingFaction ? handleUpdateFaction : handleCreateFaction} className="sw-panel-dark flex flex-col gap-3 mb-4 p-4 overflow-y-auto sw-scroll flex-grow">
+                  <span className="sw-label text-[10px] text-sw-gold">{editingFaction ? `Modifier ${editingFaction.name}` : 'Nouvelle Faction'}</span>
+                  <input name="name" defaultValue={editingFaction?.name || ''} placeholder="Nom" className="sw-input p-1 text-xs" required />
+                  <input name="image" defaultValue={editingFaction?.image || ''} placeholder="URL Image" className="sw-input p-1 text-xs" />
+                  <div className="space-y-2 border-t border-sw-border pt-2"><span className="sw-label text-[10px] text-sw-gold">Phrases Diplomatiques</span><div className="grid grid-cols-1 gap-3"><div><label className="sw-label text-[9px] text-sw-error">Guerre</label><textarea name="phrase_war" defaultValue={editingFaction?.diplomatic_phrases?.war || ''} className="sw-input h-10 p-1 text-[10px]" /></div><div><label className="sw-label text-[9px] text-sw-success">Alliance</label><textarea name="phrase_alliance" defaultValue={editingFaction?.diplomatic_phrases?.alliance || ''} className="sw-input h-10 p-1 text-[10px]" /></div></div></div>
+                  <div className="flex gap-2 mt-2"><input name="color" type="color" className="h-8 w-10 cursor-pointer bg-transparent" defaultValue={editingFaction?.color || "#00ff00"} /><SwButton type="submit" variant="accent" size="sm" className="flex-grow">{editingFaction ? "Sauvegarder" : "Créer"}</SwButton></div>
               </form>
-              <div className="overflow-y-auto space-y-1">
+              <div className="overflow-y-auto sw-scroll space-y-1">
                   {factions.map(f => (
-                      <div key={f.id} className="flex justify-between items-center p-2 border border-gray-800 bg-black">
+                      <div key={f.id} className="sw-row flex justify-between items-center p-2">
                           <div className="flex items-center gap-2"><span className="text-xs font-bold" style={{color: f.color}}>{f.name}</span></div>
                           <div className="flex gap-2">
-                              <button onClick={() => setEditingFaction(f)} className="text-yellow-500 text-[10px]">✎</button>
-                              <button onClick={async () => { if(confirm("Supprimer " + f.name + " ? Cela ne changera pas le propriétaire des planètes actuelles.")) await deleteDoc(doc(db, "factions", f.id)); }} className="text-red-500 text-[10px] hover:text-red-400">🗑️</button>
+                              <button onClick={() => setEditingFaction(f)} className="text-sw-gold hover:text-sw-text text-[10px]">✎</button>
+                              <button onClick={async () => { if(confirm("Supprimer " + f.name + " ? Cela ne changera pas le propriétaire des planètes actuelles.")) await deleteDoc(doc(db, "factions", f.id)); }} className="text-sw-error text-[10px] hover:brightness-125">🗑️</button>
                           </div>
                       </div>
                   ))}
               </div>
+            </SwWindow>
           </div>
       )}
 
       {showRegionManager && isEditorMode && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-orange-600 p-6 z-[100] w-[400px] max-h-[85vh] flex flex-col shadow-2xl">
-              <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
-                  <h3 className="text-orange-400 font-bold uppercase">Gérer Régions</h3>
-                  <button onClick={() => setShowRegionManager(false)} className="text-white hover:text-red-500">X</button>
-              </div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[400px] flex flex-col">
+            <SwWindow title="Gérer Régions" icon="star_map" onClose={() => setShowRegionManager(false)} className="w-full max-h-[85vh]" bodyClassName="flex flex-col min-h-0">
               <form onSubmit={async (e) => {
                   e.preventDefault();
                   const d = new FormData(e.target);
@@ -2026,24 +2006,25 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                     console.error("Error adding region:", err);
                     alert("Erreur lors de la création : " + err.message);
                   }
-              }} className="flex flex-col gap-2 mb-4 bg-black/40 p-3 rounded border border-gray-800">
-                  <span className="text-[10px] text-gray-400 uppercase font-bold">Nouvelle Région</span>
-                  <input name="name" placeholder="Nom de la région" className="w-full bg-black border border-gray-700 p-2 text-xs text-white focus:border-orange-500 outline-none" required />
-                  <textarea name="description" placeholder="Description courte (optionnelle)" className="w-full h-16 bg-black border border-gray-700 p-2 text-xs text-white resize-none focus:border-orange-500 outline-none" />
-                  <button type="submit" className="w-full bg-orange-600 hover:bg-orange-500 text-white font-bold py-1 rounded text-xs uppercase transition-colors">Ajouter la Région</button>
+              }} className="sw-panel-dark flex flex-col gap-2 mb-4 p-3">
+                  <span className="sw-label text-[10px] text-sw-gold">Nouvelle Région</span>
+                  <input name="name" placeholder="Nom de la région" className="sw-input p-2 text-xs" required />
+                  <textarea name="description" placeholder="Description courte (optionnelle)" className="sw-input h-16 p-2 text-xs resize-none" />
+                  <SwButton type="submit" variant="accent" size="sm" className="w-full">Ajouter la Région</SwButton>
               </form>
-              <div className="overflow-y-auto space-y-1 custom-scrollbar flex-grow bg-black/20 p-1 min-h-[100px]">
+              <div className="overflow-y-auto space-y-1 sw-scroll flex-grow p-1 min-h-[100px]">
                   {regions.map(r => (
-                      <div key={r.id} className="p-2 border border-gray-800 bg-black hover:bg-gray-800 group transition-colors">
+                      <div key={r.id} className="sw-row p-2 group">
                           <div className="flex justify-between items-center mb-1">
-                            <span className="text-xs text-orange-200 font-bold">{r.name || "Sans Nom"}</span>
-                            <button type="button" onClick={async () => { if(confirm("Supprimer " + r.name + " ?")) await deleteDoc(doc(db, "regions", r.id)); }} className="text-red-500 text-[10px] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">🗑️</button>
+                            <span className="text-xs text-sw-gold font-bold">{r.name || "Sans Nom"}</span>
+                            <button type="button" onClick={async () => { if(confirm("Supprimer " + r.name + " ?")) await deleteDoc(doc(db, "regions", r.id)); }} className="text-sw-error text-[10px] hover:brightness-125 opacity-0 group-hover:opacity-100 transition-opacity">🗑️</button>
                           </div>
-                          {r.description && <p className="text-[9px] text-gray-500 italic border-l-2 border-orange-900/50 pl-2">{r.description}</p>}
+                          {r.description && <p className="text-[9px] text-sw-dim italic border-l-2 border-sw-accent/40 pl-2">{r.description}</p>}
                       </div>
                   ))}
-                  {regions.length === 0 && <div className="text-gray-500 text-xs italic text-center p-4 border border-dashed border-gray-800 rounded">Aucune région définie</div>}
+                  {regions.length === 0 && <div className="text-sw-faint text-xs italic text-center p-4 border border-dashed border-sw-border rounded">Aucune région définie</div>}
               </div>
+            </SwWindow>
           </div>
       )}
       
@@ -2054,31 +2035,31 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
           <HolonetEditor onClose={() => setShowHolonetEditor(false)} />
       )}
       {showBuildingManager && isEditorMode && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-blue-600 p-6 z-[100] w-[600px] max-h-[90vh] flex flex-col shadow-2xl">
-              <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2"><h3 className="text-blue-400 font-bold uppercase">Architecte de Plans</h3><button onClick={() => { setShowBuildingManager(false); setEditingBuilding(null); }} className="text-white hover:text-red-500">X</button></div>
-              <form key={editingBuilding ? editingBuilding.id : 'new'} onSubmit={handleCreateBuilding} className="flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-2 mb-4 bg-black/40 p-4 rounded">
-                  {editingBuilding && <div className="text-[10px] text-yellow-500 uppercase font-bold text-center border border-yellow-800 bg-yellow-900/10 p-1 mb-2">Mode Édition : {editingBuilding.name}</div>}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-[600px] flex flex-col">
+            <SwWindow title="Architecte de Plans" icon="structuralbracing" onClose={() => { setShowBuildingManager(false); setEditingBuilding(null); }} className="w-full max-h-[90vh]" bodyClassName="flex flex-col min-h-0">
+              <form key={editingBuilding ? editingBuilding.id : 'new'} onSubmit={handleCreateBuilding} className="sw-panel-dark flex flex-col gap-3 overflow-y-auto sw-scroll pr-2 mb-4 p-4">
+                  {editingBuilding && <div className="sw-label text-[10px] text-sw-warn text-center border border-sw-warn/50 bg-sw-warn/10 rounded-sm p-1 mb-2">Mode Édition : {editingBuilding.name}</div>}
                   <div className="grid grid-cols-2 gap-3">
-                      <div className="col-span-2"><label className="text-[10px] text-gray-500 uppercase block">Description</label><input name="description" defaultValue={editingBuilding?.description} className="w-full bg-black border border-gray-700 p-1 text-xs text-white" /></div>
+                      <div className="col-span-2"><label className="sw-label text-[10px] block">Description</label><input name="description" defaultValue={editingBuilding?.description} className="sw-input p-1 text-xs" /></div>
                       
-                      <div className="col-span-2"><label className="text-[10px] text-gray-500 uppercase block">Nom du Plan / Série (Optionnel)</label><input name="series_name" defaultValue={editingBuilding?.series_name} placeholder="Ex: Mine de Doonium (utilisé pour l'affichage général)" className="w-full bg-black border border-gray-700 p-1 text-xs text-white text-yellow-500 font-bold" /></div>
+                      <div className="col-span-2"><label className="sw-label text-[10px] block">Nom du Plan / Série (Optionnel)</label><input name="series_name" defaultValue={editingBuilding?.series_name} placeholder="Ex: Mine de Doonium (utilisé pour l'affichage général)" className="sw-input p-1 text-xs text-sw-gold font-bold" /></div>
 
                       <div>
-                          <label className="text-[10px] text-gray-500 uppercase block mb-1">Catégorie</label>
-                          <select name="category" defaultValue={editingBuilding?.category || 'economic'} className="w-full bg-black border border-blue-900 text-white text-xs p-2 rounded">{BUILDING_CATEGORIES.map(cat => (<option key={cat.id} value={cat.id}>{cat.icon} {cat.label}</option>))}</select>
+                          <label className="sw-label text-[10px] block mb-1">Catégorie</label>
+                          <select name="category" defaultValue={editingBuilding?.category || 'economic'} className="sw-input text-xs p-2">{BUILDING_CATEGORIES.map(cat => (<option key={cat.id} value={cat.id}>{cat.icon} {cat.label}</option>))}</select>
                       </div>
                       <div>
-                          <label className="text-[10px] text-gray-500 uppercase block mb-1">Groupe / Limite</label>
-                          <input name="group" placeholder="Ex: Mine (Empêche 2 mines)" defaultValue={editingBuilding?.group || ''} className="w-full bg-black border border-gray-700 p-2 text-xs text-white uppercase" />
+                          <label className="sw-label text-[10px] block mb-1">Groupe / Limite</label>
+                          <input name="group" placeholder="Ex: Mine (Empêche 2 mines)" defaultValue={editingBuilding?.group || ''} className="sw-input p-2 text-xs uppercase" />
                       </div>
 
                       {/* --- NOUVEAU : RESTRICTIONS DE PLANETES --- */}
                       <div className="col-span-2">
-                        <label className="text-[10px] text-gray-500 uppercase block mb-1">Restrictions Planétaires</label>
-                        <div className="flex gap-2 flex-wrap bg-black/30 p-2 rounded border border-gray-800">
+                        <label className="sw-label text-[10px] block mb-1">Restrictions Planétaires</label>
+                        <div className="sw-panel flex gap-2 flex-wrap p-2">
                           {['standard', 'industrial', 'capital', 'force_nexus'].map(type => (
-                            <label key={type} className="flex items-center gap-1 text-[10px] text-gray-300 cursor-pointer">
-                              <input type="checkbox" name="allowed_types" value={type} defaultChecked={editingBuilding ? editingBuilding.allowed_types?.includes(type) : true} className="accent-blue-500" /> {type}
+                            <label key={type} className="flex items-center gap-1 text-[10px] text-sw-text cursor-pointer">
+                              <input type="checkbox" name="allowed_types" value={type} defaultChecked={editingBuilding ? editingBuilding.allowed_types?.includes(type) : true} className="accent-[var(--sw-accent)]" /> {type}
                             </label>
                           ))}
                         </div>
@@ -2086,23 +2067,23 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
 
                       {/* --- RESTRICTIONS DE FACTION --- */}
                       <div className="col-span-2">
-                            <label className="text-[10px] text-gray-500 uppercase block mb-1">Limite de Faction (Optionnel)</label>
-                            <div className="bg-black/30 p-2 rounded border border-gray-800 h-24 overflow-y-auto custom-scrollbar">
+                            <label className="sw-label text-[10px] block mb-1">Limite de Faction (Optionnel)</label>
+                            <div className="sw-panel p-2 h-24 overflow-y-auto sw-scroll">
                                 <label className="flex items-center gap-2 mb-1 p-1 hover:bg-white/5 rounded cursor-pointer">
-                                    <span className="text-[10px] text-gray-400 italic">Si aucune case cochée = Disponible pour tous</span>
+                                    <span className="text-[10px] text-sw-dim italic">Si aucune case cochée = Disponible pour tous</span>
                                 </label>
                                 {factions.map(f => (
                                     <label key={f.id} className="flex items-center gap-2 mb-1 p-1 hover:bg-white/5 rounded cursor-pointer">
-                                        <input type="checkbox" name="allowed_factions" value={f.id} defaultChecked={editingBuilding?.allowed_factions?.includes(f.id)} className="accent-purple-500" />
+                                        <input type="checkbox" name="allowed_factions" value={f.id} defaultChecked={editingBuilding?.allowed_factions?.includes(f.id)} className="accent-[var(--sw-accent)]" />
                                         <span className="text-xs font-bold" style={{color: f.color}}>{f.name}</span>
                                     </label>
                                 ))}
                             </div>
                       </div>
 
-                      <div className="col-span-2 flex items-center gap-2"><label className="text-[10px] text-gray-500 uppercase">Niveaux :</label><select value={maxLevels} onChange={(e) => setMaxLevels(parseInt(e.target.value))} className="bg-black border border-blue-800 text-blue-400 text-xs p-1 rounded">{[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}</select></div>
+                      <div className="col-span-2 flex items-center gap-2"><label className="sw-label text-[10px]">Niveaux :</label><select value={maxLevels} onChange={(e) => setMaxLevels(parseInt(e.target.value))} className="sw-input w-auto text-sw-gold text-xs p-1">{[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}</select></div>
                   </div>
-                  <div className="flex gap-1 border-b border-gray-700 mb-2">{Array.from({length: maxLevels}, (_, i) => i + 1).map(level => (<button key={level} type="button" onClick={() => setCurrentLevelTab(level)} className={`px-3 py-1 text-[10px] font-bold uppercase rounded-t ${currentLevelTab === level ? 'bg-blue-900 text-white' : 'bg-gray-800 text-gray-500 hover:bg-gray-700'}`}>Nv {level}</button>))}</div>
+                  <SwTabs className="border-b border-sw-border mb-2" tabClassName="min-w-0 h-8 px-4 text-[10px]" tabs={Array.from({length: maxLevels}, (_, i) => i + 1).map(level => ({ id: level, label: `Nv ${level}` }))} value={currentLevelTab} onChange={setCurrentLevelTab} />
                   {Array.from({length: maxLevels}, (_, i) => i + 1).map(level => {
                       // Find existing level data if editing
                       const lvlData = editingBuilding?.upgrades?.find(u => u.level === level) || (level === 1 ? editingBuilding : null);
@@ -2115,14 +2096,14 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                       const data = level === 1 ? editingBuilding : editingBuilding?.upgrades?.find(u => u.level === level);
 
                       return ( 
-                      <div key={level} className={currentLevelTab === level ? 'block space-y-3 p-2 border border-gray-800 rounded bg-black/20' : 'hidden'}><div className="grid grid-cols-2 gap-2"><div className="col-span-2"><label className="text-[10px] text-gray-400 uppercase">Nom</label><input name={`level_${level}_name`} defaultValue={data?.name} className="w-full bg-black border border-gray-700 p-1 text-xs text-white" required /></div><div><label className="text-[10px] text-gray-400 uppercase">Temps</label><input type="number" name={`level_${level}_turns`} defaultValue={data?.turns_required || 1} className="w-full bg-black border border-gray-700 p-1 text-xs text-white" required /></div><div><label className="text-[10px] text-gray-400 uppercase">Coût (Cr)</label><input type="number" name={`level_${level}_cost_credits`} defaultValue={data?.cost || data?.cost_credits || 100} className="w-full bg-black border border-gray-700 p-1 text-xs text-white" required /></div><div><label className="text-[10px] text-gray-400 uppercase">Coût (Mat)</label><input type="number" name={`level_${level}_cost_materials`} defaultValue={data?.cost_materials || 0} className="w-full bg-black border border-gray-700 p-1 text-xs text-white" /></div></div><div className="grid grid-cols-3 gap-2 border-t border-gray-800 pt-2"><div className="col-span-3 text-[10px] text-green-500 font-bold uppercase">Production</div><input type="number" name={`level_${level}_prod_credits`} defaultValue={data?.production?.credits} placeholder="CR" className="bg-black border border-green-900 p-1 text-[10px] text-white" /><input type="number" name={`level_${level}_prod_materials`} defaultValue={data?.production?.materials} placeholder="MAT" className="bg-black border border-green-900 p-1 text-[10px] text-white" /><input type="number" name={`level_${level}_prod_manpower`} defaultValue={data?.production?.manpower} placeholder="HOM" className="bg-black border border-green-900 p-1 text-[10px] text-white" /><input type="number" name={`level_${level}_prod_science`} defaultValue={data?.production?.science} placeholder="SCI (💠)" className="bg-black border border-purple-900 p-1 text-[10px] text-white" /></div><div className="grid grid-cols-3 gap-2 border-t border-gray-800 pt-2"><div className="col-span-3 text-[10px] text-red-500 font-bold uppercase">Maintenance</div><input type="number" name={`level_${level}_maint_credits`} defaultValue={data?.maintenance?.credits} placeholder="CR" className="bg-black border border-red-900 p-1 text-[10px] text-white" /><input type="number" name={`level_${level}_maint_materials`} defaultValue={data?.maintenance?.materials} placeholder="MAT" className="bg-black border border-red-900 p-1 text-[10px] text-white" /><input type="number" name={`level_${level}_maint_manpower`} defaultValue={data?.maintenance?.manpower} placeholder="HOM" className="bg-black border border-red-900 p-1 text-[10px] text-white" /></div>
+                      <div key={level} className={currentLevelTab === level ? 'block space-y-3 p-2 sw-panel' : 'hidden'}><div className="grid grid-cols-2 gap-2"><div className="col-span-2"><label className="sw-label text-[10px]">Nom</label><input name={`level_${level}_name`} defaultValue={data?.name} className="sw-input p-1 text-xs" required /></div><div><label className="sw-label text-[10px]">Temps</label><input type="number" name={`level_${level}_turns`} defaultValue={data?.turns_required || 1} className="sw-input p-1 text-xs" required /></div><div><label className="sw-label text-[10px]">Coût (Cr)</label><input type="number" name={`level_${level}_cost_credits`} defaultValue={data?.cost || data?.cost_credits || 100} className="sw-input p-1 text-xs" required /></div><div><label className="sw-label text-[10px]">Coût (Mat)</label><input type="number" name={`level_${level}_cost_materials`} defaultValue={data?.cost_materials || 0} className="sw-input p-1 text-xs" /></div></div><div className="grid grid-cols-3 gap-2 border-t border-sw-border pt-2"><div className="col-span-3 sw-label text-[10px] text-sw-success">Production</div><input type="number" name={`level_${level}_prod_credits`} defaultValue={data?.production?.credits} placeholder="CR" className="sw-input p-1 text-[10px] border-sw-success/40" /><input type="number" name={`level_${level}_prod_materials`} defaultValue={data?.production?.materials} placeholder="MAT" className="sw-input p-1 text-[10px] border-sw-success/40" /><input type="number" name={`level_${level}_prod_manpower`} defaultValue={data?.production?.manpower} placeholder="HOM" className="sw-input p-1 text-[10px] border-sw-success/40" /><input type="number" name={`level_${level}_prod_science`} defaultValue={data?.production?.science} placeholder="SCI (💠)" className="sw-input p-1 text-[10px] border-purple-900" /></div><div className="grid grid-cols-3 gap-2 border-t border-sw-border pt-2"><div className="col-span-3 sw-label text-[10px] text-sw-error">Maintenance</div><input type="number" name={`level_${level}_maint_credits`} defaultValue={data?.maintenance?.credits} placeholder="CR" className="sw-input p-1 text-[10px] border-sw-error/40" /><input type="number" name={`level_${level}_maint_materials`} defaultValue={data?.maintenance?.materials} placeholder="MAT" className="sw-input p-1 text-[10px] border-sw-error/40" /><input type="number" name={`level_${level}_maint_manpower`} defaultValue={data?.maintenance?.manpower} placeholder="HOM" className="sw-input p-1 text-[10px] border-sw-error/40" /></div>
                       
-                      <div className="border-t border-gray-800 pt-2 mt-2">
-                          <div className="text-[10px] text-orange-500 font-bold uppercase mb-1">Unités Débloquées</div>
+                      <div className="border-t border-sw-border pt-2 mt-2">
+                          <div className="sw-label text-[10px] text-sw-warn mb-1">Unités Débloquées</div>
                           <div className="grid grid-cols-2 gap-1">
                               {Object.entries(GARRISON_STATS).map(([uid, ustat]) => (
-                                  <label key={uid} className="flex items-center gap-1 text-[9px] text-gray-300 cursor-pointer hover:bg-white/5 rounded px-1">
-                                      <input type="checkbox" name={`level_${level}_unlocks`} value={uid} defaultChecked={data?.unlocks_units?.includes(uid)} className="accent-orange-500" />
+                                  <label key={uid} className="flex items-center gap-1 text-[9px] text-sw-text cursor-pointer hover:bg-white/5 rounded px-1">
+                                      <input type="checkbox" name={`level_${level}_unlocks`} value={uid} defaultChecked={data?.unlocks_units?.includes(uid)} className="accent-[var(--sw-accent)]" />
                                       {ustat.label}
                                   </label>
                               ))}
@@ -2132,24 +2113,25 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
                       </div> 
                    )})}
                   <div className="flex gap-2">
-                       <button type="submit" className="flex-grow bg-blue-900 hover:bg-blue-700 text-white text-xs font-bold py-2 uppercase tracking-widest border border-blue-700">{editingBuilding ? "Modifier le Plan" : "Créer le Plan"}</button>
-                       {editingBuilding && <button type="button" onClick={()=>setEditingBuilding(null)} className="px-4 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold uppercase rounded">Annuler</button>}
+                       <SwButton type="submit" variant="accent" className="flex-grow">{editingBuilding ? "Modifier le Plan" : "Créer le Plan"}</SwButton>
+                       {editingBuilding && <SwButton type="button" onClick={()=>setEditingBuilding(null)}>Annuler</SwButton>}
                   </div>
               </form>
-              <div className="overflow-y-auto space-y-1 h-32 border-t border-gray-700 pt-2">
+              <div className="overflow-y-auto sw-scroll space-y-1 h-32 border-t border-sw-border pt-2">
                   {buildingsTemplates.map(b => (
-                      <div key={b.id} className={`flex justify-between items-center p-2 border border-gray-800 text-[10px] group ${editingBuilding?.id === b.id ? 'bg-blue-900/30 border-blue-500' : 'bg-black'}`}>
+                      <div key={b.id} data-active={editingBuilding?.id === b.id ? 'true' : undefined} className="sw-row flex justify-between items-center p-2 text-[10px] group">
                           <div className="flex flex-col">
-                              <span className="text-white font-bold">{b.series_name || b.name}</span>
-                              {b.series_name && <span className="text-gray-500 text-[9px]">{b.name} (Niv 1)</span>}
+                              <span className="text-sw-text font-bold">{b.series_name || b.name}</span>
+                              {b.series_name && <span className="text-sw-dim text-[9px]">{b.name} (Niv 1)</span>}
                           </div>
                           <div className="flex gap-2">
-                              <button onClick={() => { setEditingBuilding(b); setMaxLevels(b.max_levels || 1); }} className="text-yellow-500 hover:text-yellow-300">✎</button>
-                              <button onClick={async()=>await deleteDoc(doc(db,"buildings",b.id))} className="text-red-500 opacity-0 group-hover:opacity-100 hover:text-red-400">🗑️</button>
+                              <button onClick={() => { setEditingBuilding(b); setMaxLevels(b.max_levels || 1); }} className="text-sw-gold hover:text-sw-text">✎</button>
+                              <button onClick={async()=>await deleteDoc(doc(db,"buildings",b.id))} className="text-sw-error opacity-0 group-hover:opacity-100 hover:brightness-125">🗑️</button>
                           </div>
                       </div>
                   ))}
               </div>
+            </SwWindow>
           </div>
       )}
       {showMapEditor && (
@@ -2171,61 +2153,63 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
         />
       )}
       {showCreateModal && isEditorMode && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-purple-500 p-6 z-[100] w-80 shadow-2xl">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-80">
+            <SwWindow title="Nouvelle Province" icon="star_map" className="w-full">
               <form onSubmit={handleCreatePlanet} className="space-y-3">
-                  <h3 className="text-purple-400 font-bold uppercase text-center text-sm">Nouvelle Province</h3>
-                  <input name="name" placeholder="Nom" className="w-full bg-black border border-gray-700 p-2 text-white text-xs" required />
+                  <input name="name" placeholder="Nom" className="sw-input p-2 text-xs" required />
                   
                   {/* REGION SELECTOR */}
-                  <select name="region" className="w-full bg-black border border-gray-700 p-2 text-white text-xs" required>
+                  <select name="region" className="sw-input p-2 text-xs" required>
                       <option value="">-- Choisir Région --</option>
                       {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                   </select>
 
-                  <select name="owner" className="w-full bg-black border border-gray-700 p-2 text-white text-xs"><option value="neutral">Neutre</option>{factions.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>
-                  <select name="type" className="w-full bg-black border border-gray-700 p-2 text-white text-xs"><option value="standard">Standard</option><option value="industrial">Industriel</option><option value="capital">Capitale</option><option value="force_nexus">Nexus</option></select>
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-800">
-                      <div className="col-span-2 text-[10px] text-gray-500 uppercase">Données Démographiques</div>
-                      <input name="population" type="number" placeholder="Population" className="w-full bg-black border border-gray-700 p-1 text-xs text-white" />
-                      <div className="col-span-2 text-[10px] text-gray-500 uppercase mt-1">Ressources Naturelles</div>
-                      <input name="prod_credits" type="number" placeholder="Crédits/Tour" className="w-full bg-black border border-gray-700 p-1 text-xs text-white" />
-                      <input name="prod_materials" type="number" placeholder="Matériaux/Tour" className="w-full bg-black border border-gray-700 p-1 text-xs text-white" />
+                  <select name="owner" className="sw-input p-2 text-xs"><option value="neutral">Neutre</option>{factions.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>
+                  <select name="type" className="sw-input p-2 text-xs"><option value="standard">Standard</option><option value="industrial">Industriel</option><option value="capital">Capitale</option><option value="force_nexus">Nexus</option></select>
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-sw-border">
+                      <div className="col-span-2 sw-label text-[10px]">Données Démographiques</div>
+                      <input name="population" type="number" placeholder="Population" className="sw-input p-1 text-xs" />
+                      <div className="col-span-2 sw-label text-[10px] mt-1">Ressources Naturelles</div>
+                      <input name="prod_credits" type="number" placeholder="Crédits/Tour" className="sw-input p-1 text-xs" />
+                      <input name="prod_materials" type="number" placeholder="Matériaux/Tour" className="sw-input p-1 text-xs" />
                   </div>
-                  <button type="submit" className="w-full bg-purple-600 py-2 font-bold uppercase text-xs mt-2">Créer</button>
-                  <button type="button" onClick={()=>setShowCreateModal(false)} className="w-full text-gray-500 text-[10px] uppercase">Annuler</button>
+                  <SwButton type="submit" variant="accent" className="w-full mt-2">Créer</SwButton>
+                  <button type="button" onClick={()=>setShowCreateModal(false)} className="w-full sw-label text-[10px] text-sw-faint hover:text-sw-text">Annuler</button>
               </form>
+            </SwWindow>
           </div>
       )}
       {showEditModal && isEditorMode && editingPlanet && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-900 border-2 border-yellow-500 p-6 z-[100] w-96 shadow-2xl">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] w-96">
+            <SwWindow title={editingPlanet.name} icon="star_map" onClose={()=>setShowEditModal(false)} className="w-full">
               <form onSubmit={handleUpdatePlanet} className="space-y-3">
-                  <div className="flex justify-between"><h3 className="text-yellow-500 font-bold uppercase text-sm">{editingPlanet.name}</h3><button type="button" onClick={()=>setShowEditModal(false)} className="text-gray-500 text-xs">✕</button></div>
                   <div className="grid grid-cols-2 gap-2">
-                      <div><label className="text-[10px] text-gray-500">Nom</label><input name="name" defaultValue={editingPlanet.name} className="w-full bg-black border border-gray-700 p-1 text-white text-xs" /></div>
+                      <div><label className="sw-label text-[10px]">Nom</label><input name="name" defaultValue={editingPlanet.name} className="sw-input p-1 text-xs" /></div>
                       <div>
-                          <label className="text-[10px] text-gray-500">Région</label>
-                          <select name="region" defaultValue={editingPlanet.region} className="w-full bg-black border border-gray-700 p-1 text-white text-xs">
+                          <label className="sw-label text-[10px]">Région</label>
+                          <select name="region" defaultValue={editingPlanet.region} className="sw-input p-1 text-xs">
                               <option value="">-- Inconnue --</option>
                               {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
                           </select>
                       </div>
-                      <div><label className="text-[10px] text-gray-500">Type</label><select name="planet_type" defaultValue={editingPlanet.planet_type} className="w-full bg-black border border-gray-700 p-1 text-white text-xs"><option value="standard">Standard</option><option value="industrial">Industriel</option><option value="capital">Capitale</option><option value="force_nexus">Nexus</option></select></div>
-                      <div><label className="text-[10px] text-gray-500">Carte Tactique</label><select name="ground_map_id" defaultValue={editingPlanet.ground_map_id || ''} className="w-full bg-black border border-gray-700 p-1 text-white text-xs"><option value="">Aléatoire (Défaut)</option>{savedMaps.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
-                      <div><label className="text-[10px] text-gray-500">Propriétaire</label><select name="owner" defaultValue={editingPlanet.owner} className="w-full bg-black border border-gray-700 p-1 text-white text-xs"><option value="neutral">Neutre</option>{factions.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
-                      <div className="col-span-2"><label className="text-[10px] text-gray-500">Couleur</label><input name="color" type="color" defaultValue={editingPlanet.color} className="w-full h-6 cursor-pointer" /></div>
+                      <div><label className="sw-label text-[10px]">Type</label><select name="planet_type" defaultValue={editingPlanet.planet_type} className="sw-input p-1 text-xs"><option value="standard">Standard</option><option value="industrial">Industriel</option><option value="capital">Capitale</option><option value="force_nexus">Nexus</option></select></div>
+                      <div><label className="sw-label text-[10px]">Carte Tactique</label><select name="ground_map_id" defaultValue={editingPlanet.ground_map_id || ''} className="sw-input p-1 text-xs"><option value="">Aléatoire (Défaut)</option>{savedMaps.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+                      <div><label className="sw-label text-[10px]">Propriétaire</label><select name="owner" defaultValue={editingPlanet.owner} className="sw-input p-1 text-xs"><option value="neutral">Neutre</option>{factions.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></div>
+                      <div className="col-span-2"><label className="sw-label text-[10px]">Couleur</label><input name="color" type="color" defaultValue={editingPlanet.color} className="w-full h-6 cursor-pointer" /></div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-800">
-                      <div><label className="text-[10px] text-gray-500">Pop.</label><input name="population" type="number" defaultValue={editingPlanet.population || 0} className="w-full bg-black border border-gray-700 p-1 text-xs text-white" /></div>
-                      <div><label className="text-[10px] text-yellow-600">Prod. CR</label><input name="prod_credits" type="number" defaultValue={editingPlanet.base_production?.credits || 0} className="w-full bg-black border border-gray-700 p-1 text-xs text-white" /></div>
-                      <div><label className="text-[10px] text-blue-600">Prod. MAT</label><input name="prod_materials" type="number" defaultValue={editingPlanet.base_production?.materials || 0} className="w-full bg-black border border-gray-700 p-1 text-xs text-white" /></div>
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-sw-border">
+                      <div><label className="sw-label text-[10px]">Pop.</label><input name="population" type="number" defaultValue={editingPlanet.population || 0} className="sw-input p-1 text-xs" /></div>
+                      <div><label className="sw-label text-[10px] text-sw-gold">Prod. CR</label><input name="prod_credits" type="number" defaultValue={editingPlanet.base_production?.credits || 0} className="sw-input p-1 text-xs" /></div>
+                      <div><label className="sw-label text-[10px] text-sw-info">Prod. MAT</label><input name="prod_materials" type="number" defaultValue={editingPlanet.base_production?.materials || 0} className="sw-input p-1 text-xs" /></div>
                   </div>
-                  <div className="flex flex-col gap-2 pt-2 border-t border-gray-700">
-                      <label className="text-[10px] text-gray-500 uppercase">Routes Actuelles</label>
-                      <div className="flex flex-wrap gap-1">{editingPlanet.connected_to?.map(tid => { const tName = planets.find(p=>p.id===tid)?.name || '?'; return (<span key={tid} className="text-[9px] bg-gray-800 text-gray-300 px-2 py-1 rounded flex items-center gap-1">{tName} <button type="button" onClick={()=>removeRoute(tid)} className="text-red-500 font-bold hover:text-white">x</button></span>); })}</div>
-                      <button type="button" onClick={startLinking} className="w-full bg-blue-900/50 py-1 text-[10px] uppercase font-bold text-blue-300 border border-blue-800 border-dashed hover:bg-blue-900">+ Ajouter Route</button>
+                  <div className="flex flex-col gap-2 pt-2 border-t border-sw-border">
+                      <label className="sw-label text-[10px]">Routes Actuelles</label>
+                      <div className="flex flex-wrap gap-1">{editingPlanet.connected_to?.map(tid => { const tName = planets.find(p=>p.id===tid)?.name || '?'; return (<span key={tid} className="text-[9px] sw-panel text-sw-text px-2 py-1 flex items-center gap-1">{tName} <button type="button" onClick={()=>removeRoute(tid)} className="text-sw-error font-bold hover:text-white">x</button></span>); })}</div>
+                      <SwButton type="button" size="sm" onClick={startLinking} className="w-full text-[10px]">+ Ajouter Route</SwButton>
                   </div>
-                  <div className="flex gap-2 pt-2"><button type="button" onClick={handleDeletePlanet} className="bg-red-900 hover:bg-red-800 text-white text-xs py-2 px-3 font-bold rounded">Suppr.</button><button type="submit" className="flex-1 bg-yellow-700 hover:bg-yellow-600 text-white py-2 font-bold uppercase text-xs rounded">Sauvegarder</button></div>
+                  <div className="flex gap-2 pt-2"><SwButton type="button" variant="danger" onClick={handleDeletePlanet}>Suppr.</SwButton><SwButton type="submit" variant="accent" className="flex-1">Sauvegarder</SwButton></div>
               </form>
+            </SwWindow>
           </div>
       )}
       

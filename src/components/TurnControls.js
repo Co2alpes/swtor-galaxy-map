@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../app/lib/firebase';
 import { doc, onSnapshot, updateDoc, increment, collectionGroup, getDocs, writeBatch, query, where } from 'firebase/firestore';
+import { SwButton, SwGlass, SwLabel } from './ui/Swtor';
 
 export default function TurnControls({ userRole }) {
   const [turn, setTurn] = useState(1);
@@ -121,19 +122,21 @@ export default function TurnControls({ userRole }) {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center bg-gray-900 border border-yellow-600 p-2 rounded min-w-[120px]">
-      <div className="text-[10px] text-gray-400 uppercase tracking-widest">Calendrier</div>
-      <div className="text-2xl font-bold text-white mb-1">TOUR {turn}</div>
-      
+    <SwGlass className="flex flex-col items-center justify-center px-3 py-2 min-w-[120px]">
+      <SwLabel className="text-[10px]">Calendrier</SwLabel>
+      <div className="sw-title text-2xl mb-1">TOUR {turn}</div>
+
       {userRole === 'admin' && (
-        <button 
+        <SwButton
+          size="sm"
+          variant="accent"
           onClick={handleNextTurn}
           disabled={isProcessing}
-          className={`text-xs px-2 py-1 rounded font-bold transition ${isProcessing ? 'bg-gray-600 cursor-wait' : 'bg-yellow-700 hover:bg-yellow-600 text-white'}`}
+          className={isProcessing ? 'cursor-wait' : ''}
         >
           {isProcessing ? "CALCUL..." : ">>> SUIVANT"}
-        </button>
+        </SwButton>
       )}
-    </div>
+    </SwGlass>
   );
 }

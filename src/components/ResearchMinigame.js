@@ -1,6 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import { SwBar, SwButton, SwCell, SwPanel, SwWindow } from './ui/Swtor';
+
+// Icône de fenêtre par mini-jeu (présentation uniquement)
+const GAME_ICONS = {
+    dna_linear: 'vialofblood',
+    dna_circular: 'fresh_toxic_extract',
+    electricity: 'powercell',
+    economy: 'electronics',
+    circuit: 'adaptive_circuitry'
+};
 
 // --- SYSTÈME SONORE ---
 const playSound = (type) => {
@@ -58,26 +68,24 @@ export default function ResearchMinigame({ techType, onWin, onClose }) {
         if (!bioKeywords.some(k => type.includes(k))) return null;
 
         return (
-            <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
-                <div className="w-full max-w-4xl bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-8 relative overflow-hidden">
-                    <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition">✕ FERMER</button>
-                    
-                    <div className="text-center mb-12">
-                        <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 uppercase tracking-widest mb-2">
-                            Protocole Biologique
-                        </h2>
-                        <p className="text-gray-400 text-sm font-mono">Niveau de sécurité : <span className="text-red-500 font-bold">EXTRÊME</span>. Choisissez votre approche.</p>
-                    </div>
-
+            <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-xl animate-in fade-in duration-300 p-4">
+                <SwWindow
+                    title="Protocole Biologique"
+                    subtitle={<>Niveau de sécurité : <span className="text-sw-error">EXTRÊME</span>. Choisissez votre approche.</>}
+                    icon="vialofblood"
+                    className="w-full max-w-4xl"
+                    bodyClassName="p-8 pt-6"
+                    actions={<SwButton size="sm" variant="danger" onClick={onClose}>✕ Fermer</SwButton>}
+                >
                     <div className="grid grid-cols-2 gap-8">
                         {/* Choix 1 */}
                         <button 
                             onClick={() => setSelectedGame('dna_linear')}
-                            className="group relative h-72 bg-black/50 border border-gray-700 rounded-xl p-6 flex flex-col items-center justify-center hover:bg-gray-800 transition-all hover:border-purple-500 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)]"
+                            className="sw-row group relative h-72 p-6 flex flex-col items-center justify-center cursor-pointer transition-all hover:border-purple-500 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)]"
                         >
-                            <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">🧬</div>
-                            <h3 className="text-xl font-bold text-white uppercase tracking-widest mb-2">Séquenceur Amnésique</h3>
-                            <p className="text-xs text-gray-500 text-center font-mono leading-relaxed">
+                            <div className="mb-4 group-hover:scale-110 transition-transform"><SwCell icon="vialofblood" size={88} /></div>
+                            <h3 className="sw-title text-xl mb-2 group-hover:text-white transition-colors">Séquenceur Amnésique</h3>
+                            <p className="text-xs text-sw-dim text-center leading-relaxed">
                                 Analyse verticale.<br/>
                                 <span className="text-purple-400 font-bold">Effet : Perte de données historique.</span>
                             </p>
@@ -86,17 +94,17 @@ export default function ResearchMinigame({ techType, onWin, onClose }) {
                         {/* Choix 2 */}
                         <button 
                             onClick={() => setSelectedGame('dna_circular')}
-                            className="group relative h-72 bg-black/50 border border-gray-700 rounded-xl p-6 flex flex-col items-center justify-center hover:bg-gray-800 transition-all hover:border-green-500 hover:shadow-[0_0_30px_rgba(34,197,94,0.3)]"
+                            className="sw-row group relative h-72 p-6 flex flex-col items-center justify-center cursor-pointer transition-all hover:border-green-500 hover:shadow-[0_0_30px_rgba(34,197,94,0.3)]"
                         >
-                            <div className="text-6xl mb-4 group-hover:rotate-90 transition-transform duration-700">☣️</div>
-                            <h3 className="text-xl font-bold text-white uppercase tracking-widest mb-2">Réacteur Aveugle</h3>
-                            <p className="text-xs text-gray-500 text-center font-mono leading-relaxed">
+                            <div className="mb-4 group-hover:rotate-90 transition-transform duration-700"><SwCell icon="fresh_toxic_extract" size={88} /></div>
+                            <h3 className="sw-title text-xl mb-2 group-hover:text-white transition-colors">Réacteur Aveugle</h3>
+                            <p className="text-xs text-sw-dim text-center leading-relaxed">
                                 Puzzle Gyroscopique.<br/>
                                 <span className="text-green-400 font-bold">Effet : Brouillage latéral visuel.</span>
                             </p>
                         </button>
                     </div>
-                </div>
+                </SwWindow>
             </div>
         );
     }
@@ -142,30 +150,34 @@ export default function ResearchMinigame({ techType, onWin, onClose }) {
 
     // --- RENDER PRINCIPAL ---
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/95 backdrop-blur-xl animate-in fade-in duration-500 perspective-2000">
-            <div className="w-full max-w-[1400px] h-[90vh] bg-gray-950/80 border border-gray-800 rounded-xl shadow-2xl relative flex overflow-hidden">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-xl animate-in fade-in duration-500 perspective-2000 p-4">
+            <SwWindow
+                title={title}
+                icon={GAME_ICONS[selectedGame] || 'adaptive_circuitry'}
+                className="w-full max-w-[1400px] h-[90vh]"
+                bodyClassName="flex gap-4 overflow-hidden p-3 pt-4"
+            >
                 
                 {/* SIDEBAR */}
-                <div className="w-72 bg-gray-900/90 backdrop-blur-md border-r border-gray-700 p-6 flex flex-col justify-between shrink-0 z-30 shadow-2xl">
+                <SwPanel dark className="w-72 p-5 flex flex-col justify-between shrink-0 z-30">
                     <div>
-                        <h2 className="text-white font-bold uppercase tracking-widest text-xl mb-1 text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400">{title}</h2>
-                        <div className={`h-1 w-10 mb-6 ${colorClass}`}></div>
-                        <p className="text-gray-300 text-xs leading-relaxed font-mono border-l-2 border-white pl-2 mb-4">{description}</p>
+                        <div className={`h-1 w-10 mb-5 ${colorClass}`}></div>
+                        <p className="text-sw-dim text-xs leading-relaxed pl-3 mb-4" style={{ boxShadow: 'inset 2px 0 0 var(--sw-gold-dim)' }}>{description}</p>
                         
                         {/* Légendes Spécifiques */}
                         {selectedGame === 'dna_circular' && (
-                            <div className="text-[10px] text-center border-t border-gray-700 pt-2 text-gray-400">
+                            <div className="text-[10px] text-center border-t border-sw-border pt-2 text-sw-dim">
                                 <p>Cibles : <span className="text-red-400">A-T</span> | <span className="text-blue-400">C-G</span></p>
                                 <p>Clic Droit = Rotation Inverse</p>
                             </div>
                         )}
                         {selectedGame === 'electricity' && (
-                            <div className="text-[10px] text-yellow-500 text-center border-t border-gray-700 pt-2">
+                            <div className="text-[10px] text-sw-warn text-center border-t border-sw-border pt-2">
                                 Superposez la ligne VERTE sur la ligne JAUNE.
                             </div>
                         )}
                         {selectedGame === 'economy' && (
-                            <div className="text-[10px] text-emerald-500 text-center border-t border-gray-700 pt-2">
+                            <div className="text-[10px] text-sw-success text-center border-t border-sw-border pt-2">
                                 Cliquez sur le code correspondant à la CIBLE.
                             </div>
                         )}
@@ -174,24 +186,23 @@ export default function ResearchMinigame({ techType, onWin, onClose }) {
                     <div className="flex flex-col gap-3">
                         {/* Bouton retour seulement si c'était un choix Bio */}
                         {bioKeywords.some(k => techType.toLowerCase().includes(k)) && (
-                            <button onClick={() => setSelectedGame(null)} className="px-4 py-3 border border-gray-600 text-gray-400 text-xs font-bold uppercase hover:bg-gray-800 hover:text-white transition-colors flex items-center justify-center gap-2">
+                            <SwButton onClick={() => setSelectedGame(null)} className="w-full">
                                 <span>↺</span> Changer
-                            </button>
+                            </SwButton>
                         )}
-                        <button onClick={onClose} className="group relative px-4 py-3 border border-red-800 text-red-500 text-xs font-bold uppercase tracking-widest overflow-hidden hover:text-white transition-colors">
-                            <span className="absolute inset-0 w-full h-full bg-red-900/50 -translate-x-full group-hover:translate-x-0 transition-transform duration-300"></span>
-                            <span className="relative">Abandonner</span>
-                        </button>
+                        <SwButton variant="danger" onClick={onClose} className="w-full">
+                            Abandonner
+                        </SwButton>
                     </div>
-                </div>
+                </SwPanel>
 
                 {/* ZONE DE JEU */}
-                <div className="flex-grow relative bg-black flex items-center justify-center overflow-hidden" style={{ transformStyle: 'preserve-3d' }}>
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#1a1a2e_0%,_#000000_80%)] -z-20"></div>
-                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] -z-10"></div>
+                <div className="flex-grow relative bg-black flex items-center justify-center overflow-hidden rounded-md border border-sw-border" style={{ transformStyle: 'preserve-3d' }}>
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_#0f1a2a_0%,_#000000_80%)] -z-20"></div>
+                    <div className="absolute inset-0 opacity-25 bg-cover bg-center bg-[url('/ui/swtor/backdrop.webp')] -z-10"></div>
                     {GameComponent && <GameComponent onWin={onWin} onClose={onClose} />}
                 </div>
-            </div>
+            </SwWindow>
         </div>
     );
 }
@@ -269,45 +280,45 @@ function InfiniteDNA({ onWin }) {
 
     return (
         <div className="w-full h-full flex flex-col items-center p-4 relative">
-            <div ref={scrollRef} className="flex-grow w-full max-w-3xl overflow-y-auto custom-scrollbar mb-4 bg-black/40 border border-gray-800 rounded-lg p-4 relative">
+            <div ref={scrollRef} className="flex-grow w-full max-w-3xl overflow-y-auto sw-scroll mb-4 sw-panel-dark p-4 relative">
                 
-                <div className="text-center text-gray-500 text-xs mb-4 font-mono uppercase animate-pulse">
+                <div className="text-center sw-label text-sw-warn mb-4 animate-pulse">
                     ⚠️ Données corrompues. Rétention : 2 cycles. ⚠️
                 </div>
 
                 {history.map((step, idx) => {
                     const isVisible = idx >= history.length - 2; 
                     return (
-                        <div key={idx} className={`flex items-center gap-2 mb-2 p-2 rounded border transition-opacity duration-500 ${isVisible ? 'bg-gray-900/50 border-gray-700 opacity-100' : 'bg-black border-transparent opacity-20 blur-[2px]'}`}>
-                            <span className="text-gray-500 font-mono w-6">#{idx+1}</span>
+                        <div key={idx} className={`flex items-center gap-2 mb-2 p-2 rounded border transition-opacity duration-500 ${isVisible ? 'bg-sw-panel border-sw-border opacity-100' : 'bg-black border-transparent opacity-20 blur-[2px]'}`}>
+                            <span className="text-sw-faint font-mono w-6">#{idx+1}</span>
                             {step.input.map((base, i) => (
                                 <div key={i} className="flex flex-col items-center gap-1">
-                                    <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-white ${isVisible ? BASES[base].color : 'bg-gray-800 text-transparent'}`}>{base}</div>
-                                    {isVisible && <div className={`w-2 h-2 rounded-full ${step.results[i] === 'correct' ? 'bg-green-500' : step.results[i] === 'misplaced' ? 'bg-yellow-500' : 'bg-gray-800'}`}></div>}
+                                    <div className={`w-8 h-8 rounded flex items-center justify-center font-bold text-white ${isVisible ? BASES[base].color : 'bg-sw-panel-light text-transparent'}`}>{base}</div>
+                                    {isVisible && <div className={`w-2 h-2 rounded-full ${step.results[i] === 'correct' ? 'bg-green-500' : step.results[i] === 'misplaced' ? 'bg-yellow-500' : 'bg-sw-panel-light'}`}></div>}
                                 </div>
                             ))}
                         </div>
                     );
                 })}
                 {status === 'playing' && (
-                    <div className="flex items-center gap-2 p-2 bg-blue-900/20 rounded border border-blue-500/50 animate-pulse">
-                        <span className="text-blue-400 font-mono w-6">#{history.length+1}</span>
+                    <div className="flex items-center gap-2 p-2 rounded border bg-sw-accent/10 border-sw-accent/50 animate-pulse">
+                        <span className="text-sw-accent-light font-mono w-6">#{history.length+1}</span>
                         {currentInput.map((base, i) => (
-                            <div key={i} className={`w-8 h-8 rounded flex items-center justify-center font-bold border-2 ${base ? `${BASES[base].color} border-transparent text-white` : 'border-gray-600 text-gray-500'}`}>{base || '?'}</div>
+                            <div key={i} className={`w-8 h-8 rounded flex items-center justify-center font-bold border-2 ${base ? `${BASES[base].color} border-transparent text-white` : 'border-sw-line text-sw-faint'}`}>{base || '?'}</div>
                         ))}
                     </div>
                 )}
-                {status === 'won' && <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20"><div className="text-green-400 text-4xl font-bold uppercase tracking-widest animate-bounce">Séquençage Terminé</div></div>}
-                {status === 'lost' && <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20 flex-col"><div className="text-red-500 text-3xl font-bold uppercase tracking-widest">Échec</div><div className="text-gray-400 mt-2">Solution : {secretCode.join('')}</div></div>}
+                {status === 'won' && <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20"><div className="sw-title text-sw-success text-4xl tracking-widest animate-bounce">Séquençage Terminé</div></div>}
+                {status === 'lost' && <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20 flex-col"><div className="sw-title text-sw-error text-3xl tracking-widest">Échec</div><div className="text-sw-dim mt-2">Solution : {secretCode.join('')}</div></div>}
             </div>
             <div className="flex gap-4">
                 {BASE_KEYS.map(key => (
                     <button key={key} onClick={() => handleInput(key)} disabled={status !== 'playing'} className={`w-16 h-16 rounded-lg text-2xl font-bold text-white ${BASES[key].color} transition-transform active:scale-95 shadow-lg`}>{key}</button>
                 ))}
-                <div className="w-px bg-gray-700 mx-2"></div>
+                <div className="w-px bg-sw-border mx-2"></div>
                 <div className="flex flex-col gap-2">
-                    <button onClick={handleBackspace} className="px-4 py-1 bg-gray-700 text-white rounded uppercase text-xs font-bold">Effacer</button>
-                    <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded uppercase text-xs font-bold shadow-lg hover:bg-blue-500">Analyser</button>
+                    <SwButton size="sm" onClick={handleBackspace}>Effacer</SwButton>
+                    <SwButton variant="accent" onClick={handleSubmit}>Analyser</SwButton>
                 </div>
             </div>
         </div>
@@ -411,8 +422,8 @@ function PlasmidPuzzleBlind({ onWin }) {
             </div>
 
             <div className="absolute w-[2px] h-[600px] bg-green-500/30 z-0 shadow-[0_0_10px_lime]"></div>
-            <div className="absolute top-4 text-green-500 font-mono text-xs animate-pulse font-bold bg-black px-2">SCANNER NORD</div>
-            <div className="absolute bottom-4 text-green-500 font-mono text-xs animate-pulse font-bold bg-black px-2">SCANNER SUD</div>
+            <div className="absolute top-4 sw-label text-green-500 animate-pulse bg-black px-2">SCANNER NORD</div>
+            <div className="absolute bottom-4 sw-label text-green-500 animate-pulse bg-black px-2">SCANNER SUD</div>
 
             <div className="relative w-[560px] h-[560px] flex items-center justify-center rounded-full bg-black border-4 border-gray-800 shadow-2xl">
                 {rings.map((ringData, rIdx) => {
@@ -450,7 +461,7 @@ function PlasmidPuzzleBlind({ onWin }) {
                 })}
                 <div className="absolute w-24 h-24 bg-gray-900 rounded-full border-4 border-green-500 flex items-center justify-center z-20 shadow-[0_0_30px_green]"><span className="text-4xl">☢️</span></div>
             </div>
-            {status === 'won' && <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-50 backdrop-blur-sm animate-in zoom-in"><div className="bg-green-900/90 border-2 border-green-400 p-8 rounded-xl text-center shadow-2xl"><h3 className="text-3xl font-bold text-green-100 uppercase tracking-widest mb-2">Plasmide Stabilisé</h3></div></div>}
+            {status === 'won' && <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-50 backdrop-blur-sm animate-in zoom-in"><div className="sw-window p-8 text-center"><h3 className="sw-title text-sw-success text-3xl tracking-widest mb-2">Plasmide Stabilisé</h3></div></div>}
         </div>
     );
 }
@@ -543,19 +554,19 @@ function HarmonicResonance({ onWin }) {
 
     return (
         <div className="flex flex-col items-center w-full max-w-4xl gap-6">
-            <div className="relative w-full h-64 bg-black border-4 border-gray-700 rounded-lg shadow-inner overflow-hidden">
+            <div className="relative w-full h-64 bg-black border border-sw-line rounded-md shadow-[inset_0_0_24px_rgb(70_150_220/0.15)] overflow-hidden">
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,0,0.1)_1px,transparent_1px)] bg-[length:40px_40px]"></div>
                 <canvas ref={canvasRef} width={800} height={256} className="absolute inset-0 w-full h-full" />
                 <div className="absolute top-4 right-4 w-48">
-                    <div className="flex justify-between text-xs text-green-500 font-mono mb-1"><span>SYNCHRONISATION</span><span>{Math.round(stability)}%</span></div>
-                    <div className="h-2 bg-gray-900 border border-gray-600 rounded-full overflow-hidden"><div className="h-full bg-green-500 shadow-[0_0_10px_lime] transition-all duration-100" style={{ width: `${stability}%` }}></div></div>
+                    <div className="flex justify-between sw-label text-sw-success mb-1"><span>SYNCHRONISATION</span><span className="font-mono">{Math.round(stability)}%</span></div>
+                    <SwBar value={stability} max={100} color="var(--sw-success)" />
                 </div>
-                {status === 'won' && <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20"><div className="text-yellow-400 text-4xl font-mono font-bold tracking-widest animate-bounce border-4 border-yellow-400 p-4 rounded">HARMONIE ATTEINTE</div></div>}
+                {status === 'won' && <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20"><div className="sw-window sw-title text-sw-gold text-4xl tracking-widest animate-bounce p-4">HARMONIE ATTEINTE</div></div>}
             </div>
             <div className="grid grid-cols-3 gap-8 w-full px-8">
-                <div className="flex flex-col gap-2"><label className="text-yellow-500 font-mono text-xs uppercase">Fréquence (Hz)</label><input type="range" min="0.5" max="5" step="0.1" value={userFreq} onChange={(e) => setUserFreq(parseFloat(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-yellow-500" /></div>
-                <div className="flex flex-col gap-2"><label className="text-yellow-500 font-mono text-xs uppercase">Amplitude (V)</label><input type="range" min="10" max="100" step="1" value={userAmp} onChange={(e) => setUserAmp(parseFloat(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-yellow-500" /></div>
-                <div className="flex flex-col gap-2"><label className="text-yellow-500 font-mono text-xs uppercase">Déphasage (Φ)</label><input type="range" min="0" max="6.28" step="0.1" value={userPhase} onChange={(e) => setUserPhase(parseFloat(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-yellow-500" /></div>
+                <div className="flex flex-col gap-2"><label className="sw-label text-sw-gold">Fréquence (Hz)</label><input type="range" min="0.5" max="5" step="0.1" value={userFreq} onChange={(e) => setUserFreq(parseFloat(e.target.value))} className="w-full h-1.5 bg-sw-border rounded-full appearance-none cursor-pointer accent-sw-gold" /></div>
+                <div className="flex flex-col gap-2"><label className="sw-label text-sw-gold">Amplitude (V)</label><input type="range" min="10" max="100" step="1" value={userAmp} onChange={(e) => setUserAmp(parseFloat(e.target.value))} className="w-full h-1.5 bg-sw-border rounded-full appearance-none cursor-pointer accent-sw-gold" /></div>
+                <div className="flex flex-col gap-2"><label className="sw-label text-sw-gold">Déphasage (Φ)</label><input type="range" min="0" max="6.28" step="0.1" value={userPhase} onChange={(e) => setUserPhase(parseFloat(e.target.value))} className="w-full h-1.5 bg-sw-border rounded-full appearance-none cursor-pointer accent-sw-gold" /></div>
             </div>
         </div>
     );
@@ -611,17 +622,17 @@ function CryptoMining({ onWin }) {
 
     return (
         <div className="flex flex-col items-center gap-8 w-full max-w-2xl">
-            <div className="flex justify-between w-full items-end border-b border-emerald-900 pb-4">
-                <div><div className="text-emerald-600 text-xs font-mono uppercase">Hash Cible</div><div className="text-5xl font-mono font-bold text-white tracking-widest animate-pulse drop-shadow-[0_0_10px_white]">{target}</div></div>
-                <div className="text-right"><div className="text-emerald-600 text-xs font-mono uppercase">Blocs Validés</div><div className="text-4xl font-mono font-bold text-emerald-400">{score} <span className="text-lg text-emerald-800">/ {TARGET_WINS}</span></div></div>
+            <div className="flex justify-between w-full items-end pb-4" style={{ boxShadow: 'inset 0 -2px 0 var(--sw-accent), inset 0 -3px 0 var(--sw-gold-dim)' }}>
+                <div><div className="sw-label">Hash Cible</div><div className="text-5xl font-mono font-bold text-white tracking-widest animate-pulse drop-shadow-[0_0_10px_white]">{target}</div></div>
+                <div className="text-right"><div className="sw-label">Blocs Validés</div><div className="text-4xl font-mono font-bold text-sw-success">{score} <span className="text-lg text-sw-faint">/ {TARGET_WINS}</span></div></div>
             </div>
-            <div className="w-full h-2 bg-gray-900 rounded-full overflow-hidden"><div className={`h-full transition-all duration-100 linear ${timeLeft < 30 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${timeLeft}%` }}></div></div>
-            <div className="grid grid-cols-4 gap-4 p-4 bg-gray-900/50 rounded-xl border border-gray-700 shadow-2xl">
+            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className={`h-full transition-all duration-100 linear ${timeLeft < 30 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${timeLeft}%` }}></div></div>
+            <div className="grid grid-cols-4 gap-4 p-4 sw-panel shadow-2xl">
                 {grid.map((code, i) => (
-                    <button key={i} onClick={() => handleTileClick(code)} disabled={status !== 'playing'} className={`w-24 h-24 flex items-center justify-center text-2xl font-mono font-bold text-emerald-100 bg-gray-800 border-2 border-emerald-900/30 rounded-lg hover:bg-emerald-900 hover:border-emerald-400 hover:scale-105 hover:shadow-[0_0_15px_emerald] transition-all duration-75 active:scale-95`}>{code}</button>
+                    <button key={i} onClick={() => handleTileClick(code)} disabled={status !== 'playing'} className={`w-24 h-24 flex items-center justify-center text-2xl font-mono font-bold text-emerald-100 bg-sw-panel-light border-2 border-sw-border rounded-md hover:bg-emerald-900 hover:border-emerald-400 hover:scale-105 hover:shadow-[0_0_15px_emerald] transition-all duration-75 active:scale-95`}>{code}</button>
                 ))}
             </div>
-            {status === 'won' && <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-20"><div className="text-center"><div className="text-6xl mb-4">💰</div><div className="text-emerald-400 text-4xl font-bold uppercase tracking-widest animate-bounce">Transaction Validée</div></div></div>}
+            {status === 'won' && <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-20"><div className="text-center flex flex-col items-center"><SwCell icon="galactictradekioskunlock" size={96} active className="mb-4" /><div className="sw-title text-sw-success text-4xl tracking-widest animate-bounce">Transaction Validée</div></div></div>}
         </div>
     );
 }
@@ -744,8 +755,8 @@ function PCBPathfinder({ onWin, onClose }) {
 
     return (
         <div className="flex flex-col items-center gap-4 h-full justify-center relative z-20">
-            <div className={`text-3xl font-mono font-bold mb-2 transition-colors ${moves < 10 ? 'text-red-500 animate-pulse' : 'text-cyan-400'}`}>{moves} <span className="text-sm text-gray-500">MOVES</span></div>
-            <div className="relative p-2 bg-[#0a1510]/80 backdrop-blur-md rounded-lg border-4 border-gray-700 shadow-2xl">
+            <div className={`text-3xl font-mono font-bold mb-2 transition-colors ${moves < 10 ? 'text-red-500 animate-pulse' : 'text-cyan-400'}`}>{moves} <span className="sw-label text-sw-faint">MOVES</span></div>
+            <div className="relative p-2 bg-[#0a1510]/80 backdrop-blur-md rounded-md border border-sw-line shadow-[0_0_18px_rgb(70_150_220/0.25)]">
                 <div className="absolute -left-8 top-4 text-cyan-400 font-mono text-xs font-bold animate-pulse">PWR &rarr;</div>
                 <div className="absolute -right-8 bottom-4 text-cyan-400 font-mono text-xs font-bold animate-pulse">&rarr; CPU</div>
                 <div className="grid gap-px bg-[#050a08]/50" style={{ gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)` }}>
@@ -761,7 +772,7 @@ function PCBPathfinder({ onWin, onClose }) {
                     }))}
                 </div>
             </div>
-            <div className="h-8">{status === 'won' && <div className="text-green-400 font-bold animate-bounce uppercase tracking-widest bg-black/50 px-4 py-1 rounded">CONNEXION ÉTABLIE</div>}{status === 'lost' && <div className="text-red-500 font-bold uppercase tracking-widest bg-black/50 px-4 py-1 rounded">ÉCHEC DU ROUTAGE</div>}</div>
+            <div className="h-8">{status === 'won' && <div className="sw-glass sw-title text-sw-success animate-bounce tracking-widest px-4 py-1" style={{ boxShadow: 'inset 2px 0 0 var(--sw-success)' }}>CONNEXION ÉTABLIE</div>}{status === 'lost' && <div className="sw-glass sw-title text-sw-error tracking-widest px-4 py-1" style={{ boxShadow: 'inset 2px 0 0 var(--sw-error)' }}>ÉCHEC DU ROUTAGE</div>}</div>
         </div>
     );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from 'react';
+import { SwButton, SwCell, SwDivider, SwIcon, SwInput, SwLabel, SwPanel, SwStat, SwTabs, SwWindow } from './ui/Swtor';
 
 const TALENT_POOLS = {
     dark: {
@@ -67,6 +68,33 @@ const BUILDING_CATEGORY_LABELS = {
     force: "Ordre & Culte",
     unique: "Merveille",
     unknown: "Autre"
+};
+
+// Icônes du codex (pack SWTOR) : présentation uniquement
+const UNIT_ICONS = {
+    infantry: 'blaster_generic',
+    heavy_infantry: 'assault',
+    vehicle: 'armorplating',
+    turret: 'mtx_toy_turret',
+    jedi_general: 'jediknight',
+    sith_lord: 'dark_lightning',
+    mandalorian_commander: 'bountyhunter'
+};
+
+const BUILDING_CATEGORY_ICONS = {
+    economic: 'galactictradekioskunlock',
+    military: 'blaster_generic',
+    orbital: 'orbitalbombardment',
+    force: 'jediholocron',
+    unique: 'icon_oldholocron_01',
+    unknown: 'structuralbracing'
+};
+
+// Domaines de base (ordre de TALENT_POOLS : dark, light, mandalorian)
+const DOMAIN_ICONS = {
+    base_0: 'lightningstorm',
+    base_1: 'forcebarriersage',
+    base_2: 'mtx_flair_mandalorian'
 };
 
 export default function Encyclopedia({ onClose, userFaction, magicDomains, buildingsTemplates = [] }) {
@@ -142,384 +170,325 @@ export default function Encyclopedia({ onClose, userFaction, magicDomains, build
     }, [buildingsTemplates, searchTerm, sortKey, sortOrder]);
 
     return (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-300 font-sans p-8 perspective-1000">
-            {/* HOLOGRAM CONTAINER */}
-            <div className={`w-[1200px] h-[800px] bg-[#050508] border border-opacity-50 flex flex-col relative overflow-hidden rounded-xl shadow-2xl ${theme.border} ${theme.shadow}`}>
-                
-                {/* SCANLINES & GRID OVERLAY */}
-                <div className="absolute inset-0 z-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] pointer-events-none opacity-20"></div>
-                <div className="absolute inset-0 z-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 pointer-events-none mix-blend-screen"></div>
-                
-                {/* HEADER */}
-                <div className="relative z-10 bg-black/60 border-b border-gray-800 p-6 flex justify-between items-center backdrop-blur-md">
-                    <div className="flex items-center gap-6">
-                        <div className={`w-16 h-16 rounded-lg ${theme.border} border-2 flex items-center justify-center bg-black/50 shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
-                            <span className="text-4xl filter drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">💾</span>
-                        </div>
-                        <div>
-                            <h2 className={`text-4xl font-bold uppercase tracking-widest ${theme.primary} drop-shadow-md`}>Archives</h2>
-                            <div className="flex items-center gap-2 text-xs font-mono text-gray-400 mt-1">
-                                <span className="animate-pulse">●</span>
-                                <span>CONNEXION SÉCURISÉE ÉTABLIE</span>
-                                <span className="text-gray-600">|</span>
-                                <span>ACCÈS NIVEAU 5</span>
-                            </div>
-                        </div>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-300 p-8">
+            <SwWindow
+                title="Archives"
+                subtitle={<span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-sw-success animate-pulse"></span>Connexion sécurisée établie · Accès niveau 5</span>}
+                icon="lore"
+                onClose={onClose}
+                className="w-[1200px] max-w-full h-[800px] max-h-full"
+                bodyClassName="flex gap-4 overflow-hidden"
+                actions={
+                    /* SEARCH & SORT */
+                    <div className="flex items-center gap-2">
+                        <SwInput
+                            type="text"
+                            placeholder="Rechercher..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-44 py-1 text-[11px] uppercase tracking-wider"
+                        />
+
+                        <SwInput
+                            as="select"
+                            value={sortKey}
+                            onChange={(e) => setSortKey(e.target.value)}
+                            className="w-auto py-1 px-2 text-[11px] uppercase"
+                        >
+                            <option value="name">Nom</option>
+                            <option value="cost">Coût</option>
+                            {tab === 'units' && <option value="power">Puissance</option>}
+                        </SwInput>
+
+                        <SwButton
+                            size="sm"
+                            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                            title={sortOrder === 'asc' ? 'Ordre croissant' : 'Ordre décroissant'}
+                        >
+                            {sortOrder === 'asc' ? '▲' : '▼'}
+                        </SwButton>
                     </div>
-                    
-                        {/* SEARCH & SORT */}
-                        <div className="flex items-center gap-2">
-                            <div className="relative group">
-                                <input 
-                                    type="text" 
-                                    placeholder="Rechercher..." 
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className={`bg-black/40 border border-gray-700 text-gray-300 text-[10px] rounded px-3 py-1 w-40 focus:outline-none focus:border-${theme.accent} transition-all uppercase font-mono tracking-wider`}
-                                />
-                            </div>
+                }
+            >
+                {/* SIDEBAR NAVIGATION (index du codex) */}
+                <div className="w-80 shrink-0 flex flex-col min-h-0">
 
-                            <select 
-                                value={sortKey} 
-                                onChange={(e) => setSortKey(e.target.value)} 
-                                className="bg-black/40 border border-gray-700 text-gray-300 text-[10px] rounded px-2 py-1 focus:outline-none uppercase font-mono"
-                            >
-                                <option value="name">Nom</option>
-                                <option value="cost">Coût</option>
-                                {tab === 'units' && <option value="power">Puissance</option>}
-                            </select>
+                    {/* TABS */}
+                    <SwTabs
+                        tabs={[
+                            { id: 'units', icon: 'assault', label: 'Unités' },
+                            { id: 'buildings', icon: 'structuralbracing', label: 'Bâtiments' },
+                            { id: 'magic', icon: 'force', label: 'Force & Tech' }
+                        ]}
+                        value={tab}
+                        onChange={(id) => { setTab(id); setSelectedItem(null); setSearchTerm(""); }}
+                        tabClassName="min-w-0 flex-1 px-1.5 text-[10px]"
+                    />
 
-                            <button 
-                                onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                                className="bg-black/40 border border-gray-700 text-gray-300 w-6 h-6 flex items-center justify-center rounded hover:bg-white/10"
-                            >
-                                {sortOrder === 'asc' ? '⬆️' : '⬇️'}
-                            </button>
-
-                            <button 
-                                onClick={onClose} 
-                                className={`w-8 h-8 rounded-full border border-gray-700 hover:bg-red-900/30 hover:border-red-500 text-gray-400 hover:text-red-400 flex items-center justify-center transition-all duration-300 ml-2`}
-                            >
-                                ✕
-                            </button>
-                        </div>
-                    </div>
-
-                {/* CONTENT AREA */}
-                <div className="flex-grow flex relative z-10 overflow-hidden">
-                    
-                    {/* SIDEBAR NAVIGATION */}
-                    <div className="w-80 bg-black/40 border-r border-gray-800/50 flex flex-col backdrop-blur-sm">
-                        
-                        {/* TABS */}
-                        <div className="flex p-2 gap-2 bg-black/40">
-                            {[
-                                { id: 'units', icon: '🛡️', label: 'Unités' },
-                                { id: 'buildings', icon: '🏗️', label: 'Bâtiments' },
-                                { id: 'magic', icon: '✨', label: 'Force & Tech' }
-                            ].map((t) => (
-                                <button
-                                    key={t.id}
-                                    onClick={() => { setTab(t.id); setSelectedItem(null); setSearchTerm(""); }}
-                                    className={`flex-1 flex flex-col items-center justify-center p-3 rounded transition-all duration-300 border border-transparent
-                                        ${tab === t.id 
-                                            ? `bg-gray-800 ${theme.border} text-white shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]` 
-                                            : 'bg-transparent hover:bg-gray-800/50 text-gray-500'}`}
+                    {/* NAV LIST */}
+                    <SwPanel dark className="flex-grow min-h-0 overflow-y-auto sw-scroll p-2 space-y-1 mt-1">
+                         {tab === 'units' ? (
+                            filteredUnits.map(([key, unit]) => (
+                                <div
+                                    key={key}
+                                    onClick={() => setSelectedItem({ id: key, ...unit })}
+                                    data-active={selectedItem?.id === key ? 'true' : undefined}
+                                    className="sw-row p-1.5 pr-3 cursor-pointer flex items-center gap-3"
                                 >
-                                    <span className="text-xl mb-1 dark:drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">{t.icon}</span>
-                                    <span className="text-[10px] font-bold uppercase tracking-widest">{t.label}</span>
-                                </button>
-                            ))}
-                        </div>
+                                    <SwCell icon={UNIT_ICONS[key] || 'questionmark'} size={40} active={selectedItem?.id === key} />
+                                    <span className={`flex-1 min-w-0 truncate font-bold text-sm tracking-wide ${selectedItem?.id === key ? 'text-sw-gold' : 'text-sw-text'}`}>{unit.label}</span>
+                                    <span className="sw-label text-[9px] text-sw-faint">{unit.stats.type}</span>
+                                </div>
+                            ))
+                         ) : tab === 'buildings' ? (
+                            Object.entries(groupedBuildings).map(([category, buildings]) => (
+                                <div key={category} className="mb-3">
+                                    <div className="sticky top-0 z-20 bg-sw-panel-dark pt-1 pb-1.5 mb-1 flex items-center gap-2">
+                                        <SwIcon name={BUILDING_CATEGORY_ICONS[category] || 'structuralbracing'} size={18} />
+                                        <SwLabel className="text-sw-gold">{BUILDING_CATEGORY_LABELS[category] || category}</SwLabel>
+                                        <span className="flex-1 h-px bg-sw-border"></span>
+                                    </div>
+                                    {buildings.map((building) => (
+                                        <div
+                                            key={building.id}
+                                            onClick={() => setSelectedItem({ ...building, type: 'building' })}
+                                            data-active={selectedItem?.id === building.id ? 'true' : undefined}
+                                            className="sw-row p-1.5 pr-3 mb-1 cursor-pointer flex items-center gap-3"
+                                        >
+                                            <SwCell icon={BUILDING_CATEGORY_ICONS[category] || 'structuralbracing'} size={40} active={selectedItem?.id === building.id} />
+                                            <span className={`flex-1 min-w-0 truncate font-bold text-sm tracking-wide ${selectedItem?.id === building.id ? 'text-sw-gold' : 'text-sw-text'}`}>{building.name}</span>
+                                            <span className="sw-label text-[9px] text-sw-faint">NIV {building.level || 1}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))
+                         ) : (
+                            filteredMagic.map((domain) => (
+                                <div
+                                    key={domain.id}
+                                    onClick={() => setSelectedItem({ ...domain, type: 'domain' })}
+                                    data-active={selectedItem?.id === domain.id ? 'true' : undefined}
+                                    className="sw-row p-1.5 pr-3 cursor-pointer flex items-center gap-3"
+                                    style={{ boxShadow: `inset 2px 0 0 ${domain.color}` }}
+                                >
+                                    <SwCell size={40} icon={DOMAIN_ICONS[domain.id]} active={selectedItem?.id === domain.id}>
+                                        <span className="text-lg">{domain.icon || '🔮'}</span>
+                                    </SwCell>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-bold text-sm tracking-wide truncate" style={{color: domain.color}}>{domain.label}</div>
+                                        <div className="sw-label text-[9px] text-sw-faint truncate">{domain.talents?.length || 0} Pouvoirs disponibles</div>
+                                    </div>
+                                </div>
+                            ))
+                         )}
+                    </SwPanel>
+                </div>
 
-                        {/* NAV LIST */}
-                        <div className="flex-grow overflow-y-auto custom-scrollbar p-3 space-y-2">
-                             {tab === 'units' ? (
-                                filteredUnits.map(([key, unit]) => (
-                                    <div 
-                                        key={key} 
-                                        onClick={() => setSelectedItem({ id: key, ...unit })}
-                                        className={`p-3 rounded border border-l-4 cursor-pointer transition-all group relative overflow-hidden
-                                            ${selectedItem?.id === key 
-                                                ? `bg-gradient-to-r ${theme.bg_gradient} to-transparent ${theme.border} text-white border-l-current` 
-                                                : 'bg-[#121212] border-gray-800 border-l-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                                            }`}
-                                    >
-                                        <div className="flex justify-between items-center relative z-10">
-                                            <span className="font-bold text-sm tracking-wide">{unit.label}</span>
-                                            <span className="text-[10px] bg-black/50 px-2 py-0.5 rounded border border-gray-700 font-mono">{unit.stats.type}</span>
+                {/* MAIN DISPLAY (panneau de lecture) */}
+                <SwPanel dark className="flex-grow min-w-0 p-6 relative overflow-hidden flex flex-col">
+
+                    {selectedItem ? (
+                        <div className="relative z-10 animate-in slide-in-from-bottom-4 duration-500 flex flex-col h-full min-h-0">
+                            {selectedItem.type === 'domain' ? (
+                                <>
+                                    {/* DOMAIN HEADER */}
+                                    <div className="flex items-center gap-4 mb-3">
+                                        <div className="shrink-0" style={{ filter: `drop-shadow(0 0 8px ${selectedItem.color})` }}>
+                                            <SwCell size={80} icon={DOMAIN_ICONS[selectedItem.id]} active>
+                                                <span className="text-4xl">{selectedItem.icon || "🔮"}</span>
+                                            </SwCell>
+                                        </div>
+                                        <div className="min-w-0">
+                                            <SwLabel className="text-sw-faint mb-1">Doctrine</SwLabel>
+                                            <h3 className="sw-title text-3xl leading-tight" style={{color: selectedItem.color, textShadow: `0 0 16px ${selectedItem.color}66`}}>
+                                                {selectedItem.label}
+                                            </h3>
+                                            <p className="text-sw-dim text-sm max-w-2xl mt-1">{selectedItem.desc}</p>
                                         </div>
                                     </div>
-                                ))
-                             ) : tab === 'buildings' ? (
-                                Object.entries(groupedBuildings).map(([category, buildings]) => (
-                                    <div key={category} className="mb-4">
-                                        <div className="text-[10px] uppercase font-bold text-gray-500 mb-2 pl-2 border-b border-gray-800 pb-1 sticky top-0 bg-[#050508] z-20">
-                                            {BUILDING_CATEGORY_LABELS[category] || category}
-                                        </div>
-                                        {buildings.map((building) => (
-                                            <div 
-                                                key={building.id} 
-                                                onClick={() => setSelectedItem({ ...building, type: 'building' })}
-                                                className={`p-3 mb-1 rounded border border-l-4 cursor-pointer transition-all group relative overflow-hidden
-                                                    ${selectedItem?.id === building.id 
-                                                        ? `bg-gradient-to-r ${theme.bg_gradient} to-transparent ${theme.border} text-white border-l-current` 
-                                                        : 'bg-[#121212] border-gray-800 border-l-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                                                    }`}
-                                            >
-                                                <div className="flex justify-between items-center relative z-10">
-                                                    <span className="font-bold text-sm tracking-wide">{building.name}</span>
-                                                    <span className="text-[10px] bg-black/50 px-2 py-0.5 rounded border border-gray-700 font-mono">NIV {building.level || 1}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ))
-                             ) : (
-                                filteredMagic.map((domain) => (
-                                    <div 
-                                        key={domain.id} 
-                                        onClick={() => setSelectedItem({ ...domain, type: 'domain' })}
-                                        className={`p-3 rounded border border-l-4 cursor-pointer transition-all group relative overflow-hidden
-                                            ${selectedItem?.id === domain.id 
-                                                ? `bg-gradient-to-r from-[${domain.color}]/10 to-transparent border-[${domain.color}] text-white` 
-                                                : 'bg-[#121212] border-gray-800 text-gray-400 hover:bg-gray-800 hover:text-gray-200'
-                                            }`}
-                                        style={selectedItem?.id === domain.id ? { borderColor: domain.color, backgroundColor: `${domain.color}11` } : { borderLeftColor: domain.color }}
-                                    >
-                                        <div className="flex justify-between items-center relative z-10">
-                                            <span className="font-bold text-sm tracking-wide" style={{color: domain.color}}>{domain.label}</span>
-                                            <span className="text-xs">{domain.icon}</span>
-                                        </div>
-                                        <div className="relative z-10 text-[10px] text-gray-600 uppercase mt-1 truncate">{domain.talents?.length || 0} Pouvoirs disponibles</div>
-                                    </div>
-                                ))
-                             )}
-                        </div>
-                    </div>
+                                    <SwDivider className="mb-4" />
 
-                    {/* MAIN DISPLAY */}
-                    <div className="flex-grow p-8 bg-black/60 relative overflow-hidden flex flex-col">
-                        {/* Background Grid for main area */}
-                        <div className="absolute inset-0 z-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20 pointer-events-none"></div>
+                                    {/* TALENTS GRID */}
+                                    <div className="flex-grow min-h-0 overflow-y-auto sw-scroll pr-2">
+                                        <SwLabel as="h4" className="text-sw-gold mb-3 flex items-center gap-2">
+                                            Arbre de Talents
+                                            <span className="bg-sw-border flex-grow h-px"></span>
+                                        </SwLabel>
 
-                        {selectedItem ? (
-                            <div className="relative z-10 animate-in slide-in-from-bottom-4 duration-500 flex flex-col h-full">
-                                {selectedItem.type === 'domain' ? (
-                                    <>
-                                        {/* DOMAIN HEADER */}
-                                        <div className="flex items-end gap-4 mb-4 border-b border-gray-800 pb-4">
-                                            <div className="w-20 h-20 rounded-lg flex items-center justify-center border-2 bg-black/50 shadow-lg text-5xl" style={{borderColor: selectedItem.color, color: selectedItem.color}}>
-                                                {selectedItem.icon || "🔮"}
-                                            </div>
-                                            <div>
-                                                <h3 className="text-4xl font-bold uppercase tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400" style={{textShadow: `0 0 20px ${selectedItem.color}`}}>
-                                                    {selectedItem.label}
-                                                </h3>
-                                                <p className="text-gray-400 font-mono text-sm max-w-2xl mt-1">{selectedItem.desc}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* TALENTS GRID */}
-                                        <div className="flex-grow overflow-y-auto custom-scrollbar pr-2 mt-4">
-                                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                                <span className="bg-gray-700 w-8 h-[1px]"></span>
-                                                Arbre de Talents
-                                                <span className="bg-gray-700 flex-grow h-[1px]"></span>
-                                            </h4>
-                                            
-                                            <div className="grid grid-cols-2 gap-4">
-                                                {selectedItem.talents.map((t, idx) => (
-                                                    <div key={idx} className="relative group bg-gray-900/50 border border-gray-800 p-4 rounded hover:border-gray-500 hover:bg-gray-800/80 transition-all flex gap-4 overflow-hidden">
-                                                        <div className="absolute top-0 right-0 p-1">
-                                                            <div className={`text-[8px] font-bold uppercase px-2 py-0.5 rounded border ${
-                                                                t.type === 'passive' ? 'border-gray-600 text-gray-500' : 
-                                                                (t.type === 'ultimate' ? 'border-yellow-600 text-yellow-500' : 'border-blue-600 text-blue-500')
-                                                            }`}>
-                                                                {t.type || 'Inconnu'}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex flex-col items-center justify-center w-12 h-12 rounded border bg-black shrink-0 relative z-10" style={{borderColor: selectedItem.color}}>
-                                                            <span className="text-lg font-bold text-white">{t.rank}</span>
-                                                            <span className="text-[8px] text-gray-500 uppercase">Rang</span>
-                                                        </div>
-                                                        
-                                                        <div className="relative z-10">
-                                                            <div className="font-bold text-gray-200 uppercase tracking-wide group-hover:text-white transition-colors">{t.label}</div>
-                                                            <div className="text-sm text-gray-400 mt-1">{t.desc}</div>
-                                                        </div>
-
-                                                        <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-white/5 to-transparent rounded-tl-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {selectedItem.talents.map((t, idx) => (
+                                                <div key={idx} className="sw-row relative group p-3 flex gap-3 items-center">
+                                                    <div className="absolute top-1.5 right-2">
+                                                        <span className={`sw-label text-[8px] ${
+                                                            t.type === 'passive' ? 'text-sw-faint' :
+                                                            (t.type === 'ultimate' ? 'text-sw-gold' : 'text-sw-info')
+                                                        }`}>
+                                                            {t.type || 'Inconnu'}
+                                                        </span>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : selectedItem.type === 'building' ? (
-                                    <div className="flex flex-col h-full animate-in fade-in duration-300">
-                                        <div className="flex justify-between items-start border-b border-gray-800 pb-6 mb-6">
-                                            <div>
-                                                <div className="text-[10px] font-mono text-[#cba660] mb-1 flex items-center gap-2">
-                                                    <span className="animate-pulse">🏗️</span>
-                                                    INFRASTRUCTURE C.E.O.
-                                                </div>
-                                                <h3 className={`text-4xl font-bold uppercase tracking-tight text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]`}>
-                                                    {selectedItem.name} 
-                                                    {selectedItem.parentName && <span className="text-gray-500 text-2xl ml-4">({selectedItem.parentName})</span>}
-                                                </h3>
-                                                <div className="flex gap-2 mt-3">
-                                                    {selectedItem.parentName && (
-                                                       <button 
-                                                            onClick={(e) => { e.stopPropagation(); const parent = buildingsTemplates.find(b => b.id === selectedItem.parentId); if(parent) setSelectedItem({...parent, type: 'building'}); }} 
-                                                            className="px-2 py-1 bg-red-900/40 text-red-300 rounded text-[10px] font-bold border border-red-700 uppercase hover:bg-red-900/60"
-                                                       >
-                                                            &lt; Retour Niveau 1
-                                                       </button>
-                                                    )}
-                                                    <span className="px-2 py-1 bg-gray-800 rounded text-[10px] font-bold text-gray-400 border border-gray-700 uppercase">{selectedItem.category || 'Général'}</span>
-                                                    <span className="px-2 py-1 bg-gray-800 rounded text-[10px] font-bold text-yellow-500 border border-gray-700 uppercase">Coût: {selectedItem.cost || 0} CR</span>
-                                                    {selectedItem.level && <span className="px-2 py-1 bg-gray-800 rounded text-[10px] font-bold text-green-400 border border-gray-700 uppercase">Niveau {selectedItem.level}</span>}
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="w-32 h-32 border border-gray-700 rounded bg-black/50 flex items-center justify-center relative overflow-hidden">
-                                                <span className="text-6xl opacity-50">🏭</span>
-                                            </div>
-                                        </div>
 
-                                        <div className="grid grid-cols-2 gap-6">
-                                            <div className="bg-black/40 p-6 rounded border border-gray-800 relative overflow-hidden">
-                                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4 relative z-10">Production / Tour</h4>
-                                                <div className="space-y-2 relative z-10">
-                                                    {selectedItem.production && Object.entries(selectedItem.production).map(([k, v]) => (
-                                                        v !== 0 && (
-                                                        <div key={k} className="flex justify-between items-center border-b border-gray-800 pb-1">
-                                                            <span className="text-gray-400 uppercase text-[10px] font-bold">{k}</span>
-                                                            <span className={`font-mono font-bold ${v > 0 ? "text-green-400" : "text-red-400"}`}>{v > 0 ? '+' : ''}{v}</span>
+                                                    <SwCell size={48} active={t.type === 'ultimate'}>
+                                                        <div className="flex flex-col items-center leading-none">
+                                                            <span className="text-lg font-bold text-sw-text">{t.rank}</span>
+                                                            <span className="text-[7px] text-sw-faint uppercase tracking-wider">Rang</span>
                                                         </div>
-                                                        )
-                                                    ))}
-                                                    {(!selectedItem.production || Object.values(selectedItem.production).every(x => x === 0)) && (
-                                                        <span className="text-gray-600 italic text-xs">Aucun rendement économique direct.</span>
-                                                    )}
-                                                </div>
-                                            </div>
+                                                    </SwCell>
 
-                                            <div className="space-y-4">
-                                                {selectedItem.unlocks_units && selectedItem.unlocks_units.length > 0 && (
-                                                    <div className="bg-blue-950/20 p-4 rounded border border-blue-900/50">
-                                                        <h4 className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Débloque Unités</h4>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {selectedItem.unlocks_units.map(u => (
-                                                                <span key={u} className="px-3 py-1 bg-blue-900/40 text-blue-200 border border-blue-700/50 rounded text-[10px] uppercase font-bold">
-                                                                    {u}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                
-                                                {selectedItem.upgrades && selectedItem.upgrades.length > 0 && (
-                                                    <div className="bg-purple-950/20 p-4 rounded border border-purple-900/50">
-                                                        <h4 className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-3">Arbre Tech</h4>
-                                                        <div className="space-y-3">
-                                                            {selectedItem.upgrades.map((upg, idx) => (
-                                                                <button 
-                                                                    key={idx} 
-                                                                    onClick={() => setSelectedItem({ ...upg, type: 'building', category: selectedItem.category, level: idx+2, parentName: selectedItem.name, parentId: selectedItem.id })}
-                                                                    className="flex flex-col gap-1 bg-black/40 p-2 rounded border border-gray-700 w-full text-left hover:bg-white/5 hover:border-gray-500 transition-colors"
-                                                                >
-                                                                    <div className="flex justify-between items-center w-full">
-                                                                         <span className="text-gray-200 text-xs font-bold uppercase">{upg.name || `Niveau ${idx + 2}`}</span>
-                                                                         <span className="text-[9px] text-gray-500 font-mono">T{idx + 2}</span>
-                                                                    </div>
-                                                                    <div className="flex gap-2 mt-1 w-full flex-wrap">
-                                                                        {upg.production && Object.entries(upg.production).map(([k,v]) => v>0 && (
-                                                                            <span key={k} className="text-[8px] text-green-400 bg-green-900/20 px-1 rounded border border-green-900/30">+{v} {k.substr(0,3)}</span>
-                                                                        ))}
-                                                                        <span className="text-[8px] text-yellow-500 ml-auto">{upg.cost} CR</span>
-                                                                    </div>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    /* UNIT DISPLAY */
-                                    <div className="flex flex-col h-full"> 
-                                        <div className="flex justify-between items-start border-b border-gray-800 pb-6 mb-6">
-                                            <div>
-                                                <div className="text-[10px] font-mono text-cyan-500 mb-1 flex items-center gap-2">
-                                                    <span className="animate-spin duration-[3000ms]">❂</span>
-                                                    UNITÉ IDENTIFIÉE
-                                                </div>
-                                                <h3 className={`text-5xl font-bold uppercase tracking-tight text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]`}>
-                                                    {selectedItem.label}
-                                                </h3>
-                                                <div className="flex gap-2 mt-3">
-                                                    <span className="px-2 py-1 bg-gray-800 rounded text-[10px] font-bold text-gray-400 border border-gray-700 uppercase">{selectedItem.stats.type}</span>
-                                                    <span className="px-2 py-1 bg-gray-800 rounded text-[10px] font-bold text-gray-400 border border-gray-700 uppercase">Taille: {selectedItem.stats.size || 'Moyenne'}</span>
-                                                </div>
-                                            </div>
-                                            
-                                            {/* 3D MODEL PLACEHOLDER */}
-                                            <div className={`w-32 h-32 border border-gray-700 rounded bg-black/50 flex items-center justify-center relative overflow-hidden group`}>
-                                                <div className="absolute inset-0 bg-[linear-gradient(0deg,transparent_0%,rgba(0,255,0,0.2)_50%,transparent_100%)] bg-[length:100%_200%] animate-scanline opacity-20"></div>
-                                                <span className="text-6xl opacity-50 text-gray-600 group-hover:scale-110 transition-transform duration-500">🛡️</span>
-                                            </div>
-                                        </div>
-
-                                        <p className="text-lg text-gray-300 mb-8 font-light italic border-l-2 border-gray-700 pl-4 py-2 bg-gradient-to-r from-gray-900/50 to-transparent">
-                                            "{selectedItem.desc}"
-                                        </p>
-
-                                        {/* STATS BARS */}
-                                        <div className="grid grid-cols-2 gap-x-8 gap-y-6 bg-black/20 p-6 rounded-lg border border-gray-800/50">
-                                            {[
-                                                { label: "Durabilité (HP)", val: selectedItem.stats.hp, max: 500, color: "bg-green-500" },
-                                                { label: "Puissance de Feu", val: selectedItem.stats.dmg, max: 100, color: "bg-red-500" },
-                                                { label: "Portée Effective", val: selectedItem.stats.range, max: 300, color: "bg-yellow-500" },
-                                                { label: "Vitesse Tactique", val: selectedItem.stats.speed, max: 3, color: "bg-cyan-500" },
-                                            ].map((stat, i) => (
-                                                <div key={i}>
-                                                    <div className="flex justify-between text-xs uppercase font-bold text-gray-500 mb-1">
-                                                        <span>{stat.label}</span>
-                                                        <span className="text-white font-mono">{stat.val}</span>
-                                                    </div>
-                                                    <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden border border-gray-700/50">
-                                                        <div 
-                                                            className={`h-full ${stat.color} shadow-[0_0_10px_currentColor] relative`} 
-                                                            style={{ width: `${Math.min(100, (stat.val / stat.max) * 100)}%` }}
-                                                        >
-                                                            <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-                                                        </div>
+                                                    <div className="min-w-0">
+                                                        <div className="font-bold text-sw-text uppercase tracking-wide text-sm group-hover:text-sw-gold transition-colors">{t.label}</div>
+                                                        <div className="text-xs text-sw-dim mt-0.5">{t.desc}</div>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
-                                )}
-                            </div>
-                        ) : (
-                            /* EMPTY STATE */
-                            <div className="h-full flex flex-col items-center justify-center text-gray-600 opacity-40 select-none">
-                                <div className="w-32 h-32 border-4 border-dashed border-gray-700 rounded-full flex items-center justify-center mb-4 animate-[spin_10s_linear_infinite]">
-                                    <span className="text-6xl animate-pulse">📡</span>
-                                </div>
-                                <span className="uppercase tracking-[0.3em] font-bold text-xl">En attente de données</span>
-                                <span className="text-xs font-mono mt-2 text-gray-500">SÉLECTIONNEZ UN SUJET DANS L'INDEX</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                                </>
+                            ) : selectedItem.type === 'building' ? (
+                                <div className="flex flex-col h-full min-h-0 overflow-y-auto sw-scroll pr-1 animate-in fade-in duration-300">
+                                    <div className="flex justify-between items-start gap-4 mb-3">
+                                        <div className="min-w-0">
+                                            <SwLabel className="text-sw-gold-dim mb-1 flex items-center gap-2">
+                                                <SwIcon name="structuralbracing" size={16} />
+                                                Infrastructure C.E.O.
+                                            </SwLabel>
+                                            <h3 className="sw-title text-3xl leading-tight">
+                                                {selectedItem.name}
+                                                {selectedItem.parentName && <span className="text-sw-faint text-xl ml-4">({selectedItem.parentName})</span>}
+                                            </h3>
+                                            <div className="flex flex-wrap items-center gap-2 mt-3">
+                                                {selectedItem.parentName && (
+                                                   <SwButton
+                                                        size="sm"
+                                                        variant="danger"
+                                                        onClick={(e) => { e.stopPropagation(); const parent = buildingsTemplates.find(b => b.id === selectedItem.parentId); if(parent) setSelectedItem({...parent, type: 'building'}); }}
+                                                   >
+                                                        &lt; Retour Niveau 1
+                                                   </SwButton>
+                                                )}
+                                                <span className="sw-panel px-2 py-1 sw-label text-[10px]">{selectedItem.category || 'Général'}</span>
+                                                <span className="sw-panel px-2 py-1 sw-label text-[10px] text-sw-gold">Coût: {selectedItem.cost || 0} CR</span>
+                                                {selectedItem.level && <span className="sw-panel px-2 py-1 sw-label text-[10px] text-sw-success">Niveau {selectedItem.level}</span>}
+                                            </div>
+                                        </div>
 
-                {/* FOOTER DECORATION */}
-                <div className="h-2 bg-gradient-to-r from-transparent via-gray-700 to-transparent opacity-50"></div>
-            </div>
+                                        <SwCell size={112} icon={BUILDING_CATEGORY_ICONS[selectedItem.category] || 'structuralbracing'} active />
+                                    </div>
+                                    <SwDivider className="mb-5" />
+
+                                    <div className="grid grid-cols-2 gap-5">
+                                        <SwPanel className="p-5">
+                                            <SwLabel as="h4" className="text-sw-gold mb-3">Production / Tour</SwLabel>
+                                            <div className="space-y-2">
+                                                {selectedItem.production && Object.entries(selectedItem.production).map(([k, v]) => (
+                                                    v !== 0 && (
+                                                    <div key={k} className="flex justify-between items-center border-b border-sw-border pb-1">
+                                                        <span className="sw-label text-[10px]">{k}</span>
+                                                        <span className={`font-mono font-bold ${v > 0 ? "text-sw-success" : "text-sw-error"}`}>{v > 0 ? '+' : ''}{v}</span>
+                                                    </div>
+                                                    )
+                                                ))}
+                                                {(!selectedItem.production || Object.values(selectedItem.production).every(x => x === 0)) && (
+                                                    <span className="text-sw-faint italic text-xs">Aucun rendement économique direct.</span>
+                                                )}
+                                            </div>
+                                        </SwPanel>
+
+                                        <div className="space-y-4">
+                                            {selectedItem.unlocks_units && selectedItem.unlocks_units.length > 0 && (
+                                                <SwPanel className="p-4">
+                                                    <SwLabel as="h4" className="text-sw-info mb-2">Débloque Unités</SwLabel>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {selectedItem.unlocks_units.map(u => (
+                                                            <span key={u} className="px-2 py-1 rounded-[3px] bg-sw-info/10 text-sw-info border border-sw-info/40 text-[10px] uppercase font-bold tracking-wider">
+                                                                {u}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </SwPanel>
+                                            )}
+
+                                            {selectedItem.upgrades && selectedItem.upgrades.length > 0 && (
+                                                <SwPanel className="p-4">
+                                                    <SwLabel as="h4" className="text-sw-accent-light mb-3">Arbre Tech</SwLabel>
+                                                    <div className="space-y-1.5">
+                                                        {selectedItem.upgrades.map((upg, idx) => (
+                                                            <button
+                                                                key={idx}
+                                                                onClick={() => setSelectedItem({ ...upg, type: 'building', category: selectedItem.category, level: idx+2, parentName: selectedItem.name, parentId: selectedItem.id })}
+                                                                className="sw-row flex flex-col gap-1 p-2 w-full text-left cursor-pointer"
+                                                            >
+                                                                <div className="flex justify-between items-center w-full">
+                                                                     <span className="text-sw-text text-xs font-bold uppercase">{upg.name || `Niveau ${idx + 2}`}</span>
+                                                                     <span className="text-[9px] text-sw-faint font-mono">T{idx + 2}</span>
+                                                                </div>
+                                                                <div className="flex gap-2 mt-1 w-full flex-wrap">
+                                                                    {upg.production && Object.entries(upg.production).map(([k,v]) => v>0 && (
+                                                                        <span key={k} className="text-[8px] text-sw-success bg-sw-success/10 px-1 rounded-[2px] border border-sw-success/30">+{v} {k.substr(0,3)}</span>
+                                                                    ))}
+                                                                    <span className="text-[8px] text-sw-gold ml-auto">{upg.cost} CR</span>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </SwPanel>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                /* UNIT DISPLAY */
+                                <div className="flex flex-col h-full min-h-0 overflow-y-auto sw-scroll pr-1">
+                                    <div className="flex justify-between items-start gap-4 mb-3">
+                                        <div className="min-w-0">
+                                            <SwLabel className="text-sw-accent-light mb-1 flex items-center gap-2">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-sw-accent animate-pulse"></span>
+                                                Unité identifiée
+                                            </SwLabel>
+                                            <h3 className="sw-title text-4xl leading-tight">
+                                                {selectedItem.label}
+                                            </h3>
+                                            <div className="flex gap-2 mt-3">
+                                                <span className="sw-panel px-2 py-1 sw-label text-[10px]">{selectedItem.stats.type}</span>
+                                                <span className="sw-panel px-2 py-1 sw-label text-[10px]">Taille: {selectedItem.stats.size || 'Moyenne'}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* PORTRAIT DE L'UNITÉ */}
+                                        <SwCell size={112} icon={UNIT_ICONS[selectedItem.id] || 'questionmark'} active />
+                                    </div>
+                                    <SwDivider className="mb-5" />
+
+                                    <p className="text-base text-sw-dim mb-6 italic pl-4 py-2" style={{ boxShadow: 'inset 2px 0 0 var(--sw-gold-dim)' }}>
+                                        « {selectedItem.desc} »
+                                    </p>
+
+                                    {/* STATS BARS */}
+                                    <SwPanel className="grid grid-cols-2 gap-x-8 gap-y-5 p-5">
+                                        {[
+                                            { label: "Durabilité (HP)", val: selectedItem.stats.hp, max: 500, color: "var(--sw-success)" },
+                                            { label: "Puissance de Feu", val: selectedItem.stats.dmg, max: 100, color: "var(--sw-error)" },
+                                            { label: "Portée Effective", val: selectedItem.stats.range, max: 300, color: "var(--sw-warn)" },
+                                            { label: "Vitesse Tactique", val: selectedItem.stats.speed, max: 3, color: "var(--sw-info)" },
+                                        ].map((stat, i) => (
+                                            <SwStat key={i} label={stat.label} value={stat.val} bar={stat.val} max={stat.max} color={stat.color} />
+                                        ))}
+                                    </SwPanel>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        /* EMPTY STATE */
+                        <div className="h-full flex flex-col items-center justify-center select-none gap-4">
+                            <div className="relative w-32 h-32 flex items-center justify-center opacity-60">
+                                <SwIcon name="/ui/swtor/scanner.png" size={128} className="absolute inset-0 animate-sw-spin" style={{ animationDuration: '10s' }} />
+                                <SwIcon name="datapad" size={48} className="animate-pulse" />
+                            </div>
+                            <span className="sw-title text-xl tracking-[0.3em] text-sw-faint">En attente de données</span>
+                            <SwLabel className="text-sw-faint">Sélectionnez un sujet dans l&apos;index</SwLabel>
+                        </div>
+                    )}
+                </SwPanel>
+            </SwWindow>
         </div>
     );
 }

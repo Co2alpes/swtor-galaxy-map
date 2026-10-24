@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../app/lib/firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import MagicManager from './MagicManager';
+import { SwButton, SwCell, SwIcon, SwInput, SwLabel, SwPanel, SwTabs, SwWindow } from './ui/Swtor';
+
+// Encart de section du formulaire (panneau + titre en petites capitales)
+const FormSection = ({ title, className = '', children }) => (
+    <SwPanel className={`p-4 ${className}`}>
+        {title && <SwLabel className="text-sw-gold border-b border-sw-border pb-2 mb-3">{title}</SwLabel>}
+        {children}
+    </SwPanel>
+);
 
 const DEFAULT_SHIP = {
     id: 'new_ship',
@@ -129,62 +138,63 @@ export default function UnitManager({ onClose }) {
     const filteredUnits = units.filter(u => u.category === activeTab);
 
     return (
-        <div className="fixed inset-0 bg-black/90 z-[300] flex items-center justify-center p-10">
-            <div className="bg-gray-900 w-full max-w-6xl h-full max-h-[90vh] border border-gray-700 rounded-lg flex flex-col shadow-2xl">
-                {/* Header */}
-                <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900 rounded-t-lg">
-                    <h2 className="text-xl font-bold text-yellow-500 uppercase tracking-widest">Éditeur d'Unités</h2>
-                    <button onClick={onClose} className="text-red-400 hover:text-red-300 font-bold border border-red-900 px-3 py-1 rounded">FERMER</button>
-                </div>
-
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-10">
+            <SwWindow
+                title="Éditeur d'Unités"
+                subtitle="Registre des forces · unités personnalisées"
+                icon="droidparts"
+                onClose={onClose}
+                className="w-full max-w-6xl h-full max-h-[90vh]"
+                bodyClassName="p-0 pt-0 flex flex-col"
+            >
                 {/* Tabs */}
-                <div className="flex border-b border-gray-800">
-                    <button 
-                        onClick={() => { setActiveTab('space'); setEditingUnit(null); }}
-                        className={`flex-1 py-3 text-center font-bold uppercase tracking-wide transition-colors ${activeTab === 'space' ? 'bg-blue-900/40 text-blue-400 border-b-2 border-blue-500' : 'text-gray-500 hover:bg-gray-800'}`}
-                    >
-                        🚀 Unités Spatiales
-                    </button>
-                    <button 
-                         onClick={() => { setActiveTab('ground'); setEditingUnit(null); }}
-                        className={`flex-1 py-3 text-center font-bold uppercase tracking-wide transition-colors ${activeTab === 'ground' ? 'bg-green-900/40 text-green-400 border-b-2 border-green-500' : 'text-gray-500 hover:bg-gray-800'}`}
-                    >
-                        🪖 Unités Terrestres
-                    </button>
+                <div className="px-4 pt-3 border-b border-sw-border">
+                    <SwTabs
+                        tabs={[
+                            { id: 'space', label: 'Unités Spatiales', icon: 'remotecontrolstarship' },
+                            { id: 'ground', label: 'Unités Terrestres', icon: 'assault' },
+                        ]}
+                        value={activeTab}
+                        onChange={(id) => { setActiveTab(id); setEditingUnit(null); }}
+                    />
                 </div>
 
                 {/* Content */}
-                <div className="flex-grow flex overflow-hidden">
+                <div className="flex-grow flex overflow-hidden min-h-0">
                     {/* List */}
-                    <div className="w-1/4 border-r border-gray-800 p-4 bg-black/20 overflow-y-auto">
-                        <button 
+                    <div className="w-1/4 border-r border-sw-border p-4 bg-sw-panel-dark/60 overflow-y-auto sw-scroll">
+                        <SwButton
+                            variant="accent"
                             onClick={() => setEditingUnit(activeTab === 'space' ? { ...DEFAULT_SHIP } : { ...DEFAULT_GROUND })}
-                            className="w-full py-2 bg-green-700 hover:bg-green-600 text-white font-bold rounded mb-4"
+                            className="w-full mb-4"
                         >
                             + CRÉER
-                        </button>
+                        </SwButton>
 
                         {activeTab === 'ground' && (
-                            <button 
+                            <SwButton
                                 onClick={() => setShowMagicManager(true)}
-                                className="w-full py-2 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded mb-4 uppercase text-sm border border-purple-500"
+                                className="w-full mb-4 uppercase text-sm"
                             >
-                                ⚡ Gérer les Pouvoirs
-                            </button>
+                                <SwIcon name="force" size={18} /> Gérer les Pouvoirs
+                            </SwButton>
                         )}
 
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             {filteredUnits.map(u => (
-                                <div key={u.dbId} onClick={() => setEditingUnit(u)} className={`p-3 rounded border cursor-pointer hover:bg-gray-800 transition-colors ${editingUnit?.dbId === u.dbId ? 'bg-gray-800 border-yellow-600' : 'bg-gray-900 border-gray-700'}`}>
-                                    <div className="font-bold text-gray-200">{u.label}</div>
-                                    <div className="text-xs text-gray-500 font-mono">{u.id}</div>
+                                <div key={u.dbId} onClick={() => setEditingUnit(u)} data-active={editingUnit?.dbId === u.dbId ? 'true' : undefined} className="sw-row p-2 cursor-pointer flex items-center gap-3">
+                                    <SwCell size={40} icon={u.category === 'space' ? 'remotecontrolstarship' : (u.isHero ? 'jediknight' : 'assault')} />
+                                    <div className="min-w-0">
+                                        <div className="font-bold text-sw-text text-sm uppercase tracking-wide truncate">{u.label}</div>
+                                        <div className="text-[10px] text-sw-faint font-mono truncate">{u.id}</div>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
                     {/* Editor Form */}
-                    <div className="flex-1 p-6 overflow-y-auto bg-gray-900/50">
+                    <div className="flex-1 p-6 overflow-y-auto sw-scroll">
                         {editingUnit ? (
                             <UnitForm 
                                 unit={editingUnit} 
@@ -195,13 +205,14 @@ export default function UnitManager({ onClose }) {
                                 magicDomains={magicDomains}
                             />
                         ) : (
-                            <div className="h-full flex items-center justify-center text-gray-600 font-mono text-xl uppercase">
+                            <div className="h-full flex flex-col items-center justify-center gap-3 text-sw-faint text-xl uppercase tracking-widest">
+                                <SwIcon name="droidparts" size={56} className="opacity-40" />
                                 Sélectionnez ou créez une unité
                             </div>
                         )}
                     </div>
                 </div>
-            </div>
+            </SwWindow>
             {showMagicManager && <MagicManager onClose={() => setShowMagicManager(false)} />}
         </div>
     );
@@ -223,135 +234,133 @@ function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
-            <div className="flex justify-between items-start">
-                <div>
-                     <input 
-                        type="text" 
-                        value={unit.label} 
-                        onChange={e => handleChange('label', e.target.value)} 
-                        className="bg-transparent text-3xl font-bold text-yellow-500 border-b border-gray-700 outline-none w-full placeholder-gray-600 mb-2"
+            <div className="flex justify-between items-start gap-4">
+                <div className="flex-1 min-w-0">
+                     <input
+                        type="text"
+                        value={unit.label}
+                        onChange={e => handleChange('label', e.target.value)}
+                        className="sw-title bg-transparent text-3xl border-b border-sw-border focus:border-sw-accent outline-none w-full placeholder:text-sw-faint mb-2 transition-colors"
                         placeholder="Nom de l'unité"
                     />
-                    <div className="flex items-center gap-2 text-gray-500">
-                        <span className="text-xs font-mono uppercase">ID Unique:</span>
-                        <input 
-                            type="text" 
-                            value={unit.id} 
-                            onChange={e => handleChange('id', e.target.value)} 
-                            className="bg-gray-800 border border-gray-700 rounded px-2 py-0.5 text-xs font-mono text-white outline-none"
+                    <div className="flex items-center gap-2">
+                        <SwLabel as="span">ID Unique:</SwLabel>
+                        <SwInput
+                            type="text"
+                            value={unit.id}
+                            onChange={e => handleChange('id', e.target.value)}
+                            className="!w-auto !px-2 !py-0.5 text-xs font-mono"
                         />
                     </div>
                 </div>
-                <div className="flex gap-2">
-                     <button onClick={() => onDelete(unit)} className="px-4 py-2 border border-red-800 text-red-500 hover:bg-red-900/30 rounded">Supprimer</button>
-                     <button onClick={() => onSave(unit)} className="px-6 py-2 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded shadow-lg shadow-yellow-900/20">ENREGISTRER</button>
+                <div className="flex gap-2 shrink-0">
+                     <SwButton variant="danger" onClick={() => onDelete(unit)}>Supprimer</SwButton>
+                     <SwButton variant="accent" onClick={() => onSave(unit)}>ENREGISTRER</SwButton>
                 </div>
             </div>
 
             {/* Main Stats Grid */}
             <div className="grid grid-cols-3 gap-4">
-                 <div className="bg-gray-800/50 p-4 rounded border border-gray-700 space-y-3">
-                     <h4 className="text-gray-400 font-bold text-xs uppercase border-b border-gray-700 pb-2 mb-2">Combat</h4>
+                 <FormSection title="Combat" className="space-y-3">
                      <NumberInput label="HP (Points de Vie)" value={unit.hp} onChange={v => handleChange('hp', v)} />
                      <NumberInput label="Dégâts" value={unit.damage} onChange={v => handleChange('damage', v)} />
                      <NumberInput label="Portée" value={unit.range} onChange={v => handleChange('range', v)} />
                      <NumberInput label="Cooldown (Recharge)" value={unit.cooldown} onChange={v => handleChange('cooldown', v)} />
                      <NumberInput label="Précision (0-1)" value={unit.accuracy} onChange={v => handleChange('accuracy', v)} step={0.05} max={1} />
-                 </div>
-                 
-                 <div className="bg-gray-800/50 p-4 rounded border border-gray-700 space-y-3">
-                     <h4 className="text-gray-400 font-bold text-xs uppercase border-b border-gray-700 pb-2 mb-2">Défense & Mouvement</h4>
+                 </FormSection>
+
+                 <FormSection title="Défense & Mouvement" className="space-y-3">
                      <NumberInput label="Armure" value={unit.armor} onChange={v => handleChange('armor', v)} />
                      <NumberInput label="Pénétration Armure" value={unit.armorPen} onChange={v => handleChange('armorPen', v)} />
                      <NumberInput label="Vitesse" value={unit.speed} onChange={v => handleChange('speed', v)} step={0.1} />
                      <NumberInput label="Taille (Hitbox)" value={unit.size} onChange={v => handleChange('size', v)} />
-                 </div>
+                 </FormSection>
 
-                 <div className="bg-gray-800/50 p-4 rounded border border-gray-700 space-y-3">
-                     <h4 className="text-gray-400 font-bold text-xs uppercase border-b border-gray-700 pb-2 mb-2">Apparence & Type</h4>
-                     
+                 <FormSection title="Apparence & Type" className="space-y-3">
+
                      <div className="space-y-1">
-                        <label className="text-xs text-gray-500">Sprite / Image (URL)</label>
-                        <input type="text" value={unit.sprite || ''} onChange={e => handleChange('sprite', e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded px-2 text-sm text-white" placeholder="https://..." />
-                        {unit.sprite && <div className="mt-2 text-center bg-black/50 p-2 rounded"><img src={unit.sprite} alt="Preview" className="h-12 w-auto mx-auto object-contain" /></div>}
+                        <SwLabel as="label" className="block">Sprite / Image (URL)</SwLabel>
+                        <SwInput type="text" value={unit.sprite || ''} onChange={e => handleChange('sprite', e.target.value)} className="!px-2 !py-1 text-sm" placeholder="https://..." />
+                        {unit.sprite && <div className="mt-2 text-center sw-panel-dark p-2"><img src={unit.sprite} alt="Preview" className="h-12 w-auto mx-auto object-contain" /></div>}
                      </div>
 
                      <div className="space-y-1 mt-2">
-                        <label className="text-xs text-gray-500">Forme de base (Si pas d'image)</label>
-                        <select 
-                            value={unit.shape || (isSpace ? 'triangle' : 'circle')} 
+                        <SwLabel as="label" className="block">Forme de base (Si pas d'image)</SwLabel>
+                        <SwInput
+                            as="select"
+                            value={unit.shape || (isSpace ? 'triangle' : 'circle')}
                             onChange={e => handleChange('shape', e.target.value)}
-                            className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                            className="!px-2 !py-1 text-sm"
                         >
                             <option value="triangle">Triangle (Chasseur)</option>
                             <option value="circle">Cercle (Standard)</option>
                             <option value="square">Carré (Lourd)</option>
                             <option value="diamond">Losange (Spécial)</option>
                             <option value="pentagon">Pentagone (Elite)</option>
-                        </select>
+                        </SwInput>
                      </div>
 
                      <div className="space-y-1 mt-2">
-                        <label className="text-xs text-gray-500">Couleur (Hex)</label>
+                        <SwLabel as="label" className="block">Couleur (Hex)</SwLabel>
                         <div className="flex gap-2">
-                            <input type="color" value={unit.color} onChange={e => handleChange('color', e.target.value)} className="w-8 h-8 rounded cursor-pointer"/>
-                            <input type="text" value={unit.color} onChange={e => handleChange('color', e.target.value)} className="flex-1 bg-gray-900 border border-gray-600 rounded px-2 text-sm text-white"/>
+                            <input type="color" value={unit.color} onChange={e => handleChange('color', e.target.value)} className="w-8 h-8 rounded cursor-pointer border border-sw-border bg-transparent"/>
+                            <SwInput type="text" value={unit.color} onChange={e => handleChange('color', e.target.value)} className="flex-1 !px-2 !py-1 text-sm font-mono"/>
                         </div>
                      </div>
                      {!isSpace && (
                          <div className="flex items-center gap-2 mt-4">
-                             <input type="checkbox" checked={unit.isMelee} onChange={e => handleChange('isMelee', e.target.checked)} className="w-4 h-4 accent-yellow-500"/>
-                             <span className="text-sm text-gray-300">Unité de Mêlée</span>
+                             <input type="checkbox" checked={unit.isMelee} onChange={e => handleChange('isMelee', e.target.checked)} className="w-4 h-4 accent-sw-gold"/>
+                             <span className="text-sm text-sw-text">Unité de Mêlée</span>
                          </div>
                      )}
-                     
+
                      {/* Factions Availability */}
-                     <div className="mt-4 pt-4 border-t border-gray-700">
-                         <label className="text-xs text-gray-500 block mb-2">Factions Disponibles</label>
+                     <div className="mt-4 pt-4 border-t border-sw-border">
+                         <SwLabel as="label" className="block mb-2">Factions Disponibles</SwLabel>
                          <div className="flex flex-col gap-2">
                              {FACTION_OPTIONS.map(f => (
                                  <div key={f.id} className="flex items-center gap-2">
-                                     <input 
-                                        type="checkbox" 
-                                        checked={(unit.availableFactions || []).includes(f.id)} 
+                                     <input
+                                        type="checkbox"
+                                        checked={(unit.availableFactions || []).includes(f.id)}
                                         onChange={e => {
                                              const current = unit.availableFactions || [];
-                                             const newValue = e.target.checked 
+                                             const newValue = e.target.checked
                                                 ? [...current, f.id]
                                                 : current.filter(x => x !== f.id);
                                              handleChange('availableFactions', newValue);
                                         }}
-                                        className="w-4 h-4 accent-blue-500"
+                                        className="w-4 h-4 accent-sw-accent"
                                      />
-                                     <span className="text-sm text-gray-300">{f.label}</span>
+                                     <SwIcon name={f.id === 'republic' ? 'republic' : f.id === 'empire' ? 'empire' : 'claninsignia'} size={18} />
+                                     <span className="text-sm text-sw-text">{f.label}</span>
                                  </div>
                              ))}
                          </div>
                      </div>
-                 </div>
+                 </FormSection>
             </div>
 
             {/* Advanced Mechanics */}
             <div className="grid grid-cols-2 gap-4">
                 {/* Traits & Bonuses */}
-                <div className="bg-gray-800/50 p-4 rounded border border-gray-700">
-                     <h4 className="text-gray-400 font-bold text-xs uppercase border-b border-gray-700 pb-2 mb-3">Traits & Bonus</h4>
-                     
+                <FormSection title="Traits & Bonus">
+
                      <div className="mb-4">
-                         <label className="text-xs text-gray-500 block mb-1">Traits de l'unité</label>
+                         <SwLabel as="label" className="block mb-1">Traits de l'unité</SwLabel>
                          <div className="flex gap-2 flex-wrap">
                              {availableTraits.map(t => (
-                                 <button 
+                                 <button
                                     key={t}
                                     title={TRAIT_DESCRIPTIONS[t] || t}
                                     onClick={() => {
                                         const isAdding = !unit.traits.includes(t);
-                                        const newTraits = isAdding 
+                                        const newTraits = isAdding
                                             ? [...unit.traits, t]
                                             : unit.traits.filter(x => x !== t);
-                                        
+
                                         let updates = { traits: newTraits };
-                                        
+
                                         // Auto-apply counters for ships
                                         if (isAdding) {
                                             const map = {
@@ -365,11 +374,12 @@ function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
                                                  updates.bonuses = { ...unit.bonuses, [map[t]]: 2.0 };
                                             }
                                         }
-                                        
+
                                         onChange({ ...unit, ...updates });
                                     }}
-                                    className={`px-2 py-1 text-xs border rounded uppercase transition-colors ${
-                                        unit.traits.includes(t) ? 'bg-indigo-900 border-indigo-500 text-indigo-200' : 'border-gray-700 text-gray-500 hover:border-gray-500'
+                                    data-active={unit.traits.includes(t) ? 'true' : undefined}
+                                    className={`sw-row px-2 py-1 text-xs uppercase tracking-wider transition-colors ${
+                                        unit.traits.includes(t) ? 'text-sw-accent-light' : 'text-sw-dim hover:text-sw-text'
                                     }`}
                                  >
                                      {t}
@@ -379,38 +389,35 @@ function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
                      </div>
 
                      <div>
-                         <label className="text-xs text-gray-500 block mb-1">Bonus de Dégâts (Multiplicateur)</label>
+                         <SwLabel as="label" className="block mb-1">Bonus de Dégâts (Multiplicateur)</SwLabel>
                          <div className="space-y-2">
                              {availableTraits.map(t => (
                                  <div key={t} className="flex items-center gap-2">
-                                     <span className="text-xs text-gray-400 w-24 uppercase">vs {t}</span>
-                                     <input 
-                                        type="number" 
-                                        value={unit.bonuses?.[t] || 1} 
+                                     <span className="text-xs text-sw-dim w-24 uppercase">vs {t}</span>
+                                     <SwInput
+                                        type="number"
+                                        value={unit.bonuses?.[t] || 1}
                                         onChange={e => handleBonusChange(t, e.target.value)}
                                         step={0.1}
-                                        className="w-20 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white"
+                                        className="!w-20 !px-2 !py-1 text-sm font-mono"
                                      />
                                  </div>
                              ))}
                          </div>
                      </div>
-                </div>
+                </FormSection>
 
                 {/* Hero / Heroic Stats */}
-                <div className="bg-gray-800/50 p-4 rounded border border-gray-700">
-                     <div className="flex items-center justify-between border-b border-gray-700 pb-2 mb-3">
-                        <h4 className="text-gray-400 font-bold text-xs uppercase">Rôles & Capacités</h4>
-                     </div>
+                <FormSection title="Rôles & Capacités">
 
                      <div className="flex items-center gap-4 mb-4">
                         <label className="flex items-center gap-2 cursor-pointer">
-                             <input type="checkbox" checked={unit.isHero} onChange={e => handleChange('isHero', e.target.checked)} className="w-4 h-4 accent-yellow-500"/>
-                             <span className={`text-sm font-bold ${unit.isHero ? 'text-yellow-500' : 'text-gray-500'}`}>EST UN HÉROS</span>
+                             <input type="checkbox" checked={unit.isHero} onChange={e => handleChange('isHero', e.target.checked)} className="w-4 h-4 accent-sw-gold"/>
+                             <span className={`text-sm font-bold ${unit.isHero ? 'text-sw-gold' : 'text-sw-faint'}`}>EST UN HÉROS</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
-                             <input type="checkbox" checked={unit.hasAbilities} onChange={e => handleChange('hasAbilities', e.target.checked)} className="w-4 h-4 accent-blue-500"/>
-                             <span className={`text-sm font-bold ${unit.hasAbilities ? 'text-blue-400' : 'text-gray-500'}`}>A DES CAPACITÉS</span>
+                             <input type="checkbox" checked={unit.hasAbilities} onChange={e => handleChange('hasAbilities', e.target.checked)} className="w-4 h-4 accent-sw-accent"/>
+                             <span className={`text-sm font-bold ${unit.hasAbilities ? 'text-sw-accent-light' : 'text-sw-faint'}`}>A DES CAPACITÉS</span>
                         </label>
                      </div>
 
@@ -418,28 +425,30 @@ function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
                          <div className="space-y-3 animation-fade-in relative">
                              <NumberInput label="Mana Max" value={unit.maxMana} onChange={v => handleChange('maxMana', v)} />
                              <NumberInput label="Régénération Mana" value={unit.manaRegen || 1} onChange={v => handleChange('manaRegen', v)} step={0.1} />
-                             
+
                              {/* MAGIC DOMAINS INTEGRATION */}
                              {magicDomains && !isSpace && (
-                                 <div className="space-y-2 border-t border-gray-700 pt-2 mt-2">
-                                     <label className="text-xs text-purple-400 font-bold uppercase">Domaine de Magie ({magicDomains.length} dispos)</label>
-                                     <select 
-                                        value={unit.domainId || ''} 
+                                 <div className="space-y-2 border-t border-sw-border pt-2 mt-2">
+                                     <SwLabel as="label" className="flex items-center gap-2 text-purple-300"><SwIcon name="force" size={16} /> Domaine de Magie ({magicDomains.length} dispos)</SwLabel>
+                                     <SwInput
+                                        as="select"
+                                        value={unit.domainId || ''}
                                         onChange={e => handleChange('domainId', e.target.value)}
-                                        className="w-full bg-gray-900 border border-purple-900 rounded px-2 py-1.5 text-sm text-white outline-none"
+                                        className="!px-2 !py-1.5 text-sm"
                                      >
                                         <option value="">-- Aucun --</option>
                                         {magicDomains.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-                                     </select>
+                                     </SwInput>
                                  </div>
                              )}
 
                              <div className="space-y-1">
-                                <label className="text-xs text-gray-500">Capacité Active Principale</label>
-                                <select 
-                                    value={unit.ability} 
+                                <SwLabel as="label" className="block">Capacité Active Principale</SwLabel>
+                                <SwInput
+                                    as="select"
+                                    value={unit.ability}
                                     onChange={e => handleChange('ability', e.target.value)}
-                                    className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-sm text-white outline-none"
+                                    className="!px-2 !py-1.5 text-sm"
                                 >
                                     <option value="">-- Aucune --</option>
                                     <optgroup label="Standard">
@@ -454,14 +463,14 @@ function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
                                             ))}
                                         </optgroup>
                                     ))}
-                                </select>
-                                <p className="text-[9px] text-gray-500 mt-1">
-                                    * Si un "Domaine" est sélectionné, l'unité reçoit automatiquement <strong>tous</strong> les pouvoirs actifs de ce domaine. Sélectionner une capacité ici permet d'ajouter un pouvoir spécifique hors-domaine.
+                                </SwInput>
+                                <p className="text-[9px] text-sw-faint mt-1">
+                                    * Si un "Domaine" est sélectionné, l'unité reçoit automatiquement <strong className="text-sw-dim">tous</strong> les pouvoirs actifs de ce domaine. Sélectionner une capacité ici permet d'ajouter un pouvoir spécifique hors-domaine.
                                 </p>
                              </div>
                          </div>
                      )}
-                </div>
+                </FormSection>
             </div>
         </div>
     );
@@ -469,14 +478,14 @@ function UnitForm({ unit, onChange, onSave, onDelete, isSpace, magicDomains }) {
 
 const NumberInput = ({ label, value, onChange, step=1, max }) => (
     <div className="space-y-1">
-        <label className="text-xs text-gray-500 block">{label}</label>
-        <input 
-            type="number" 
-            value={isNaN(value) ? '' : value} 
+        <SwLabel as="label" className="block">{label}</SwLabel>
+        <SwInput
+            type="number"
+            value={isNaN(value) ? '' : value}
             onChange={e => onChange(e.target.value === '' ? 0 : parseFloat(e.target.value))}
             step={step}
             max={max}
-            className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:border-yellow-500 outline-none"
+            className="!px-2 !py-1 text-sm font-mono"
         />
     </div>
 );

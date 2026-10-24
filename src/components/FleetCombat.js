@@ -1,4 +1,24 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { SwBar, SwButton, SwCell, SwDivider, SwGlass, SwIcon, SwLabel, SwPortrait, SwStat } from './ui/Swtor';
+
+// Icônes du pack SWTOR pour l'interface (le rendu canvas du combat n'est pas concerné)
+const SHIP_ICONS = {
+    fighter: 'remotecontrolstarship',
+    corvette: 'heatseekermissiles',
+    frigate: 'missilesalvo',
+    cruiser: 'orbitalbombardment',
+    dreadnought: 'legacyorbitalstrike',
+    turret: 'shieldgenerator',
+    admiral_ship: 'companion',
+    grand_moff_ship: 'companion',
+};
+const shipIcon = (type, stats) => SHIP_ICONS[type] || (stats?.isHero ? 'companion' : 'remotecontrolstarship');
+
+const TRAIT_ICONS = {
+    mechanized: 'structuralbracing',
+    robotic: 'droidparts',
+    biological: 'healing',
+};
 
 const imageCache = {};
 
@@ -999,7 +1019,7 @@ export default function FleetCombat({ attackerFleet, defenderFleets, defenderPla
 
     return (
         <div className="fixed inset-0 z-[200]">
-            <canvas 
+            <canvas
                 ref={canvasRef}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -1007,107 +1027,106 @@ export default function FleetCombat({ attackerFleet, defenderFleets, defenderPla
                 onContextMenu={(e)=>e.preventDefault()}
                 className="w-full h-full cursor-crosshair"
             />
-            
+
             {/* UI Overlay */}
-            <div className="absolute top-4 left-4 text-white text-xl font-bold bg-black/50 px-4 py-2 rounded pointer-events-none">
-                 Combat Spatial - {defenderPlanet?.name || 'Secteur Inconnu'}
-            </div>
+            <SwGlass className="absolute top-4 left-4 px-4 py-2 pointer-events-none flex items-center gap-3">
+                 <SwIcon name="remotecontrolstarship" size={28} />
+                 <div className="leading-tight">
+                     <SwLabel className="text-[0.6rem]">Combat Spatial</SwLabel>
+                     <div className="sw-title text-lg">{defenderPlanet?.name || 'Secteur Inconnu'}</div>
+                 </div>
+            </SwGlass>
 
             {/* ORIENTATION CONTROL */}
             <div className="absolute top-4 right-4 flex gap-2">
-                <button
+                <SwButton
                     onClick={() => setIsFacingMode(!isFacingMode)}
-                    className={`px-4 py-2 font-bold rounded border-2 shadow-lg transition-all ${
-                        isFacingMode 
-                        ? 'bg-yellow-600 border-yellow-400 text-white shadow-[0_0_15px_rgba(234,179,8,0.5)]' 
-                        : 'bg-gray-900/80 border-gray-600 text-gray-400 hover:bg-gray-800'
-                    }`}
+                    active={isFacingMode}
+                    variant={isFacingMode ? 'accent' : 'default'}
+                    className={isFacingMode ? 'text-sw-gold' : 'text-sw-dim'}
                 >
-                    ↪ ORIENTATION
-                </button>
+                    <SwIcon name="cc_follow" size={18} /> ORIENTATION
+                </SwButton>
             </div>
 
             {gameState !== 'fighting' && (
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'auto' }}>
-                    <h2 style={{ fontSize: '4rem', color: gameState === 'victory' ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
-                        {gameState === 'victory' ? 'VICTOIRE' : (gameState === 'draw' ? 'EGALITÉ' : 'DÉFAITE')}
-                    </h2>
-                    <button 
-                        onClick={() => finalizeBattle(gameState)}
-                        className="mt-4 px-6 py-3 bg-white text-black font-bold rounded hover:bg-gray-200"
-                    >
-                        Terminer la bataille
-                    </button>
+                    <SwGlass className="px-12 py-8 flex flex-col items-center" accent={gameState === 'victory' ? 'var(--sw-success)' : 'var(--sw-error)'}>
+                        <h2 className="sw-title" style={{ fontSize: '4rem', color: gameState === 'victory' ? '#4ade80' : '#f87171', textShadow: `0 0 24px ${gameState === 'victory' ? 'rgb(74 222 128 / 0.5)' : 'rgb(248 113 113 / 0.5)'}` }}>
+                            {gameState === 'victory' ? 'VICTOIRE' : (gameState === 'draw' ? 'EGALITÉ' : 'DÉFAITE')}
+                        </h2>
+                        <SwDivider className="w-full my-2" />
+                        <SwButton
+                            variant="accent"
+                            onClick={() => finalizeBattle(gameState)}
+                            className="mt-4 px-6"
+                        >
+                            Terminer la bataille
+                        </SwButton>
+                    </SwGlass>
                 </div>
             )}
 
              {/* SELECTION CARD */}
             {selectedUnitData && SHIP_STATS[selectedUnitData.type] && (
-                 <div className="absolute bottom-32 right-4 w-80 bg-gray-900/95 border-2 border-[#8B5A2B] rounded-lg shadow-2xl overflow-hidden backdrop-blur-md text-white z-[210]">
-                     <div className="bg-gradient-to-r from-gray-800 to-gray-900 p-3 border-b border-gray-700 flex justify-between items-center">
-                         <span className="font-bold uppercase text-[#fbbf24] tracking-wider text-sm">{SHIP_STATS[selectedUnitData.type].label}</span>
-                         <span className="text-xs text-gray-500 font-mono">#{selectedUnitData.id}</span>
+                 <SwGlass className="absolute bottom-32 right-4 w-80 overflow-hidden text-sw-text z-[210] border border-sw-border/70">
+                     <div className="px-3 pt-3 pb-2 flex justify-between items-center gap-2">
+                         <span className="sw-title tracking-wider text-sm truncate">{SHIP_STATS[selectedUnitData.type].label}</span>
+                         <span className="text-xs text-sw-faint font-mono">#{selectedUnitData.id}</span>
                      </div>
-                     
+                     <SwDivider className="mx-3" />
+
                      <div className="p-4 space-y-4">
                          <div className="flex justify-center py-2 relative">
-                            <div className={`w-24 h-24 rounded-full flex items-center justify-center border-2 border-gray-600 ${
-                                selectedUnitData.faction === 'republic' ? 'bg-blue-900/40 text-blue-400' : 'bg-red-900/40 text-red-400'
-                            }`}>
-                                <svg viewBox="0 0 24 24" className="w-14 h-14" fill="currentColor">
-                                    <path d="M12 2L4 22h16L12 2zm0 4l4 13H8l4-13z"/>
-                                </svg>
-                            </div>
+                            <SwPortrait faction={selectedUnitData.faction} size={96}>
+                                <SwIcon name={shipIcon(selectedUnitData.type, SHIP_STATS[selectedUnitData.type])} size={44} />
+                            </SwPortrait>
                             {/* Hero Badge */}
                             {SHIP_STATS[selectedUnitData.type].isHero && (
-                                <div className="absolute -top-1 -right-1 bg-yellow-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full border border-yellow-300 shadow-glow">HERO</div>
+                                <div className="absolute -top-1 -right-1 sw-panel-dark border-sw-gold text-sw-gold text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_8px_var(--sw-gold-dim)]">HERO</div>
                             )}
                          </div>
 
                          {/* Status Bars */}
                          <div className="space-y-2">
                              {/* HP */}
-                             <div className="space-y-1">
-                                 <div className="flex justify-between text-xs text-gray-400">
-                                     <span>Boucliers</span>
-                                     <span>{Math.ceil(selectedUnitData.hp)} / {selectedUnitData.maxHp}</span>
-                                 </div>
-                                 <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
-                                     <div className="h-full bg-green-500" style={{ width: `${(selectedUnitData.hp / selectedUnitData.maxHp) * 100}%` }}></div>
-                                 </div>
-                             </div>
-                             
+                             <SwStat
+                                 label="Boucliers"
+                                 value={<span className="font-mono text-xs text-sw-text">{Math.ceil(selectedUnitData.hp)} / {selectedUnitData.maxHp}</span>}
+                                 bar={selectedUnitData.hp}
+                                 max={selectedUnitData.maxHp}
+                                 color="#22c55e"
+                             />
+
                              {/* Mana */}
                              {SHIP_STATS[selectedUnitData.type].isHero && (
-                                 <div className="space-y-1">
-                                     <div className="flex justify-between text-xs text-gray-400">
-                                         <span>Énergie</span>
-                                         <span>{Math.floor(selectedUnitData.mana)} / {selectedUnitData.maxMana}</span>
-                                     </div>
-                                     <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
-                                         <div className="h-full bg-blue-500" style={{ width: `${(selectedUnitData.mana / selectedUnitData.maxMana) * 100}%` }}></div>
-                                     </div>
-                                 </div>
+                                 <SwStat
+                                     label="Énergie"
+                                     value={<span className="font-mono text-xs text-sw-text">{Math.floor(selectedUnitData.mana)} / {selectedUnitData.maxMana}</span>}
+                                     bar={selectedUnitData.mana}
+                                     max={selectedUnitData.maxMana}
+                                     color="#3b82f6"
+                                 />
                              )}
                          </div>
 
                          {/* Stats Grid */}
                          <div className="grid grid-cols-2 gap-2 text-xs">
-                             <div className="bg-gray-800/50 p-2 rounded flex justify-between">
-                                 <span className="text-gray-400">Dégâts</span>
-                                 <span className="font-bold">{SHIP_STATS[selectedUnitData.type].damage}</span>
+                             <div className="sw-panel-dark px-2 py-1.5 flex justify-between items-baseline">
+                                 <span className="sw-label text-[0.6rem]">Dégâts</span>
+                                 <span className="font-bold font-mono">{SHIP_STATS[selectedUnitData.type].damage}</span>
                              </div>
-                             <div className="bg-gray-800/50 p-2 rounded flex justify-between">
-                                 <span className="text-gray-400">Pénétration</span>
-                                 <span className="font-bold text-red-300">{SHIP_STATS[selectedUnitData.type].armorPen || 0}</span>
+                             <div className="sw-panel-dark px-2 py-1.5 flex justify-between items-baseline">
+                                 <span className="sw-label text-[0.6rem]">Pénétration</span>
+                                 <span className="font-bold font-mono text-red-300">{SHIP_STATS[selectedUnitData.type].armorPen || 0}</span>
                              </div>
-                             <div className="bg-gray-800/50 p-2 rounded flex justify-between">
-                                 <span className="text-gray-400">Armure</span>
-                                 <span className="font-bold text-yellow-300">{SHIP_STATS[selectedUnitData.type].armor || 0}</span>
+                             <div className="sw-panel-dark px-2 py-1.5 flex justify-between items-baseline">
+                                 <span className="sw-label text-[0.6rem]">Armure</span>
+                                 <span className="font-bold font-mono text-sw-gold">{SHIP_STATS[selectedUnitData.type].armor || 0}</span>
                              </div>
-                             <div className="bg-gray-800/50 p-2 rounded flex justify-between">
-                                 <span className="text-gray-400">Précision</span>
-                                 <span className="font-bold text-blue-300">{Math.round((SHIP_STATS[selectedUnitData.type].accuracy || 0.85)*100)}%</span>
+                             <div className="sw-panel-dark px-2 py-1.5 flex justify-between items-baseline">
+                                 <span className="sw-label text-[0.6rem]">Précision</span>
+                                 <span className="font-bold font-mono text-blue-300">{Math.round((SHIP_STATS[selectedUnitData.type].accuracy || 0.85)*100)}%</span>
                              </div>
                           </div>
 
@@ -1116,15 +1135,16 @@ export default function FleetCombat({ attackerFleet, defenderFleets, defenderPla
                              {SHIP_STATS[selectedUnitData.type].traits && (
                                  <div className="flex gap-1 flex-wrap">
                                      {SHIP_STATS[selectedUnitData.type].traits.map(t => (
-                                         <span key={t} className="px-2 py-0.5 bg-gray-700 rounded text-[10px] uppercase text-gray-300 border border-gray-600 font-mono tracking-tight">
-                                             {t === 'mechanized' ? '⚙️ MÉCA' : (t === 'robotic' ? '🤖 ROBOT' : (t === 'biological' ? '🧬 BIO' : t))}
+                                         <span key={t} className="sw-panel-dark px-1.5 py-0.5 text-[10px] uppercase text-sw-dim tracking-wider flex items-center gap-1">
+                                             {TRAIT_ICONS[t] && <SwIcon name={TRAIT_ICONS[t]} size={14} />}
+                                             {t === 'mechanized' ? 'MÉCA' : (t === 'robotic' ? 'ROBOT' : (t === 'biological' ? 'BIO' : t))}
                                          </span>
                                      ))}
                                  </div>
                              )}
                              {SHIP_STATS[selectedUnitData.type].bonuses && (
-                                 <div className="text-[10px] text-green-400">
-                                     <span className="text-gray-500 mr-1">Bonus:</span>
+                                 <div className="text-[10px] text-sw-success">
+                                     <span className="sw-label text-[0.6rem] mr-1">Bonus:</span>
                                      {Object.entries(SHIP_STATS[selectedUnitData.type].bonuses).map(([k,v]) => (
                                          <span key={k} className="mr-2">
                                              vs {k.toUpperCase()} +{Math.round((v-1)*100)}%
@@ -1133,35 +1153,32 @@ export default function FleetCombat({ attackerFleet, defenderFleets, defenderPla
                                  </div>
                              )}
                          </div>
-                          
+
                          {/* Ability Button */}
                          {SHIP_STATS[selectedUnitData.type].isHero && (
-                            <button
+                            <SwButton
+                                variant="accent"
                                 onMouseEnter={() => isAbilityHoveredRef.current = true}
                                 onMouseLeave={() => isAbilityHoveredRef.current = false}
                                 onClick={() => castAbility(selectedUnitData.id, SHIP_STATS[selectedUnitData.type].ability)}
                                 disabled={selectedUnitData.mana < SHIP_STATS[selectedUnitData.type].manaCost}
-                                className={`w-full py-2 rounded font-bold border flex items-center justify-center gap-2 transition-all ${
-                                    selectedUnitData.mana >= SHIP_STATS[selectedUnitData.type].manaCost
-                                    ? 'bg-blue-900/50 border-blue-500 hover:bg-blue-800 text-blue-100 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
-                                    : 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed'
-                                }`}
+                                className="w-full disabled:opacity-40 disabled:cursor-not-allowed"
                             >
-                                <span>⚡</span>
+                                <SwIcon name={SHIP_STATS[selectedUnitData.type].ability === 'fleet_repair' ? 'repairkit' : 'orbitalbombardment'} size={20} />
                                 {SHIP_STATS[selectedUnitData.type].ability === 'fleet_repair' ? 'Réparation Flotte' : 'Bombardement Ionique'}
                                 <span className="text-xs ml-1 opacity-70">({SHIP_STATS[selectedUnitData.type].manaCost})</span>
-                            </button>
+                            </SwButton>
                          )}
                      </div>
-                 </div>
+                 </SwGlass>
             )}
 
             {/* UNIT HUD */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gray-900/90 border-t-2 border-[#8B5A2B] p-2 flex gap-2 h-28 items-center overflow-x-auto custom-scrollbar backdrop-blur-md">
-                 <div className="flex-shrink-0 mr-4 border-r border-gray-700 pr-4 flex flex-col justify-center items-center text-gray-500">
-                     <span className="text-2xl">⚓</span>
-                     <span className="text-[10px] uppercase font-bold">Flotte</span>
-                     <span className="text-xs text-white font-mono">{hudUnits.length}</span>
+            <div className="sw-glass !rounded-none absolute bottom-0 left-0 right-0 border-t border-sw-line/70 shadow-[inset_0_2px_0_var(--sw-accent)] p-2 flex gap-2 h-28 items-center overflow-x-auto sw-scroll">
+                 <div className="flex-shrink-0 mr-4 border-r border-sw-border pr-4 flex flex-col justify-center items-center">
+                     <SwIcon name="remotecontrolstarship" size={26} />
+                     <span className="sw-label text-[10px] mt-1">Flotte</span>
+                     <span className="text-xs text-sw-gold font-mono font-bold">{hudUnits.length}</span>
                  </div>
                  {hudUnits.map(u => {
                      const isSelected = selectedEntities.includes(u.id);
@@ -1169,31 +1186,26 @@ export default function FleetCombat({ attackerFleet, defenderFleets, defenderPla
                      const hpPct = (u.hp / u.maxHp) * 100;
 
                      return (
-                         <div 
+                         <div
                             key={u.id}
-                            onClick={(e) => { 
+                            onClick={(e) => {
                                 if(e.ctrlKey) {
                                     setSelectedEntities(prev => prev.includes(u.id) ? prev.filter(id=>id!==u.id) : [...prev, u.id]);
                                 } else {
-                                    setSelectedEntities([u.id]); 
+                                    setSelectedEntities([u.id]);
                                 }
                             }}
-                            className={`relative w-20 h-24 flex-shrink-0 border-2 rounded p-1 cursor-pointer transition-all hover:bg-gray-800 group
-                                ${isSelected ? 'border-blue-500 bg-blue-900/20 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'border-gray-700 bg-black/40 hover:border-gray-500'}
-                            `}
+                            data-active={isSelected ? 'true' : undefined}
+                            className="sw-row relative w-20 h-24 flex-shrink-0 p-1 cursor-pointer group"
                          >
                             <div className="h-2/3 flex items-center justify-center p-1">
                                 {/* Ship Icon */}
-                                <svg viewBox="0 0 24 24" className={`w-8 h-8 drop-shadow-md ${u.type==='fighter'?'text-gray-300': 'text-blue-300'}`} fill="currentColor">
-                                    <path d={u.type === 'fighter' ? "M12 2L4 22h16L12 2zm0 4l4 13H8l4-13z" : "M2 6h20v12H2z"}/>
-                                </svg>
+                                <SwCell size={44} active={isSelected} icon={shipIcon(u.type, stats)} />
                             </div>
-                            <div className="absolute top-1 right-1 text-[8px] font-mono text-gray-400">#{u.id}</div>
+                            <div className="absolute top-1 right-1 text-[8px] font-mono text-sw-faint">#{u.id}</div>
                             <div className="absolute bottom-1 left-1 right-1 space-y-1">
-                                <div className="text-[9px] text-center font-bold text-gray-300 truncate leading-none mb-1">{stats.label}</div>
-                                <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden border border-gray-600">
-                                    <div className="h-full transition-all duration-300" style={{ width: `${hpPct}%`, backgroundColor: hpPct > 50 ? '#3b82f6' : (hpPct > 20 ? '#eab308' : '#ef4444') }}></div>
-                                </div>
+                                <div className="text-[9px] text-center font-bold text-sw-dim group-hover:text-sw-text truncate leading-none mb-1">{stats.label}</div>
+                                <SwBar value={hpPct} max={100} height={5} color={hpPct > 50 ? '#3b82f6' : (hpPct > 20 ? '#eab308' : '#ef4444')} />
                             </div>
                          </div>
                      );

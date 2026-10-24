@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { db } from '../app/lib/firebase';
 import { doc, updateDoc, increment, arrayUnion } from 'firebase/firestore';
 import ResearchMinigame from './ResearchMinigame'; // Import du mini-jeu
+import { SwCell, SwIcon, SwPanel, SwTabs, SwWindow } from './ui/Swtor';
 
 // --- CONFIGURATION DE L'ARBRE TECH ---
 export const TECH_TREE = {
@@ -22,6 +23,19 @@ export const TECH_TREE = {
         { id: 'tech_holocron', label: "Étude des Holocrons", cost: 500, desc: "Débloque les Temples de niveau 2.", icon: "✨", parent: null },
         { id: 'tech_meditation', label: "Méditation de Combat", cost: 2000, desc: "Bonus +10% Attaque pour toutes les flottes.", icon: "🧘", parent: 'tech_holocron' }
     ]
+};
+
+// Icônes du pack SWTOR pour chaque tech (présentation uniquement)
+const TECH_ICONS = {
+    tech_corvette: 'remotecontrolstarship',
+    tech_frigate: 'missilesalvo',
+    tech_cruiser: 'heatseekermissiles',
+    tech_dreadnought: 'orbitalbombardment',
+    tech_mining_1: 'durasteelbar',
+    tech_trade_1: 'galactictradekioskunlock',
+    tech_cloning: 'kolto_tank',
+    tech_holocron: 'jediholocron',
+    tech_meditation: 'darkmeditation'
 };
 
 export default function ResearchTree({ userFaction, factionData, onClose }) {
@@ -75,27 +89,27 @@ export default function ResearchTree({ userFaction, factionData, onClose }) {
                 />
             )}
 
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 font-sans animate-in fade-in zoom-in-95 duration-200">
-                <div className="w-full max-w-5xl h-[85vh] bg-gray-900 border-2 border-blue-500/50 rounded-xl flex flex-col shadow-[0_0_50px_rgba(37,99,235,0.2)] overflow-hidden">
-                    
-                    <div className="p-6 border-b border-blue-900/50 bg-black/40 flex justify-between items-center">
-                        <div className="flex items-center gap-4">
-                            <div className="text-4xl animate-pulse">💠</div>
-                            <div>
-                                <h2 className="text-2xl font-bold text-blue-100 uppercase tracking-widest">Laboratoire de Recherche</h2>
-                                <p className="text-blue-400 text-xs uppercase">Ressources : <span className="font-mono font-bold text-white text-lg">{currentScience.toLocaleString()}</span> Données</p>
-                            </div>
-                        </div>
-                        <button onClick={onClose} className="px-4 py-2 border border-blue-800 hover:bg-blue-900/50 text-blue-200 uppercase text-xs font-bold rounded transition">Fermer</button>
-                    </div>
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95 duration-200">
+                <SwWindow
+                    title="Laboratoire de Recherche"
+                    subtitle={<>Ressources : <span className="font-mono font-bold text-sw-gold text-sm">{currentScience.toLocaleString()}</span> Données</>}
+                    icon="datacron_blue"
+                    onClose={onClose}
+                    className="w-full max-w-5xl h-[85vh]"
+                    bodyClassName="flex flex-col gap-0 overflow-hidden"
+                >
+                    <SwTabs
+                        tabs={[
+                            { id: 'military', icon: 'assault', label: 'Militaire' },
+                            { id: 'economic', icon: 'galactictradekioskunlock', label: 'Économique' },
+                            { id: 'force', icon: 'force', label: 'Force & Traditions' }
+                        ]}
+                        value={activeTab}
+                        onChange={setActiveTab}
+                        className="px-2"
+                    />
 
-                    <div className="flex border-b border-blue-900/30 bg-black/20">
-                        <button onClick={() => setActiveTab('military')} className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition ${activeTab === 'military' ? 'bg-red-900/20 text-red-400 border-b-2 border-red-500' : 'text-gray-500 hover:text-white'}`}>⚔️ Militaire</button>
-                        <button onClick={() => setActiveTab('economic')} className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition ${activeTab === 'economic' ? 'bg-yellow-900/20 text-yellow-400 border-b-2 border-yellow-500' : 'text-gray-500 hover:text-white'}`}>💰 Économique</button>
-                        <button onClick={() => setActiveTab('force')} className={`flex-1 py-4 text-xs font-bold uppercase tracking-widest transition ${activeTab === 'force' ? 'bg-purple-900/20 text-purple-400 border-b-2 border-purple-500' : 'text-gray-500 hover:text-white'}`}>✨ Force & Traditions</button>
-                    </div>
-
-                    <div className="flex-grow p-8 overflow-y-auto bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed relative">
+                    <SwPanel dark className="flex-grow min-h-0 p-8 overflow-y-auto sw-scroll relative">
                         <div className="flex flex-col items-center gap-12">
                             {TECH_TREE[activeTab].map((tech) => {
                                 const isUnlocked = unlockedTechs.includes(tech.id);
@@ -104,35 +118,37 @@ export default function ResearchTree({ userFaction, factionData, onClose }) {
 
                                 return (
                                     <div key={tech.id} className="relative flex flex-col items-center group">
-                                        {tech.parent && <div className="absolute -top-12 w-0.5 h-12 bg-gray-700 group-hover:bg-blue-500/50 transition-colors"></div>}
-                                        
-                                        <button 
+                                        {tech.parent && <div className={`absolute -top-12 w-0.5 h-12 transition-colors ${isUnlocked ? 'bg-sw-success/60' : 'bg-sw-border group-hover:bg-sw-accent/60'}`}></div>}
+
+                                        <button
                                             onClick={() => isAvailable && initiateResearch(tech)}
                                             disabled={isLocked || isUnlocked || isResearching}
+                                            data-active={isAvailable && !isUnlocked ? 'true' : undefined}
                                             className={`
-                                                w-96 p-4 border-2 rounded-lg flex items-center gap-4 transition-all duration-300 relative overflow-hidden text-left
-                                                ${isUnlocked 
-                                                    ? 'bg-green-950/40 border-green-500/50 shadow-[0_0_20px_rgba(34,197,94,0.2)]' 
-                                                    : (isAvailable 
-                                                        ? 'bg-gray-900/80 border-blue-500 hover:bg-blue-900/30 hover:scale-105 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] cursor-pointer' 
-                                                        : 'bg-black/60 border-gray-800 opacity-50 grayscale cursor-not-allowed')
+                                                sw-row w-96 p-3 flex items-center gap-4 transition-all duration-300 relative overflow-hidden text-left
+                                                ${isUnlocked
+                                                    ? 'border-sw-success/50 bg-sw-success/10 shadow-[0_0_16px_rgb(112_212_122/0.15)]'
+                                                    : (isAvailable
+                                                        ? 'hover:scale-105 hover:shadow-[0_0_24px_rgb(var(--sw-accent-rgb)/0.3)] cursor-pointer'
+                                                        : 'opacity-50 grayscale cursor-not-allowed')
                                                 }
                                             `}
                                         >
-                                            <div className={`text-3xl w-16 h-16 flex items-center justify-center rounded-full bg-black/50 border ${isUnlocked ? 'border-green-500' : 'border-gray-600'}`}>
-                                                {isUnlocked ? '✔️' : tech.icon}
-                                            </div>
-                                            
-                                            <div className="flex-grow">
-                                                <h4 className={`text-sm font-bold uppercase ${isUnlocked ? 'text-green-400' : 'text-gray-200'}`}>{tech.label}</h4>
-                                                <p className="text-[10px] text-gray-400">{tech.desc}</p>
-                                                
+                                            <SwCell size={64} icon={TECH_ICONS[tech.id]} active={isUnlocked || isAvailable}>
+                                                <span className="text-3xl">{tech.icon}</span>
+                                            </SwCell>
+                                            {isUnlocked && <SwIcon name="cnq_check_green" size={20} className="absolute left-12 bottom-2" />}
+
+                                            <div className="flex-grow min-w-0">
+                                                <h4 className={`text-sm font-bold uppercase tracking-wide ${isUnlocked ? 'text-sw-success' : (isAvailable ? 'text-sw-gold' : 'text-sw-text')}`}>{tech.label}</h4>
+                                                <p className="text-[11px] text-sw-dim">{tech.desc}</p>
+
                                                 {!isUnlocked && (
                                                     <div className="mt-2 flex items-center gap-2 text-xs font-mono">
-                                                        <span className={`${currentScience >= tech.cost ? 'text-blue-300' : 'text-red-500'}`}>
-                                                            {tech.cost} 💠
+                                                        <span className={`flex items-center gap-1 font-bold ${currentScience >= tech.cost ? 'text-sw-info' : 'text-sw-error'}`}>
+                                                            {tech.cost} <SwIcon name="datacron_blue" size={14} />
                                                         </span>
-                                                        {isLocked && <span className="text-red-500 uppercase text-[9px] ml-auto">🔒 Requis : Tech Précédente</span>}
+                                                        {isLocked && <span className="sw-label text-sw-error text-[9px] ml-auto flex items-center gap-1"><SwIcon name="key" size={12} /> Requis : Tech Précédente</span>}
                                                     </div>
                                                 )}
                                             </div>
@@ -141,8 +157,8 @@ export default function ResearchTree({ userFaction, factionData, onClose }) {
                                 );
                             })}
                         </div>
-                    </div>
-                </div>
+                    </SwPanel>
+                </SwWindow>
             </div>
         </>
     );

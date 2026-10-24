@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { SwButton, SwGlass, SwIcon, SwInput, SwLabel, SwTitle, SwWindow } from './ui/Swtor';
 
 const MAP_WIDTH = 3000;
 const MAP_HEIGHT = 2000;
@@ -257,36 +258,40 @@ export default function GroundMapEditor({ onClose, onSave, existingMap }) {
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black text-white">
-            <div className="absolute top-0 left-0 w-full h-16 bg-gray-900 border-b border-gray-700 flex items-center justify-between px-4 z-50">
-                <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-bold text-yellow-500">ÉDITEUR DE CARTE</h2>
-                    <input 
-                        type="text" 
+        <div className="fixed inset-0 z-[100] bg-sw-bg text-sw-text">
+            <div
+                className="absolute top-0 left-0 w-full h-16 bg-sw-panel-dark backdrop-blur-md flex items-center justify-between gap-4 px-4 z-50"
+                style={{ boxShadow: '0 2px 0 var(--sw-accent), 0 3px 0 var(--sw-gold-dim), 0 10px 24px rgb(0 0 0 / 0.55)' }}
+            >
+                <div className="flex items-center gap-3">
+                    <SwIcon name="star_map" size={34} />
+                    <SwTitle className="text-lg leading-none whitespace-nowrap">ÉDITEUR DE CARTE</SwTitle>
+                    <SwInput
+                        type="text"
                         value={mapName}
                         onChange={(e) => setMapName(e.target.value)}
-                        className="bg-gray-800 border border-gray-600 px-2 py-1 rounded w-32"
+                        className="w-40 py-1 text-sm"
                         placeholder="Nom"
                     />
-                    <select value={terrainType} onChange={e => setTerrainType(e.target.value)} className="bg-gray-800 border border-gray-600 px-2 py-1 rounded text-xs ml-2">
+                    <SwInput as="select" value={terrainType} onChange={e => setTerrainType(e.target.value)} className="w-auto py-1 text-xs ml-1">
                         {TERRAIN_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                    </select>
+                    </SwInput>
                 </div>
-                <div className="flex gap-2 bg-gray-800 p-1 rounded-lg">
-                    <button onClick={() => setTool('select')} className={`px-3 py-1 rounded ${tool==='select'?'bg-blue-600':'hover:bg-gray-700'}`}>👆</button>
-                    <button onClick={() => setTool('rect')} className={`px-3 py-1 rounded ${tool==='rect'?'bg-blue-600':'hover:bg-gray-700'}`}>⬜ Mur</button>
-                    <button onClick={() => setTool('circle')} className={`px-3 py-1 rounded ${tool==='circle'?'bg-blue-600':'hover:bg-gray-700'}`}>⚪ Rocher</button>
-                    <button onClick={() => setTool('atk_spawn')} className={`px-3 py-1 rounded ${tool==='atk_spawn'?'bg-blue-600':'hover:bg-gray-700'}`}>🟦 Spawn</button>
-                    <button onClick={() => setTool('def_spawn')} className={`px-3 py-1 rounded ${tool==='def_spawn'?'bg-blue-600':'hover:bg-gray-700'}`}>🟥 Spawn</button>
-                    <button onClick={() => setTool('erase')} className={`px-3 py-1 rounded ${tool==='erase'?'bg-red-600':'hover:bg-gray-700'}`}>❌</button>
+                <div className="flex items-center gap-2 sw-panel-dark px-2 py-1.5">
+                    <SwButton size="sm" active={tool==='select'} onClick={() => setTool('select')}>👆</SwButton>
+                    <SwButton size="sm" active={tool==='rect'} onClick={() => setTool('rect')}>⬜ Mur</SwButton>
+                    <SwButton size="sm" active={tool==='circle'} onClick={() => setTool('circle')}>⚪ Rocher</SwButton>
+                    <SwButton size="sm" active={tool==='atk_spawn'} onClick={() => setTool('atk_spawn')}>🟦 Spawn</SwButton>
+                    <SwButton size="sm" active={tool==='def_spawn'} onClick={() => setTool('def_spawn')}>🟥 Spawn</SwButton>
+                    <SwButton size="sm" variant="danger" active={tool==='erase'} onClick={() => setTool('erase')}>❌</SwButton>
                 </div>
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded">Fermer</button>
-                    <button onClick={handleSave} className="px-4 py-2 bg-green-700 hover:bg-green-600 rounded font-bold">Sauver</button>
+                <div className="flex items-center gap-3">
+                    <SwButton onClick={onClose}>Fermer</SwButton>
+                    <SwButton variant="accent" onClick={handleSave}>Sauver</SwButton>
                 </div>
             </div>
-            
-            <canvas 
+
+            <canvas
                 ref={canvasRef}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -294,15 +299,20 @@ export default function GroundMapEditor({ onClose, onSave, existingMap }) {
                 onWheel={handleWheel}
                 className="block cursor-crosshair"
             />
-            
+
             {selectedObject !== null && obstacles[selectedObject] && (
-                <div className="absolute top-20 right-4 w-64 bg-gray-900 border border-gray-700 p-4 rounded shadow-xl z-50">
-                    <h3 className="text-yellow-500 font-bold mb-2 uppercase text-xs border-b border-gray-700 pb-1">Propriétés</h3>
+                <SwWindow
+                    title="Propriétés"
+                    icon="structuralbracing"
+                    className="absolute top-20 right-4 w-64 z-50"
+                    bodyClassName="p-4 pt-4"
+                >
                     <div className="space-y-3">
                         <div>
-                            <label className="text-gray-400 text-[10px] uppercase block mb-1">Type</label>
-                            <select 
-                                value={obstacles[selectedObject].type || 'rock'} 
+                            <SwLabel as="label" className="text-[10px] block mb-1">Type</SwLabel>
+                            <SwInput
+                                as="select"
+                                value={obstacles[selectedObject].type || 'rock'}
                                 onChange={(e) => {
                                     const type = e.target.value;
                                     const defaultColor = OBSTACLE_TYPES.find(t=>t.id===type)?.defaultColor;
@@ -310,86 +320,88 @@ export default function GroundMapEditor({ onClose, onSave, existingMap }) {
                                     newObs[selectedObject] = { ...newObs[selectedObject], type, color: defaultColor };
                                     setObstacles(newObs);
                                 }}
-                                className="w-full bg-black border border-gray-600 text-xs px-2 py-1 rounded text-white"
+                                className="text-xs px-2 py-1"
                             >
                                 {OBSTACLE_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                            </select>
+                            </SwInput>
                         </div>
                         <div>
-                            <label className="text-gray-400 text-[10px] uppercase block mb-1">Couleur</label>
-                            <input 
-                                type="color" 
+                            <SwLabel as="label" className="text-[10px] block mb-1">Couleur</SwLabel>
+                            <SwInput
+                                type="color"
                                 value={obstacles[selectedObject].color || '#555555'}
                                 onChange={(e) => {
                                     const newObs = [...obstacles];
                                     newObs[selectedObject] = { ...newObs[selectedObject], color: e.target.value };
                                     setObstacles(newObs);
                                 }}
-                                className="w-full h-8 cursor-pointer border border-gray-600 rounded bg-black"
+                                className="h-8 cursor-pointer p-0.5"
                             />
                         </div>
                         {obstacles[selectedObject].shape === 'rect' ? (
                              <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="text-gray-400 text-[10px] uppercase block mb-1">Largeur</label>
-                                    <input 
-                                        type="number" 
+                                    <SwLabel as="label" className="text-[10px] block mb-1">Largeur</SwLabel>
+                                    <SwInput
+                                        type="number"
                                         value={Math.round(obstacles[selectedObject].width)}
                                         onChange={(e) => {
                                             const newObs = [...obstacles];
                                             newObs[selectedObject] = { ...newObs[selectedObject], width: Number(e.target.value) };
                                             setObstacles(newObs);
                                         }}
-                                        className="w-full bg-black border border-gray-600 text-xs px-2 py-1 rounded text-white"
+                                        className="text-xs px-2 py-1 font-mono"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-gray-400 text-[10px] uppercase block mb-1">Hauteur</label>
-                                    <input 
-                                        type="number" 
+                                    <SwLabel as="label" className="text-[10px] block mb-1">Hauteur</SwLabel>
+                                    <SwInput
+                                        type="number"
                                         value={Math.round(obstacles[selectedObject].height)}
                                         onChange={(e) => {
                                             const newObs = [...obstacles];
                                             newObs[selectedObject] = { ...newObs[selectedObject], height: Number(e.target.value) };
                                             setObstacles(newObs);
                                         }}
-                                        className="w-full bg-black border border-gray-600 text-xs px-2 py-1 rounded text-white"
+                                        className="text-xs px-2 py-1 font-mono"
                                     />
                                 </div>
                              </div>
                         ) : (
                             <div>
-                                <label className="text-gray-400 text-[10px] uppercase block mb-1">Taille</label>
-                                <input 
-                                    type="number" 
+                                <SwLabel as="label" className="text-[10px] block mb-1">Taille</SwLabel>
+                                <SwInput
+                                    type="number"
                                     value={Math.round(obstacles[selectedObject].size)}
                                     onChange={(e) => {
                                         const newObs = [...obstacles];
                                         newObs[selectedObject] = { ...newObs[selectedObject], size: Number(e.target.value) };
                                         setObstacles(newObs);
                                     }}
-                                    className="w-full bg-black border border-gray-600 text-xs px-2 py-1 rounded text-white"
+                                    className="text-xs px-2 py-1 font-mono"
                                 />
                             </div>
                         )}
-                        <button 
+                        <SwButton
+                            variant="danger"
+                            size="sm"
                             onClick={() => {
                                 const newObs = [...obstacles];
                                 newObs.splice(selectedObject, 1);
                                 setObstacles(newObs);
                                 setSelectedObject(null);
                             }}
-                            className="w-full bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 text-xs py-1 uppercase font-bold rounded mt-2"
+                            className="w-full mt-4"
                         >
                             Supprimer
-                        </button>
+                        </SwButton>
                     </div>
-                </div>
+                </SwWindow>
             )}
-            
-            <div className="absolute bottom-4 left-4 bg-black/50 p-2 text-xs text-gray-400 pointer-events-none">
+
+            <SwGlass className="absolute bottom-4 left-4 px-3 py-1.5 text-xs text-sw-dim pointer-events-none">
                 Molette: Zoom | Clic Milieu / Shift+Clic: Panoramique
-            </div>
+            </SwGlass>
         </div>
     );
 }

@@ -3,6 +3,22 @@
 import { useState } from 'react';
 import { db } from '../app/lib/firebase';
 import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+import { SwButton, SwCell, SwDivider, SwEmblem, SwGlass, factionKit } from './ui/Swtor';
+
+// Couleurs d'identité des factions (sens de jeu : bleu République, rouge Empire...)
+const FACTION_TONES = {
+  republic: '#60aaf5',
+  empire: '#e8403a',
+  neutral: '#f0a33a',
+  mandalorians: '#f97316',
+  civil: '#9ca3af',
+};
+
+// Icônes du pack SWTOR pour les sous-factions neutres
+const SUB_ICONS = {
+  mandalorians: 'mtx_flair_mandalorian',
+  civil: 'forcedetect',
+};
 
 // --- DONNÉES DES FACTIONS ---
 const FACTIONS = [
@@ -169,22 +185,18 @@ export default function FactionSelector({ userID, onFactionSelected, onBack }) {
 
   return (
     <div className="w-full flex flex-col items-center relative">
-      
-      {/* --- ARRIÈRE-PLAN DYNAMIQUE --- */}
-      <div className="fixed inset-0 z-0 bg-black transition-colors duration-700 pointer-events-none">
-        
-        {/* Fond par défaut (Galaxie) */}
-        <div className={`absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] transition-opacity duration-700 ${activeBgFaction ? 'opacity-10' : 'opacity-50'}`}></div>
-        
-        {/* Images de faction */}
+
+      {/* --- ARRIÈRE-PLAN DYNAMIQUE (par-dessus le SwBackdrop de la page) --- */}
+      <div className="fixed inset-0 z-0 transition-colors duration-700 pointer-events-none">
+
+        {/* Images de faction (textures SWTOR) */}
         {FACTIONS.map((f) => (
-            <div 
+            <div
                 key={`bg-${f.id}`}
-                // MODIFICATION ICI : Changement de opacity-90 à opacity-40 pour un fondu léger
-                className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ease-in-out
-                    ${activeBgFaction?.id === f.id ? 'opacity-40' : 'opacity-0'}
+                className={`absolute inset-0 bg-cover bg-bottom mix-blend-screen transition-opacity duration-700 ease-in-out
+                    ${activeBgFaction?.id === f.id ? 'opacity-60' : 'opacity-0'}
                 `}
-                style={{ backgroundImage: `url(${f.bgImage})` }}
+                style={{ backgroundImage: `url(${factionKit(f.id).background})` }}
             >
                 {/* Calque de couleur */}
                 <div className={`absolute inset-0 bg-gradient-to-t ${f.overlayColor} mix-blend-overlay`}></div>
@@ -198,39 +210,51 @@ export default function FactionSelector({ userID, onFactionSelected, onBack }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mb-8">
             {FACTIONS.filter(f => !f.hidden).map((f) => {
               const isSelected = selectedId === f.id;
-              
+              const tone = FACTION_TONES[f.id];
+
               return (
                 <button
                   key={f.id}
                   onClick={() => { setSelectedId(f.id); setSelectedSubId(null); }}
                   onMouseEnter={() => setHoveredId(f.id)}
                   onMouseLeave={() => setHoveredId(null)}
-                  className={`relative group flex flex-col items-center text-center p-6 rounded-xl border-2 transition-all duration-300 transform backdrop-blur-sm
-                    ${isSelected 
-                        ? `${f.bg} ${f.border} scale-105 shadow-[0_0_30px_rgba(0,0,0,0.5)] ${f.glow}` 
-                        : `bg-gray-950/50 border-gray-800 ${f.hoverStyle}`
-                    }
+                  data-faction={f.id}
+                  className={`sw-window relative group flex flex-col items-center text-center p-6 pt-7 overflow-hidden cursor-pointer transition-all duration-300 transform
+                    ${isSelected ? 'scale-105' : 'hover:-translate-y-1 hover:border-sw-line-light'}
                   `}
+                  style={{
+                    borderColor: isSelected ? tone : undefined,
+                    boxShadow: isSelected ? `0 0 0 1px ${tone}, 0 0 28px ${tone}66, inset 0 0 40px ${tone}22` : undefined,
+                  }}
                 >
-                  <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
+                  {/* Fond de faction */}
+                  <div
+                    className={`absolute inset-0 bg-cover bg-bottom mix-blend-screen pointer-events-none transition-opacity duration-500 ${isSelected ? 'opacity-70' : 'opacity-25 group-hover:opacity-50'}`}
+                    style={{ backgroundImage: `url(${factionKit(f.id).background})` }}
+                  ></div>
+                  <div className={`absolute inset-0 bg-gradient-to-t ${f.overlayColor} mix-blend-overlay pointer-events-none transition-opacity duration-500 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-60'}`}></div>
+                  {/* Filet de faction en haut */}
+                  <div className="absolute top-0 inset-x-0 h-[2px] pointer-events-none" style={{ background: tone, boxShadow: `0 0 10px ${tone}`, opacity: isSelected ? 1 : 0.5 }}></div>
 
-                  <div className={`mb-4 transition-colors duration-300 ${isSelected ? f.text : `text-gray-500 group-hover:${f.text}`}`}>
-                    {f.icon}
+                  <div className={`relative mb-4 transition-all duration-300 ${isSelected ? '' : 'opacity-70 grayscale-[40%] group-hover:opacity-100 group-hover:grayscale-0'}`}>
+                    <SwEmblem faction={f.id} size={72} />
                   </div>
 
-                  <h3 className={`text-lg font-bold uppercase tracking-widest mb-2 font-serif transition-colors duration-300 ${isSelected ? 'text-white' : `text-gray-400 group-hover:text-white`}`}>
+                  <h3 className={`relative sw-title text-lg tracking-widest mb-2 transition-colors duration-300 ${isSelected ? '' : 'opacity-80 group-hover:opacity-100'}`} style={isSelected ? { color: tone, textShadow: `0 0 10px ${tone}88` } : undefined}>
                     {f.name}
                   </h3>
 
-                  <p className="text-xs text-gray-500 font-mono leading-relaxed min-h-[60px] group-hover:text-gray-300 transition-colors">
+                  <SwDivider className="relative w-16 mb-3 opacity-80" />
+
+                  <p className="relative text-xs text-sw-dim leading-relaxed min-h-[60px] group-hover:text-sw-text transition-colors">
                     {f.desc}
                   </p>
 
-                  <div className={`mt-4 w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-300 
-                    ${isSelected 
-                        ? `border-${f.color}-500 bg-${f.color}-500 text-black scale-110` 
-                        : `border-gray-700 group-hover:border-${f.color}-500/50`
-                    }`}>
+                  <div
+                    className={`relative mt-4 w-6 h-6 rounded-full border flex items-center justify-center text-xs font-bold transition-all duration-300
+                      ${isSelected ? 'text-black scale-110' : 'border-sw-border bg-sw-panel-dark'}`}
+                    style={isSelected ? { borderColor: tone, background: tone, boxShadow: `0 0 10px ${tone}` } : undefined}
+                  >
                     {isSelected && <span>✓</span>}
                   </div>
                 </button>
@@ -243,25 +267,27 @@ export default function FactionSelector({ userID, onFactionSelected, onBack }) {
              <div className="grid grid-cols-2 gap-8 w-full max-w-2xl mb-8 animate-in slide-in-from-bottom-5 fade-in duration-500">
                 {FACTIONS.find(f => f.id === 'neutral').subFactions.map(sub => {
                   const isSubSelected = selectedSubId === sub.id;
+                  const tone = FACTION_TONES[sub.id];
                   return (
                     <button
                       key={sub.id}
                       onClick={() => setSelectedSubId(sub.id)}
-                      className={`relative overflow-hidden p-6 rounded-xl border-2 transition-all duration-300 flex flex-col items-center gap-3 text-center group
-                        ${isSubSelected 
-                           ? sub.style + " scale-105 shadow-[0_0_25px_currentColor] ring-2 ring-white/20" 
-                           : "bg-black/60 border-gray-800 text-gray-500 hover:text-white hover:border-gray-500 hover:bg-gray-900/80"
-                        }
+                      className={`sw-panel-dark relative overflow-hidden p-5 transition-all duration-300 flex flex-col items-center gap-3 text-center group cursor-pointer
+                        ${isSubSelected ? 'scale-105' : 'hover:bg-sw-panel-light'}
                       `}
+                      style={{
+                        boxShadow: `inset 2px 0 0 ${tone}${isSubSelected ? `, 0 0 0 1px ${tone}, 0 0 22px ${tone}55` : ''}`,
+                        borderColor: isSubSelected ? tone : undefined,
+                      }}
                     >
-                       <div className="text-4xl">{sub.icon}</div>
+                       <SwCell icon={SUB_ICONS[sub.id]} size={56} active={isSubSelected} />
                        <div>
-                          <h4 className="font-bold uppercase tracking-widest text-sm">{sub.name}</h4>
-                          <p className="text-[10px] opacity-70 mt-1">{sub.desc}</p>
+                          <h4 className="sw-title text-sm tracking-widest" style={isSubSelected ? { color: tone } : { color: 'var(--sw-text-dim)' }}>{sub.name}</h4>
+                          <p className="text-[10px] text-sw-dim mt-1">{sub.desc}</p>
                        </div>
-                       
+
                        {isSubSelected && (
-                         <div className="absolute top-2 right-2 w-3 h-3 bg-white rounded-full animate-pulse shadow-[0_0_10px_white]"></div>
+                         <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: tone, boxShadow: `0 0 10px ${tone}` }}></div>
                        )}
                     </button>
                   );
@@ -271,28 +297,26 @@ export default function FactionSelector({ userID, onFactionSelected, onBack }) {
 
           <div className="h-16 flex items-center justify-center w-full">
             {(selectedId && (selectedId !== 'neutral' || selectedSubId)) ? (
-                <button
+                <SwButton
                     onClick={handleJoin}
                     disabled={loading}
-                    className={`px-12 py-4 font-bold uppercase tracking-[0.2em] text-sm text-white transition-all duration-300 shadow-xl clip-path-polygon animate-in fade-in slide-in-from-bottom-4
-                        ${loading ? 'bg-gray-700 cursor-wait' : 'bg-gradient-to-r from-yellow-700 to-yellow-600 hover:from-yellow-600 hover:to-yellow-500 hover:scale-105 hover:shadow-yellow-500/20'}
-                    `}
-                    style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+                    variant="accent"
+                    className={`px-12 animate-in fade-in slide-in-from-bottom-4 ${loading ? 'cursor-wait' : ''}`}
                 >
                     {loading ? "INITIALISATION..." : "CONFIRMER L'ALLÉGEANCE"}
-                </button>
+                </SwButton>
             ) : (
-                <span className="text-gray-400 text-xs font-mono uppercase tracking-widest animate-pulse bg-black/60 px-4 py-2 rounded backdrop-blur-md">
-                    Survolez pour analyser les factions
-                </span>
+                <SwGlass className="px-4 py-2">
+                    <span className="sw-label animate-pulse">Survolez pour analyser les factions</span>
+                </SwGlass>
             )}
           </div>
-          
+
           {onBack && (
             <div className="mt-8">
-                <button 
+                <button
                     onClick={onBack}
-                    className="text-gray-500 hover:text-white text-xs font-mono uppercase tracking-widest underline decoration-gray-700 underline-offset-4 hover:decoration-white transition-all"
+                    className="sw-label text-sw-faint hover:text-sw-gold cursor-pointer transition-colors"
                 >
                     &lt; Retour (Déconnexion)
                 </button>

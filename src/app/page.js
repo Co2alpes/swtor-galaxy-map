@@ -9,6 +9,7 @@ import GalaxyMap from '@/components/GalaxyMap';
 import Auth from '@/components/Auth';
 import FactionSelector from '@/components/FactionSelector';
 import MusicManager from '@/components/MusicManager';
+import { SwBackdrop, SwDivider, SwEmblem, SwFaction, SwLabel, SwPortrait, SwSpinner } from '@/components/ui/Swtor';
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -53,7 +54,7 @@ export default function Home() {
     return (
         <main 
             onClick={startExperience}
-            className="flex h-screen w-screen items-center justify-center bg-black text-yellow-500 font-mono cursor-pointer relative overflow-hidden group"
+            className="flex h-screen w-screen items-center justify-center bg-sw-bg cursor-pointer relative overflow-hidden group"
         >
             {/* --- HYPERSPACE EFFECT --- */}
             {isTransitioning && (
@@ -63,19 +64,21 @@ export default function Home() {
                 </div>
             )}
 
-            <div className={`absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 ${isTransitioning ? 'animate-ping duration-1000' : 'animate-pulse'}`}></div>
-            
-            <div className={`z-10 flex flex-col items-center gap-6 p-12 border border-yellow-900/30 bg-black/40 backdrop-blur-sm rounded-xl transition-all duration-1000 ease-in
-                ${isTransitioning ? 'scale-[3] opacity-0 blur-sm translate-z-10' : 'group-hover:border-yellow-500/50 group-hover:bg-black/60 group-hover:shadow-[0_0_50px_rgba(234,179,8,0.2)]'}
+            <SwBackdrop dim={0.3} className={isTransitioning ? 'animate-ping duration-1000' : ''} />
+
+            <div className={`z-10 flex flex-col items-center gap-5 transition-all duration-1000 ease-in
+                ${isTransitioning ? 'scale-[3] opacity-0 blur-sm' : ''}
             `}>
-                <h1 className="text-4xl md:text-6xl font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-800 drop-shadow-sm">
+                <SwPortrait size={150} scanner>
+                    <SwEmblem size={86} />
+                </SwPortrait>
+                <h1 className="sw-title text-5xl md:text-7xl tracking-[0.14em] mt-4 drop-shadow-[0_0_20px_rgb(var(--sw-accent-rgb)/0.5)]">
                     SWTOR
                 </h1>
-                <p className="text-sm tracking-[0.5em] text-yellow-600/80 uppercase border-t border-b border-yellow-900/30 py-2">
-                    Galactic CONQUEST
-                </p>
-                <div className="mt-8 text-xs font-bold animate-bounce text-yellow-400">
-                    {isTransitioning ? "INITIALISATION HYPERDRIVE..." : "[ CLIQUER POUR INITIALISER LE SYSTÈME ]"}
+                <SwDivider className="w-72" />
+                <SwLabel className="tracking-[0.6em] text-sw-gold-dim">Galactic Conquest</SwLabel>
+                <div className="sw-btn sw-btn-accent mt-8 group-hover:[border-image-source:url(/ui/swtor/btn_hover.png)] animate-pulse">
+                    {isTransitioning ? "Initialisation hyperdrive..." : "Cliquer pour initialiser le système"}
                 </div>
             </div>
         </main>
@@ -88,11 +91,9 @@ export default function Home() {
   // --- 1. CHARGEMENT ---
   if (loading) {
     content = (
-      <main className="flex h-screen w-screen items-center justify-center bg-black text-yellow-500 font-mono">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
-          <div className="animate-pulse tracking-widest uppercase text-sm">Connexion à l'Holonet...</div>
-        </div>
+      <main className="relative flex h-screen w-screen items-center justify-center bg-sw-bg">
+        <SwBackdrop dim={0.5} />
+        <SwSpinner size={110} label="Connexion à l'Holonet..." className="z-10" />
       </main>
     );
   }
@@ -101,23 +102,23 @@ export default function Home() {
   else if (user && userData && userData.faction_id && userData.faction_id !== 'neutral') {
     mode = 'game';
     content = (
-      <main className="h-screen w-screen bg-black overflow-hidden">
-        <GalaxyMap 
+      <SwFaction as="main" faction={userData.faction_id} className="h-screen w-screen bg-sw-bg overflow-hidden">
+        <GalaxyMap
             userFaction={userData.faction_id} 
             userRole={userData.role || 'joueur'} 
             userID={user.uid}
             userName={userData.pseudo || user.displayName || "Commandant"} 
             heroData={userData.hero_data}
         />
-      </main>
+      </SwFaction>
     );
   }
 
   // --- 3. SÉLECTION DE FACTION (Connecté sans faction) ---
   else if (user && (!userData || !userData.faction_id || userData.faction_id === 'neutral')) {
       content = (
-        <main className="flex min-h-screen items-center justify-center bg-black relative">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30"></div>
+        <main className="flex min-h-screen items-center justify-center bg-sw-bg relative">
+            <SwBackdrop dim={0.45} />
             <div className="z-10 w-full max-w-4xl p-4">
                 <FactionSelector 
                     userID={user.uid} 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import { SwGlass } from './ui/Swtor';
 
 // Configuration des pistes audio (Listes de lecture)
 const PLAYLISTS = {
@@ -131,69 +132,73 @@ export default function MusicManager({ mode = 'menu', autoPlay = false }) {
     setIsPlaying(true);
   };
 
+  // Petits boutons icônes du lecteur (tokens SWTOR)
+  const iconBtn = "w-8 h-8 rounded-[3px] flex items-center justify-center cursor-pointer transition-all text-sw-dim hover:text-sw-gold hover:bg-sw-panel-light/70";
+
   return (
     <div className="fixed bottom-4 right-4 z-[200] flex flex-col items-end gap-2 group">
-        
+
         {/* PLAYLIST POPUP */}
         {showPlaylist && (
-            <div className="bg-black/90 backdrop-blur-md border border-yellow-600/30 rounded-lg p-2 mb-2 w-64 shadow-[0_0_20px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom-2">
-                <div className="flex justify-between items-center px-2 pb-2 mb-2 border-b border-yellow-900/30">
-                    <span className="text-[10px] font-bold uppercase text-yellow-600 tracking-widest">Liste de Lecture</span>
-                    <button onClick={() => setShowPlaylist(false)} className="text-gray-500 hover:text-white text-xs">✕</button>
+            <SwGlass className="p-2 pl-3 mb-1 w-64 shadow-[0_0_20px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom-2">
+                <div className="flex justify-between items-center px-1 pb-2 mb-2 border-b border-sw-border">
+                    <span className="sw-label text-[10px] text-sw-gold">Liste de Lecture</span>
+                    <button onClick={() => setShowPlaylist(false)} aria-label="Fermer" className="sw-close scale-75"></button>
                 </div>
-                <div className="max-h-60 overflow-y-auto space-y-1 custom-scrollbar">
+                <div className="max-h-60 overflow-y-auto space-y-1 sw-scroll">
                     {currentPlaylist.map((track, idx) => (
-                        <button 
+                        <button
                             key={idx}
-                            onClick={() => { 
-                                setCurrentTrackIndex(idx); 
-                                setIsPlaying(true); 
+                            onClick={() => {
+                                setCurrentTrackIndex(idx);
+                                setIsPlaying(true);
                                 // setShowPlaylist(false); // Optional: close on select
                             }}
-                            className={`w-full text-left px-2 py-1.5 rounded text-[10px] uppercase font-bold tracking-wider transition-all flex items-center gap-2
-                                ${idx === currentTrackIndex 
-                                    ? 'bg-yellow-900/40 text-yellow-400 border border-yellow-600/20' 
-                                    : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+                            data-active={idx === currentTrackIndex ? 'true' : undefined}
+                            className={`sw-row w-full text-left px-2 py-1.5 text-[10px] uppercase font-bold tracking-wider flex items-center gap-2 cursor-pointer
+                                ${idx === currentTrackIndex
+                                    ? 'text-sw-gold'
+                                    : 'text-sw-dim hover:text-sw-text'
                                 }`}
                         >
                             <span className="w-4 text-center opacity-50">{idx + 1}.</span>
                             <span className="truncate flex-grow">{track.title}</span>
                             {idx === currentTrackIndex && isPlaying && (
-                                <span className="animate-pulse text-yellow-500">▶</span>
+                                <span className="animate-pulse text-sw-accent">▶</span>
                             )}
                         </button>
                     ))}
                 </div>
-            </div>
+            </SwGlass>
         )}
 
-        <div className="flex items-center gap-2 bg-black/80 backdrop-blur-md border border-yellow-600/30 p-2 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-opacity duration-300 group-hover:opacity-100 opacity-50 hover:bg-black/90">
-        
+        <SwGlass className="flex items-center gap-1.5 py-1.5 pl-3 pr-2 shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-opacity duration-300 group-hover:opacity-100 opacity-60">
+
         {/* PLAYLIST TOGGLE BUTTON */}
-        <button 
+        <button
             onClick={() => setShowPlaylist(!showPlaylist)}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showPlaylist ? 'bg-yellow-900/40 text-yellow-400' : 'bg-transparent text-yellow-700 hover:text-yellow-500 hover:bg-yellow-900/20'}`}
+            className={`${iconBtn} ${showPlaylist ? 'text-sw-gold! bg-sw-accent/15' : ''}`}
             title="Liste de lecture"
         >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zM20 6v12l-6-6z"/></svg>
         </button>
 
-        <div className="w-px h-6 bg-yellow-900/30 mx-1"></div>
+        <div className="w-px h-6 bg-sw-border mx-1"></div>
 
         {/* PREV */}
         {currentPlaylist.length > 1 && (
-             <button 
+             <button
                 onClick={playPrev}
-                className="w-8 h-8 rounded-full bg-transparent hover:bg-yellow-900/20 text-yellow-600 hover:text-yellow-400 flex items-center justify-center transition-all"
+                className={iconBtn}
             >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
             </button>
         )}
 
         {/* BOUTON PLAY/PAUSE */}
-        <button 
+        <button
             onClick={togglePlay}
-            className="w-10 h-10 rounded-full bg-yellow-900/20 border border-yellow-600/50 flex items-center justify-center text-yellow-500 hover:bg-yellow-600 hover:text-black transition-all"
+            className="w-10 h-10 rounded-full border border-sw-accent/60 bg-sw-accent/10 flex items-center justify-center text-sw-accent-light cursor-pointer transition-all hover:bg-sw-accent/25 hover:text-sw-gold shadow-[0_0_8px_rgb(var(--sw-accent-rgb)/0.35)]"
         >
             {isPlaying ? (
                 // Pause Icon
@@ -206,9 +211,9 @@ export default function MusicManager({ mode = 'menu', autoPlay = false }) {
 
          {/* NEXT */}
         {currentPlaylist.length > 1 && (
-             <button 
+             <button
                 onClick={playNext}
-                className="w-8 h-8 rounded-full bg-transparent hover:bg-yellow-900/20 text-yellow-600 hover:text-yellow-400 flex items-center justify-center transition-all"
+                className={iconBtn}
             >
                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
             </button>
@@ -216,38 +221,38 @@ export default function MusicManager({ mode = 'menu', autoPlay = false }) {
 
         {/* CONTAINER VOLUME (Affiché au survol ou toujours) */}
         <div className="flex items-center gap-2 px-2 hidden md:flex">
-            <button onClick={() => setIsMuted(!isMuted)} className="text-yellow-600 hover:text-yellow-400">
+            <button onClick={() => setIsMuted(!isMuted)} className="text-sw-dim hover:text-sw-gold cursor-pointer transition-colors">
                 {isMuted ? (
                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9l6 6m-6 0l6-6" /></svg>
                 ) : (
                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 0 1 0 7.072m2.828-9.9a9 9 0 0 1 0 14.142M5.586 15H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
                 )}
             </button>
-            
-            <input 
-                type="range" 
-                min="0" 
-                max="1" 
-                step="0.05" 
-                value={isMuted ? 0 : volume} 
+
+            <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={isMuted ? 0 : volume}
                 onChange={(e) => {
                     setVolume(parseFloat(e.target.value));
                     if (isMuted && parseFloat(e.target.value) > 0) setIsMuted(false);
                 }}
-                className="w-20 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-yellow-600 [&::-webkit-slider-thumb]:rounded-full hover:[&::-webkit-slider-thumb]:bg-yellow-400"
+                className="w-20 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[var(--sw-accent)] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-sw-accent [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-[0_0_6px_var(--sw-accent)] hover:[&::-webkit-slider-thumb]:bg-sw-gold"
             />
         </div>
 
         {/* INFO TRACK */}
-        <div className="flex flex-col justify-center px-3 border-l border-yellow-900/30 hidden lg:flex min-w-[120px]">
-            <span className="text-[8px] font-mono text-yellow-700 uppercase tracking-widest">
+        <div className="flex flex-col justify-center px-3 border-l border-sw-border hidden lg:flex min-w-[120px]">
+            <span className="sw-label text-[8px] text-sw-faint">
                 {mode === 'menu' ? ':: MENU FREQ.' : ':: BATTLE NET.'}
             </span>
-            <span className="text-[10px] font-bold text-yellow-500 uppercase tracking-wider truncate max-w-[150px]">
+            <span className="text-[10px] font-bold text-sw-gold uppercase tracking-wider truncate max-w-[150px]">
                 {currentTrack.title}
             </span>
         </div>
-      </div>
+      </SwGlass>
     </div>
   );
 }
