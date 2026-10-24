@@ -1816,7 +1816,7 @@ export default function GalaxyMap({ userFaction, userRole, userID, userName, her
             ? <GroundCombat attackerArmy={pendingBattle.attackerArmy} defenderGarrison={pendingBattle.defenderGarrison} planetType={pendingBattle.defenderPlanet?.planet_type || 'unknown'} onBattleEnd={handleBattleEnd} customUnits={customUnits.filter(u=>u.category==='ground')} customMap={savedMaps.find(m => m.id === pendingBattle.defenderPlanet?.ground_map_id)} heroData={heroData} magicDomains={magicDomains} />
             : <FleetCombat attackerFleet={pendingBattle.attackerFleet} defenderFleets={pendingBattle.defenderFleets} defenderPlanet={pendingBattle.defenderPlanet} onBattleEnd={handleBattleEnd} customUnits={customUnits.filter(u=>u.category==='space')} />
       )}
-      {showDiplomacy && (<DiplomacyScreen userFaction={userFaction} onClose={()=>setShowDiplomacy(false)} />)}
+      {showDiplomacy && (<DiplomacyScreen userFaction={userFaction} userID={userID} userName={userData?.pseudo || userName} userRole={userRole} currentTurn={currentTurn} diplomaticAssignment={userData?.diplomatic_assignment} onClose={()=>setShowDiplomacy(false)} />)}
       {showBuildMenu && canBuild && (<BuildMenuOverlay buildingsTemplates={buildingsTemplates} factionData={factionData} selectedPlanet={activePlanet} handleConstruct={handleConstruct} onClose={()=>setShowBuildMenu(false)} userFaction={userFaction} />)}
       {showProfile && ProfileScreen && (<ProfileScreen userID={userID} onClose={()=>setShowProfile(false)} />)}
       {showAdminUsers && <AdminUserList onClose={() => setShowAdminUsers(false)} />}

@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { db } from '../app/lib/firebase';
 import { collection, getDocs, doc, updateDoc, increment, setDoc, onSnapshot, addDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { SwButton, SwCell, SwIcon, SwWindow } from './ui/Swtor';
+import DocumentsPanel, { useDiplomaticDocuments } from './diplomacy/DocumentsPanel';
+import HistoryPanel from './diplomacy/HistoryPanel';
+import { REQUEST_LABELS, logDiplomacy } from './diplomacy/diplomacyLog';
 
 // --- CONFIGURATION ---
 const COLORS = {
@@ -62,8 +65,8 @@ const STATUS_ICONS = {
     trade: 'galactictradekioskunlock',
 };
 
-export default function DiplomacyScreen({ userFaction, onClose }) {
-    const [view, setView] = useState('list'); // 'list' ou 'requests'
+export default function DiplomacyScreen({ userFaction, onClose, userID, userName, userRole, currentTurn, diplomaticAssignment }) {
+    const [view, setView] = useState('list'); // 'list', 'requests', 'documents' ou 'history'
     const [factions, setFactions] = useState([]);
     const [selectedFaction, setSelectedFaction] = useState(null);
     const [relations, setRelations] = useState({});
@@ -71,6 +74,14 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
     const [requests, setRequests] = useState([]); 
     const [sentRequests, setSentRequests] = useState([]); 
     const [loading, setLoading] = useState(false);
+    const documents = useDiplomaticDocuments(userFaction);
+
+    // Signataire courant (journal et documents)
+    const me = { id: userID, name: userName || 'Diplomate', role: userRole, faction: userFaction, factionName: myFactionData?.name || userFaction };
+    const logAct = (type, other, details = '') => logDiplomacy({ type, actor: me, other, turn: currentTurn, details });
+    // Destinataire proposé : faction sélectionnée, puis ambassade du diplomate, puis le grand rival.
+    const rival = userFaction === 'empire' ? 'republic' : (userFaction === 'republic' ? 'empire' : null);
+    const defaultTarget = [selectedFaction?.id, diplomaticAssignment, rival].find((id) => id && factions.some((f) => f.id === id));
 
     // --- CHARGEMENT ---
     useEffect(() => {
@@ -149,6 +160,7 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
                 type: type,
                 createdAt: new Date()
             });
+            await logAct('request_sent', { id: selectedFaction.id, name: selectedFaction.name }, REQUEST_LABELS[type]);
             alert("Proposition envoyée.");
         } catch (e) { console.error(e); }
         setLoading(false);
@@ -157,15 +169,20 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
     const handleRequestResponse = async (req, accepted) => {
         if (!confirm(accepted ? "Accepter la proposition ?" : "Refuser la proposition ?")) return;
         try {
+            const sender = { id: req.senderId, name: req.senderName };
             if (accepted) {
                 if (req.type === 'peace') {
                     await setDoc(doc(db, `factions/${userFaction}/diplomacy`, req.senderId), { score: -40, status: 'neutral' });
                     await setDoc(doc(db, `factions/${req.senderId}/diplomacy`, userFaction), { score: -40, status: 'neutral' });
+                    await logAct('peace', sender, REQUEST_LABELS.peace);
                     alert("La paix est signée !");
                 } else {
                     await updateRelationInDb(req.senderId, 15, req.type);
+                    await logAct('request_accepted', sender, REQUEST_LABELS[req.type]);
                     alert(`Accord accepté !`);
                 }
+            } else {
+                await logAct('request_refused', sender, REQUEST_LABELS[req.type]);
             }
             await deleteDoc(doc(db, "diplomacy_requests", req.id));
         } catch (e) { console.error(e); }
@@ -174,6 +191,7 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
     const handleUnilateralAction = async (action) => {
         if (!selectedFaction?.id) return;
         setLoading(true);
+        const target = { id: selectedFaction.id, name: selectedFaction.name };
         try {
             if (action === 'gift') {
                 if ((myFactionData?.credits || 0) < 500) alert("Pas assez de crédits.");
@@ -181,16 +199,20 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
                     await updateDoc(doc(db, "factions", userFaction), { credits: increment(-500) });
                     await updateDoc(doc(db, "factions", selectedFaction.id), { credits: increment(500) });
                     await updateRelationInDb(selectedFaction.id, 15);
+                    await logAct('gift', target, '500 crédits');
                 }
             } 
             else if (action === 'war') {
                 if (confirm("DÉCLARATION DE GUERRE : Êtes-vous sûr ?")) {
                     await updateRelationInDb(selectedFaction.id, -100, 'war');
+                    await logAct('war', target);
                 }
             }
             else if (action === 'break_treaty') {
                 if (confirm("Rompre cet accord entachera notre réputation. Continuer ?")) {
+                    const broken = getRelationStatus(selectedFaction.id);
                     await updateRelationInDb(selectedFaction.id, -50, 'neutral');
+                    await logAct('treaty_broken', target, broken === 'alliance' ? 'Alliance militaire' : (broken === 'trade' ? 'Accord commercial' : ''));
                 }
             }
         } catch (e) { console.error(e); }
@@ -274,6 +296,13 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
                     <SwIcon name="holodisk1" size={20} className="mr-2 -ml-1" />Requêtes
                     {requests.length > 0 && <span className="absolute -top-2 -right-2 bg-sw-error text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-[0_0_8px_var(--sw-error)]">{requests.length}</span>}
                 </button>
+                <button onClick={() => setView('documents')} data-active={view === 'documents' ? 'true' : undefined} className="sw-tab min-w-[10rem] text-sm relative">
+                    <SwIcon name="jedistonetablet" size={20} className="mr-2 -ml-1" />Documents
+                    {documents.unread > 0 && <span className="absolute -top-2 -right-2 bg-sw-error text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full animate-pulse shadow-[0_0_8px_var(--sw-error)]">{documents.unread}</span>}
+                </button>
+                <button onClick={() => setView('history')} data-active={view === 'history' ? 'true' : undefined} className="sw-tab min-w-[10rem] text-sm">
+                    <SwIcon name="lore" size={20} className="mr-2 -ml-1" />Historique
+                </button>
                 <button onClick={onClose} aria-label="Fermer" className="sw-close absolute right-[-36px] top-1"></button>
             </div>
 
@@ -285,6 +314,24 @@ export default function DiplomacyScreen({ userFaction, onClose }) {
                         <div className="flex-grow"></div>
                         <PortraitPanel faction={selectedFaction} isMe={false} />
                     </>
+                ) : view === 'documents' ? (
+                    <SwWindow
+                        title="Chancellerie"
+                        subtitle="Documents officiels · canal diplomatique sécurisé"
+                        icon="jedistonetablet"
+                        className="w-full max-w-7xl mx-auto h-[78vh] pointer-events-auto"
+                    >
+                        <DocumentsPanel me={me} factions={factions} turn={currentTurn} documents={documents} initialTarget={defaultTarget} />
+                    </SwWindow>
+                ) : view === 'history' ? (
+                    <SwWindow
+                        title="Archives diplomatiques"
+                        subtitle={`Historique des actes · ${me.factionName}`}
+                        icon="lore"
+                        className="w-full max-w-5xl mx-auto h-[78vh] pointer-events-auto"
+                    >
+                        <HistoryPanel me={me} factions={factions} />
+                    </SwWindow>
                 ) : (
                     <SwWindow
                         title="Missives Diplomatiques"

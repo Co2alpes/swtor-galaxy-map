@@ -39,6 +39,16 @@ service cloud.firestore {
     function isHighCommand() {
       return role() in ['admin', 'gamemaster', 'conseil', 'general', 'emperor'];
     }
+    function myFaction() {
+      return hasAccount() ? me().get('faction_id', '') : '';
+    }
+    // Diplomates nommés par le Conseil, haut commandement et administrateurs.
+    function isDiplomat() {
+      return hasAccount() && (
+        role() in ['diplomat', 'conseil', 'general', 'emperor', 'admin', 'gamemaster']
+        || me().get('is_diplomat', false) == true
+      );
+    }
     function incoming() {
       return request.resource.data;
     }
@@ -85,6 +95,37 @@ service cloud.firestore {
       match /diplomacy/{did} {
         allow read, write: if hasAccount();
       }
+
+      // Historique diplomatique : chaque acte est écrit chez les deux parties.
+      // Lisible par la faction elle-même ; jamais modifié sauf par un administrateur.
+      match /diplomacy_log/{lid} {
+        allow read: if myFaction() == fid || isAdmin();
+        allow create: if isDiplomat()
+          && incoming().actorId == request.auth.uid
+          && incoming().actorFaction == myFaction()
+          && fid in [incoming().actorFaction, incoming().targetFaction];
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // ---------- Documents diplomatiques ----------
+    // Lisibles par les deux factions concernées ; rédigés par un diplomate de la
+    // faction émettrice ; seule la faction destinataire répond (lu, signé, rejeté).
+    match /diplomatic_documents/{did} {
+      allow read: if resource.data.toFaction == myFaction()
+        || resource.data.fromFaction == myFaction()
+        || isAdmin();
+      allow create: if isDiplomat()
+        && incoming().fromFaction == myFaction()
+        && incoming().authorId == request.auth.uid
+        && incoming().status == 'sent'
+        && incoming().toFaction is string
+        && incoming().toFaction != incoming().fromFaction;
+      allow update: if isDiplomat()
+        && resource.data.toFaction == myFaction()
+        && changedKeys().hasOnly(['status', 'readAt', 'readByName', 'response', 'respondedBy', 'respondedByName', 'respondedAt'])
+        && incoming().status in ['read', 'signed', 'acknowledged', 'rejected'];
+      allow delete: if isAdmin();
     }
 
     match /provinces/{pid} {
